@@ -17,9 +17,9 @@ limitations under the License.
 package engine
 
 import (
-	"fmt"
 	"gitlab.com/lastbackend/engine/client"
 	"gitlab.com/lastbackend/engine/cmd"
+	"gitlab.com/lastbackend/engine/cmd/flags"
 	"gitlab.com/lastbackend/engine/config"
 	"gitlab.com/lastbackend/engine/server"
 	"gitlab.com/lastbackend/engine/storage"
@@ -28,8 +28,9 @@ import (
 )
 
 type Options struct {
-	Name    string
-	Version string
+	Name        string
+	Description string
+	Version     string
 
 	Cmd     cmd.Cmd
 	Client  client.Client
@@ -49,7 +50,7 @@ type Options struct {
 
 func newOptions(opts ...Option) Options {
 	opt := Options{
-		Cmd: cmd. NewCmd(),
+		Cmd: cmd.NewCmd(),
 		//Client:  client.DefaultClient,
 		Server: server.DefaultServer,
 		//Storage: storage.DefaultStorage,
@@ -63,11 +64,28 @@ func newOptions(opts ...Option) Options {
 	return opt
 }
 
-func Flags(flags ...*cmd.Flag) Option {
+func WithName(name string) Option {
+	return func(o *Options) {
+		o.Name = name
+	}
+}
+
+func WithVersion(version string) Option {
+	return func(o *Options) {
+		o.Version = version
+	}
+}
+
+func WithDescription(desc string) Option {
+	return func(o *Options) {
+		o.Description = desc
+	}
+}
+
+func WithFlags(flags ...flags.Flag) Option {
 	return func(o *Options) {
 		for _, flag := range flags {
-			fmt.Println("::::::::", flag.Name)
-			o.Cmd.Get().Flags = append(o.Cmd.Get().Flags, flag)
+			*o.Cmd.Get().Flags = append(*o.Cmd.Get().Flags, flag)
 		}
 	}
 }

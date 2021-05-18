@@ -21,7 +21,6 @@ import (
 	"gitlab.com/lastbackend/engine/config"
 	"gitlab.com/lastbackend/engine/server"
 	"gitlab.com/lastbackend/engine/storage"
-
 	"os"
 	"os/signal"
 	"sync"
@@ -36,11 +35,6 @@ type service struct {
 func newService(opts ...Option) (Service, error) {
 	s := new(service)
 	s.opts = newOptions(opts...)
-
-	if err := s.opts.Cmd.Execute(); err != nil {
-		return nil, err
-	}
-
 	return s, nil
 }
 
@@ -54,6 +48,18 @@ func (s *service) Version() string {
 
 func (s *service) Options() Options {
 	return s.opts
+}
+
+func (s *service) Configure() error {
+	if err := s.opts.Cmd.Execute(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) Flags() Flags {
+	return s.opts.Cmd.Get().Flags
 }
 
 func (s *service) Client() client.Client {
@@ -73,6 +79,7 @@ func (s *service) Config() config.Config {
 }
 
 func (s *service) Start() error {
+
 	for _, fn := range s.opts.BeforeStart {
 		if err := fn(); err != nil {
 			return err
@@ -115,6 +122,7 @@ func (s *service) Stop() error {
 }
 
 func (s *service) Run() error {
+
 	if err := s.Start(); err != nil {
 		return err
 	}

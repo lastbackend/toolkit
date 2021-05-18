@@ -16,7 +16,6 @@ limitations under the License.
 
 package server
 
-// router represents an RPC router.
 type router struct {
 	name string
 }
