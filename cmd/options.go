@@ -29,6 +29,7 @@ type Options struct {
 	ShortDesc string
 	LongDesc  string
 	Version   string
+	EnvPrefix string
 }
 
 func AddGlobalFlags(fs *pflag.FlagSet) {

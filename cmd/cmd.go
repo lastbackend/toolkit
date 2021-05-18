@@ -20,7 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"reflect"
+	"gitlab.com/lastbackend/engine/cmd/flags"
 
 	"fmt"
 	"os"
@@ -38,22 +38,22 @@ type Cmd interface {
 }
 
 type cmd struct {
-	Flags   []*Flag
 	opts    Options
+	Flags   *flags.Flags
 	rootCmd *cobra.Command
 }
 
 type Option func(o *Options)
 
-var (
-	DefaultFlags = []Flag{
-		{
-			Name:    "server_address",
-			EnvVars: []string{"ENGINE_SERVER_ADDRESS"},
-			Usage:   "Bind address for the server. 127.0.0.1:8080",
-		},
-	}
-)
+//var (
+//	DefaultFlags = []flags.Flag{
+//		&flags.StringFlag{
+//			Name:    "server_address",
+//			EnvVars: []string{"ENGINE_SERVER_ADDRESS"},
+//			Usage:   "Bind address for the server. 127.0.0.1:8080",
+//		},
+//	}
+//)
 
 func NewCmd(opts ...Option) Cmd {
 	options := Options{}
@@ -67,13 +67,11 @@ func NewCmd(opts ...Option) Cmd {
 	}
 
 	c := new(cmd)
-
-	for _, f := range DefaultFlags {
-		c.Flags = append(c.Flags, &f)
-	}
-
 	c.opts = options
+	c.Flags = flags.New()
 	c.rootCmd = &cobra.Command{}
+
+	c.rootCmd.SetGlobalNormalizationFunc(wordSepNormalizeFunc)
 
 	if len(c.opts.Name) > 0 {
 		c.rootCmd.Use = c.opts.Name
@@ -88,84 +86,34 @@ func NewCmd(opts ...Option) Cmd {
 		c.rootCmd.Version = c.opts.Version
 	}
 
-	global := pflag.CommandLine
-
-	cleanFlagSet := pflag.NewFlagSet(c.opts.Name, pflag.ContinueOnError)
-	cleanFlagSet.SetNormalizeFunc(wordSepNormalizeFunc)
-
-	c.rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-		//fmt.Println("1============")
-		//printFlags(cmd.Flags())
-		//fmt.Println("============")
-	}
-
-	c.rootCmd.PreRun = func(cmd *cobra.Command, args []string) {
-		//fmt.Println("2============")
-		//printFlags(cmd.Flags())
-		//fmt.Println("============")
-	}
-
 	c.rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
+
+		if err := cmd.ParseFlags(args); err != nil {
+			return errors.Wrapf(err, "Failed to parse flags")
+		}
 
 		// short-circuit on help
 		help, err := cmd.Flags().GetBool("help")
 		if err != nil {
-			fmt.Println("help >>>>>>", err)
 			return errors.Wrapf(err, "\"help\" flag is non-bool, programmer error, please correct")
 		}
 		if help {
 			return cmd.Help()
 		}
 
-		//cfgFile, err := cmd.Flags().GetString("config")
-		//if err != nil {
-		//	return errors.Wrapf(err, "\"config\" flag is non-string, programmer error, please correct")
-		//}
-
-		fmt.Println("3============")
 		printFlags(cmd.Flags())
-		fmt.Println("============")
-
-		for _, val := range c.Flags {
-			var err error
-			var v interface{}
-			switch t:=val.Value.(type) {
-			case int:
-				v, err = cmd.Flags().GetInt(val.Name)
-			case string:
-				v, err = cmd.Flags().GetString(val.Name)
-			case bool:
-				v, err = cmd.Flags().GetBool(val.Name)
-			default:
-				if val.Value != nil {
-					fmt.Println("t >>>>>",  reflect.Indirect(reflect.ValueOf(t).Elem()).Kind())
-				}
-				v, err = cmd.Flags().GetString(val.Name)
-			}
-			val.Changed = cmd.Flags().Changed(val.Name)
-			fmt.Println("1@ >>>>>>>>>>>>>", val.Name, val.Value)
-			if err != nil {
-				return errors.Wrapf(err, `"`+val.Name+`" flag is non-`+getType(val)+`, programmer error, please correct`)
-			} else if val.Changed && val.Value != nil {
-				fmt.Println("2@ >>>>>>>>>>>>>")
-				reflect.ValueOf(val.Value).Elem().Set(reflect.ValueOf(v))
-				// check if any type is its default(zero) value
-			} else if val.Value != nil && reflect.DeepEqual(val.Value, reflect.Zero(reflect.TypeOf(val.Value)).Interface()) {
-				fmt.Println("3@ >>>>>>>>>>>>>")
-				reflect.ValueOf(val.Value).Elem().Set(reflect.ValueOf(val.DefValue))
-			}
-		}
 
 		return nil
 	}
 
 	c.rootCmd.AddCommand(c.versionCommand())
 
+	global := pflag.CommandLine
 	global.BoolP("help", "h", false, fmt.Sprintf("Show help for command"))
 	global.BoolP("debug", "d", false, "Enable debug mode")
 	global.StringP("config", "c", "", "Set config filepath")
 
-	AddGlobalFlags(cleanFlagSet)
+	AddGlobalFlags(global)
 
 	return c
 }
@@ -174,32 +122,15 @@ func (c *cmd) Options() Options {
 	return c.opts
 }
 
-//func (c *cmd) AddFlag(flag *Flag) {
-//	c.flags = append(c.flags, flag)
-//	c.rootCmd.Flags().StringP(flag.Name, flag.Shorthand, "", flag.Usage)
-//}
-
 func (c *cmd) Get() *cmd {
 	return c
 }
 
 func (c *cmd) Execute() error {
 
-	for _, val := range c.Flags {
-		switch val.Value.(type) {
-		case int:
-			fmt.Println("1 :: >>>>>>", val.Name)
-			c.rootCmd.Flags().IntP(val.Name, val.Shorthand, 0, val.Usage)
-		case string:
-			fmt.Println("2 :: >>>>>>", val.Name)
-			c.rootCmd.Flags().StringP(val.Name, val.Shorthand, "", val.Usage)
-		case bool:
-			fmt.Println("3 :: >>>>>>", val.Name)
-			c.rootCmd.Flags().BoolP(val.Name, val.Shorthand, false, val.Usage)
-		default:
-			fmt.Println("4 :: >>>>>>", val.Name)
-			c.rootCmd.Flags().StringP(val.Name, val.Shorthand, "", val.Usage)
-			continue
+	for _, flag := range *c.Flags {
+		if err := flag.Apply(c.rootCmd.Flags()); err != nil {
+			return err
 		}
 	}
 
@@ -233,12 +164,4 @@ func printFlags(flags *pflag.FlagSet) {
 	flags.VisitAll(func(flag *pflag.Flag) {
 		fmt.Println(fmt.Sprintf("FLAG: --%s=%q", flag.Name, flag.Value))
 	})
-}
-
-func getType(i interface{}) string {
-	if t := reflect.TypeOf(i); t.Kind() == reflect.Ptr {
-		return "*" + t.Elem().Name()
-	} else {
-		return t.Name()
-	}
 }

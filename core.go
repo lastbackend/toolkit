@@ -26,7 +26,9 @@ import (
 type Service interface {
 	Name() string
 	Version() string
+	Configure() error
 	Options() Options
+	Flags() Flags
 	Client() client.Client
 	Server() server.Server
 	Storage() storage.Storage
@@ -36,20 +38,14 @@ type Service interface {
 	Run() error
 }
 
-type Option func(*Options)
-
-type serviceOptions struct {
+type Flags interface {
+	AddStringFlag(name string, shorthand string, value string, dest *string, envVars []string, usage string)
+	AddIntFlag(name string, shorthand string, value int, dest *int, envVars []string, usage string)
+	AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVars []string, usage string)
 }
+
+type Option func(*Options)
 
 func NewService(opts ...Option) (Service, error) {
 	return newService(opts...)
-}
-
-// ServiceOption configures how we set up the service.
-type ServiceOption interface {
-	apply(*serviceOptions)
-}
-
-func WithServer(opt ServiceOption) {
-
 }
