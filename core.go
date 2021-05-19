@@ -21,31 +21,37 @@ import (
 	"gitlab.com/lastbackend/engine/config"
 	"gitlab.com/lastbackend/engine/server"
 	"gitlab.com/lastbackend/engine/storage"
+
+	"context"
 )
 
 type Service interface {
 	Name() string
 	Version() string
-	Configure() error
-	Options() Options
-	Flags() Flags
+	Meta() Meta
+	CLI() CLI
+	Init() error
 	Client() client.Client
 	Server() server.Server
 	Storage() storage.Storage
 	Config() config.Config
-	Start() error
-	Stop() error
+	SetContext(ctx context.Context)
 	Run() error
 }
 
-type Flags interface {
+type Meta interface {
+	SetVersion(string)
+	SetEnvPrefix(string)
+	SetShortDescription(string)
+	SetLongDescription(string)
+}
+
+type CLI interface {
 	AddStringFlag(name string, shorthand string, value string, dest *string, envVars []string, usage string)
 	AddIntFlag(name string, shorthand string, value int, dest *int, envVars []string, usage string)
 	AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVars []string, usage string)
 }
 
-type Option func(*Options)
-
-func NewService(opts ...Option) (Service, error) {
-	return newService(opts...)
+func NewService(name string) Service {
+	return newService(name)
 }

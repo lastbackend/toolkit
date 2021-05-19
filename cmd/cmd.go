@@ -17,7 +17,6 @@ limitations under the License.
 package cmd
 
 import (
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gitlab.com/lastbackend/engine/cmd/flags"
@@ -32,30 +31,26 @@ const (
 )
 
 type Cmd interface {
-	Options() Options
+	flags.FlagSet
+
+	SetName(string)
+	SetVersion(string)
+	SetShortDescription(string)
+	SetLongDescription(string)
+	SetEnvPrefix(string)
 	Execute() error
-	Get() *cmd
 }
 
 type cmd struct {
+	flags.Flags
+
 	opts    Options
-	Flags   *flags.Flags
 	rootCmd *cobra.Command
 }
 
 type Option func(o *Options)
 
-//var (
-//	DefaultFlags = []flags.Flag{
-//		&flags.StringFlag{
-//			Name:    "server_address",
-//			EnvVars: []string{"ENGINE_SERVER_ADDRESS"},
-//			Usage:   "Bind address for the server. 127.0.0.1:8080",
-//		},
-//	}
-//)
-
-func NewCmd(opts ...Option) Cmd {
+func New(opts ...Option) Cmd {
 	options := Options{}
 
 	for _, o := range opts {
@@ -68,10 +63,38 @@ func NewCmd(opts ...Option) Cmd {
 
 	c := new(cmd)
 	c.opts = options
-	c.Flags = flags.New()
-	c.rootCmd = &cobra.Command{}
 
+	return c
+}
+
+func (c *cmd) SetName(s string) {
+	c.opts.Name = s
+}
+
+func (c *cmd) SetVersion(s string) {
+	c.opts.Version = s
+}
+
+func (c *cmd) SetShortDescription(s string) {
+	c.opts.ShortDesc = s
+}
+
+func (c *cmd) SetLongDescription(s string) {
+	c.opts.LongDesc = s
+}
+
+func (c *cmd) SetEnvPrefix(s string) {
+	flags.EnvPrefix = s
+}
+
+func (c *cmd) Execute() error {
+
+	c.rootCmd = &cobra.Command{}
 	c.rootCmd.SetGlobalNormalizationFunc(wordSepNormalizeFunc)
+	c.rootCmd.InitDefaultHelpFlag()
+	c.rootCmd.SetHelpCommand(&cobra.Command{Use: "no-help", Hidden: true})
+	c.rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
+	c.rootCmd.AddCommand(c.versionCommand())
 
 	if len(c.opts.Name) > 0 {
 		c.rootCmd.Use = c.opts.Name
@@ -87,62 +110,17 @@ func NewCmd(opts ...Option) Cmd {
 	}
 
 	c.rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
-
-		if err := cmd.ParseFlags(args); err != nil {
-			return errors.Wrapf(err, "Failed to parse flags")
-		}
-
-		// short-circuit on help
-		help, err := cmd.Flags().GetBool("help")
-		if err != nil {
-			return errors.Wrapf(err, "\"help\" flag is non-bool, programmer error, please correct")
-		}
-		if help {
-			return cmd.Help()
-		}
-
 		printFlags(cmd.Flags())
-
 		return nil
 	}
 
-	c.rootCmd.AddCommand(c.versionCommand())
-
-	global := pflag.CommandLine
-	global.BoolP("help", "h", false, fmt.Sprintf("Show help for command"))
-	global.BoolP("debug", "d", false, "Enable debug mode")
-	global.StringP("config", "c", "", "Set config filepath")
-
-	AddGlobalFlags(global)
-
-	return c
-}
-
-func (c *cmd) Options() Options {
-	return c.opts
-}
-
-func (c *cmd) Get() *cmd {
-	return c
-}
-
-func (c *cmd) Execute() error {
-
-	for _, flag := range *c.Flags {
+	for _, flag := range c.Flags {
 		if err := flag.Apply(c.rootCmd.Flags()); err != nil {
 			return err
 		}
 	}
 
 	return c.rootCmd.Execute()
-}
-
-// wordSepNormalizeFunc normalizes cli flags
-func wordSepNormalizeFunc(f *pflag.FlagSet, name string) pflag.NormalizedName {
-	if strings.Contains(name, "_") {
-		return pflag.NormalizedName(strings.Replace(name, "_", "-", -1))
-	}
-	return pflag.NormalizedName(name)
 }
 
 func (c *cmd) versionCommand() *cobra.Command {
@@ -157,6 +135,14 @@ func (c *cmd) versionCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// wordSepNormalizeFunc normalizes cli flags
+func wordSepNormalizeFunc(f *pflag.FlagSet, name string) pflag.NormalizedName {
+	if strings.Contains(name, "_") {
+		return pflag.NormalizedName(strings.Replace(name, "_", "-", -1))
+	}
+	return pflag.NormalizedName(name)
 }
 
 // printFlags logs the flags in the flagset
