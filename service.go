@@ -18,9 +18,12 @@ package engine
 
 import (
 	"gitlab.com/lastbackend/engine/client"
+	"gitlab.com/lastbackend/engine/cmd"
 	"gitlab.com/lastbackend/engine/config"
 	"gitlab.com/lastbackend/engine/server"
 	"gitlab.com/lastbackend/engine/storage"
+
+	"context"
 	"os"
 	"os/signal"
 	"sync"
@@ -28,126 +31,105 @@ import (
 )
 
 type service struct {
-	opts Options
-	once sync.Once
+	*meta
+
+	context context.Context
+	once    sync.Once
+
+	cmd     cmd.Cmd
+	client  client.Client
+	server  server.Server
+	storage storage.Storage
+	config  config.Config
+
+	signal bool
 }
 
-func newService(opts ...Option) (Service, error) {
+func newService(name string) Service {
 	s := new(service)
-	s.opts = newOptions(opts...)
-	return s, nil
+	s.meta = new(meta)
+	s.meta.Name = name
+	s.cmd = cmd.New()
+	s.context = context.Background()
+	s.server = server.DefaultServer
+	return s
 }
 
 func (s *service) Name() string {
-	return s.opts.Name
+	return s.meta.Name
 }
 
 func (s *service) Version() string {
-	return s.opts.Version
+	return s.meta.Version
 }
 
-func (s *service) Options() Options {
-	return s.opts
+func (s *service) Meta() Meta {
+	return s.meta
 }
 
-func (s *service) Configure() error {
-	if err := s.opts.Cmd.Execute(); err != nil {
+func (s *service) CLI() CLI {
+	return s.cmd
+}
+
+func (s *service) Init() error {
+	s.cmd.SetName(s.meta.Name)
+	s.cmd.SetEnvPrefix(s.meta.EnvPrefix)
+	s.cmd.SetVersion(s.meta.Version)
+	s.cmd.SetShortDescription(s.meta.ShorDescription)
+	s.cmd.SetLongDescription(s.meta.LongDescription)
+
+	if err := s.cmd.Execute(); err != nil {
 		return err
 	}
-
+	
 	return nil
-}
-
-func (s *service) Flags() Flags {
-	return s.opts.Cmd.Get().Flags
 }
 
 func (s *service) Client() client.Client {
-	return s.opts.Client
+	return s.client
 }
 
 func (s *service) Server() server.Server {
-	return s.opts.Server
+	return s.server
 }
 
 func (s *service) Storage() storage.Storage {
-	return s.opts.Storage
+	return s.storage
 }
 
 func (s *service) Config() config.Config {
-	return s.opts.Config
+	return s.config
 }
 
-func (s *service) Start() error {
-
-	for _, fn := range s.opts.BeforeStart {
-		if err := fn(); err != nil {
-			return err
-		}
-	}
-
-	if err := s.opts.Server.Start(); err != nil {
-		return err
-	}
-
-	for _, fn := range s.opts.AfterStart {
-		if err := fn(); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (s *service) Stop() error {
-	var gerr error
-
-	for _, fn := range s.opts.BeforeStop {
-		if err := fn(); err != nil {
-			gerr = err
-		}
-	}
-
-	if err := s.opts.Server.Stop(); err != nil {
-		return err
-	}
-
-	for _, fn := range s.opts.AfterStop {
-		if err := fn(); err != nil {
-			gerr = err
-		}
-	}
-
-	return gerr
+func (s *service) SetContext(ctx context.Context) {
+	s.context = ctx
 }
 
 func (s *service) Run() error {
 
-	if err := s.Start(); err != nil {
+	if err := s.server.Start(); err != nil {
 		return err
 	}
 
 	ch := make(chan os.Signal, 1)
 
-	if s.opts.Signal {
-		signal.Notify(ch, shutdown()...)
+	if s.signal {
+		signal.Notify(ch, shutdownSignals...)
 	}
 
 	select {
 	// wait on kill signal
 	case <-ch:
 	// wait on context cancel
-	case <-s.opts.Context.Done():
+	case <-s.context.Done():
 	}
 
-	return s.Stop()
+	return s.server.Stop()
 }
 
-func shutdown() []os.Signal {
-	return []os.Signal{
-		syscall.SIGTERM,
-		syscall.SIGINT,
-		syscall.SIGQUIT,
-		syscall.SIGKILL,
-	}
+var shutdownSignals = []os.Signal{
+	syscall.SIGTERM,
+	syscall.SIGINT,
+	syscall.SIGQUIT,
+	syscall.SIGKILL,
 }

@@ -39,7 +39,6 @@ func AddGlobalFlags(fs *pflag.FlagSet) {
 	local := pflag.NewFlagSet(os.Args[0], pflag.ExitOnError)
 
 	pflagRegister(global, local, "debug", "d")
-	pflagRegister(global, local, "config", "c")
 
 	fs.AddFlagSet(local)
 }
