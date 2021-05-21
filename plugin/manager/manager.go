@@ -24,9 +24,12 @@ import (
 
 	"fmt"
 	"reflect"
+	"sync"
 )
 
 type manager struct {
+	sync.Mutex
+
 	plugins map[string]plugin.Plugin
 }
 
@@ -37,6 +40,9 @@ func NewManager() plugin.Manager {
 }
 
 func (pm *manager) Register(in interface{}) error {
+	pm.Lock()
+	defer pm.Unlock()
+
 	val := reflect.ValueOf(in).Elem()
 
 	for i := 0; i < val.NumField(); i++ {
@@ -74,6 +80,9 @@ func (pm *manager) Register(in interface{}) error {
 }
 
 func (pm *manager) ExtendСLI(cli cmd.CLI) {
+	pm.Lock()
+	defer pm.Unlock()
+
 	for _, p := range pm.plugins {
 		cli.AddFlags(p.Flags()...)
 	}
@@ -84,18 +93,18 @@ func (pm *manager) ExtendСLI(cli cmd.CLI) {
 }
 
 func (pm *manager) Start() error {
-	for name, plugin := range pm.plugins {
-		if err := plugin.Start(); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("Start plugin %s failed", name))
+	for n, p := range pm.plugins {
+		if err := p.Start(); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Start plugin %s failed", n))
 		}
 	}
 	return nil
 }
 
 func (pm *manager) Stop() {
-	for name, plugin := range pm.plugins {
-		if err := plugin.Stop(); err != nil {
-			fmt.Println(errors.Wrap(err, fmt.Sprintf("Stop plugin %s failed", name)))
+	for n, p := range pm.plugins {
+		if err := p.Stop(); err != nil {
+			fmt.Println(errors.Wrap(err, fmt.Sprintf("Stop plugin %s failed", n)))
 		}
 	}
 }
