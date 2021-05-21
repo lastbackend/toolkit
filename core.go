@@ -18,12 +18,17 @@ package engine
 
 import (
 	"gitlab.com/lastbackend/engine/client"
-	"gitlab.com/lastbackend/engine/config"
+	"gitlab.com/lastbackend/engine/cmd"
+	"gitlab.com/lastbackend/engine/plugin"
 	"gitlab.com/lastbackend/engine/server"
-	"gitlab.com/lastbackend/engine/storage"
 
 	"context"
 )
+
+type Storage interface {
+	plugin.Plugin
+	Client()
+}
 
 type Service interface {
 	Name() string
@@ -33,9 +38,8 @@ type Service interface {
 	Init() error
 	Client() client.Client
 	Server() server.Server
-	Storage() storage.Storage
-	Config() config.Config
 	SetContext(ctx context.Context)
+	Register(i interface{}) error
 	Run() error
 }
 
@@ -47,9 +51,7 @@ type Meta interface {
 }
 
 type CLI interface {
-	AddStringFlag(name string, shorthand string, value string, dest *string, envVars []string, usage string)
-	AddIntFlag(name string, shorthand string, value int, dest *int, envVars []string, usage string)
-	AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVars []string, usage string)
+	cmd.FlagSet
 }
 
 func NewService(name string) Service {

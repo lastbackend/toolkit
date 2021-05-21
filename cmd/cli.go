@@ -17,11 +17,9 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"gitlab.com/lastbackend/engine/cmd/flags"
-
-	"fmt"
 	"os"
 	"strings"
 )
@@ -30,19 +28,22 @@ const (
 	defaultShortDescription = "a engine service"
 )
 
-type Cmd interface {
-	flags.FlagSet
+type CLI interface {
+	FlagSet
 
 	SetName(string)
 	SetVersion(string)
 	SetShortDescription(string)
 	SetLongDescription(string)
 	SetEnvPrefix(string)
+	AddFlags(...Flag)
+	AddCommands(...Command)
 	Execute() error
 }
 
-type cmd struct {
-	flags.Flags
+type cli struct {
+	Flags
+	Commands
 
 	opts    Options
 	rootCmd *cobra.Command
@@ -50,7 +51,7 @@ type cmd struct {
 
 type Option func(o *Options)
 
-func New(opts ...Option) Cmd {
+func New(opts ...Option) CLI {
 	options := Options{}
 
 	for _, o := range opts {
@@ -61,33 +62,41 @@ func New(opts ...Option) Cmd {
 		options.ShortDesc = defaultShortDescription
 	}
 
-	c := new(cmd)
+	c := new(cli)
 	c.opts = options
 
 	return c
 }
 
-func (c *cmd) SetName(s string) {
+func (c *cli) SetName(s string) {
 	c.opts.Name = s
 }
 
-func (c *cmd) SetVersion(s string) {
+func (c *cli) SetVersion(s string) {
 	c.opts.Version = s
 }
 
-func (c *cmd) SetShortDescription(s string) {
+func (c *cli) SetShortDescription(s string) {
 	c.opts.ShortDesc = s
 }
 
-func (c *cmd) SetLongDescription(s string) {
+func (c *cli) SetLongDescription(s string) {
 	c.opts.LongDesc = s
 }
 
-func (c *cmd) SetEnvPrefix(s string) {
-	flags.EnvPrefix = s
+func (c *cli) SetEnvPrefix(s string) {
+	EnvPrefix = s
 }
 
-func (c *cmd) Execute() error {
+func (c *cli) AddFlags(flags ...Flag) {
+	c.Flags = append(c.Flags, flags...)
+}
+
+func (c *cli) AddCommands(commands ...Command) {
+	c.Commands = append(c.Commands, commands...)
+}
+
+func (c *cli) Execute() error {
 
 	c.rootCmd = &cobra.Command{}
 	c.rootCmd.SetGlobalNormalizationFunc(wordSepNormalizeFunc)
@@ -110,12 +119,27 @@ func (c *cmd) Execute() error {
 	}
 
 	c.rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
-		printFlags(cmd.Flags())
+
+		debug, err := cmd.Flags().GetBool("debug")
+		if err != nil {
+			return err
+		}
+
+		if debug {
+			printFlags(cmd.Flags())
+		}
+
 		return nil
 	}
 
-	for _, flag := range c.Flags {
-		if err := flag.Apply(c.rootCmd.Flags()); err != nil {
+	for _, f := range c.Flags {
+		if err := (f.(flag)).apply(c.rootCmd.Flags()); err != nil {
+			return err
+		}
+	}
+
+	for _, cmd := range c.Commands {
+		if err := (cmd.(command)).apply(c.rootCmd); err != nil {
 			return err
 		}
 	}
@@ -123,7 +147,7 @@ func (c *cmd) Execute() error {
 	return c.rootCmd.Execute()
 }
 
-func (c *cmd) versionCommand() *cobra.Command {
+func (c *cli) versionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:     "version",
 		Aliases: []string{"v"},

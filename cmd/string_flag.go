@@ -14,23 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package flags
+package cmd
 
 import (
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
 type StringFlag struct {
+	flag
+
 	Name        string   // name as it appears on command line
 	Shorthand   string   // one-letter abbreviated flag
 	Usage       string   // help message
 	Value       string   // value as set
 	Destination *string  // the return value is the address of a string variable that stores the value of the flag.
 	EnvVars     []string // environment values as set
+	Required    bool     // mark flag as required
 	hasBeenSet  bool
 }
 
-func (f *StringFlag) Apply(set *pflag.FlagSet) error {
+func (f *StringFlag) apply(set *pflag.FlagSet) error {
 	if val, ok := flagFromEnv(f.EnvVars); ok {
 		f.Value = val
 		f.hasBeenSet = true
@@ -40,6 +44,12 @@ func (f *StringFlag) Apply(set *pflag.FlagSet) error {
 		set.StringP(f.Name, f.Shorthand, f.Value, f.Usage)
 	} else {
 		set.StringVarP(f.Destination, f.Name, f.Shorthand, f.Value, f.Usage)
+	}
+
+	if f.Required && !f.hasBeenSet {
+		if err := cobra.MarkFlagRequired(set, f.Name); err != nil {
+			return err
+		}
 	}
 
 	return nil

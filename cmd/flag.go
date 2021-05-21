@@ -14,20 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package storage
+package cmd
 
-const driverName = "postgres"
+import (
+	"github.com/spf13/pflag"
+)
 
-type Options struct {
-	clientOptions
+var EnvPrefix = "ENGINE"
 
-	MigrationsDir *string
+type Flag interface {
+	IsSet() bool
 }
 
-func newOptions(opt ...Option) Options {
-	opts := Options{}
-	for _, o := range opt {
-		o(&opts)
-	}
-	return opts
+type flag interface {
+	apply(*pflag.FlagSet) error
+}
+
+type FlagSet interface {
+	AddStringFlag(name string, shorthand string, value string, dest *string, envVars []string, required bool, usage string)
+	AddIntFlag(name string, shorthand string, value int, dest *int, envVars []string, required bool, usage string)
+	AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVars []string, required bool, usage string)
 }

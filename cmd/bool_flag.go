@@ -14,9 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package flags
+package cmd
 
 import (
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"fmt"
@@ -24,16 +25,20 @@ import (
 )
 
 type BoolFlag struct {
+	flag
+
 	Name        string   // name as it appears on command line
 	Shorthand   string   // one-letter abbreviated flag
 	Usage       string   // help message
 	Value       bool     // value as set
 	Destination *bool    // the return value is the address of a bool variable that stores the value of the flag.
 	EnvVars     []string // environment values as set
-	hasBeenSet  bool
+	Required    bool     // mark flag as required
+
+	hasBeenSet bool
 }
 
-func (f *BoolFlag) Apply(set *pflag.FlagSet) error {
+func (f *BoolFlag) apply(set *pflag.FlagSet) error {
 	if val, ok := flagFromEnv(f.EnvVars); ok {
 		if val != "" {
 			valBool, err := strconv.ParseBool(val)
@@ -50,6 +55,12 @@ func (f *BoolFlag) Apply(set *pflag.FlagSet) error {
 		set.BoolP(f.Name, f.Shorthand, f.Value, f.Usage)
 	} else {
 		set.BoolVarP(f.Destination, f.Name, f.Shorthand, f.Value, f.Usage)
+	}
+
+	if f.Required && !f.hasBeenSet {
+		if err := cobra.MarkFlagRequired(set, f.Name); err != nil {
+			return err
+		}
 	}
 
 	return nil
