@@ -14,21 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package storage
+package postgres
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
-
-	"context"
-	"fmt"
+	storage2 "gitlab.com/lastbackend/engine/plugin/storage"
 	"time"
 )
 
 const (
+	driverName = "postgres"
 	receivedSubscribeDelay = 60 * time.Second
 )
 
@@ -36,64 +37,7 @@ const (
 	errMissingConnectionString = "Missing connection string"
 )
 
-type Client interface {
-	Begin() (ClientTX, error)
-	Beginx() (ClientTX, error)
-	Subscribe(ctx context.Context, channel string, listener chan string) error
-	Publish(ctx context.Context, channel string, data json.RawMessage) error
-	MustBegin() ClientTX
-	MapperFunc(mf func(string) string)
-	Rebind(query string) string
-	BindNamed(query string, arg interface{}) (string, []interface{}, error)
-	NamedQuery(query string, arg interface{}) (*sqlx.Rows, error)
-	NamedExec(query string, arg interface{}) (sql.Result, error)
-	Select(dest interface{}, query string, args ...interface{}) error
-	Get(dest interface{}, query string, args ...interface{}) error
-	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
-	Prepare(query string) (*sql.Stmt, error)
-	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
-	Exec(query string, args ...interface{}) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
-	Query(query string, args ...interface{}) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
-	QueryRow(query string, args ...interface{}) *sql.Row
-	Queryx(query string, args ...interface{}) (*sqlx.Rows, error)
-	QueryRowx(query string, args ...interface{}) *sqlx.Row
-	MustExec(query string, args ...interface{}) sql.Result
-	Preparex(query string) (*sqlx.Stmt, error)
-	PrepareNamed(query string) (*sqlx.NamedStmt, error)
-}
-
-type ClientTX interface {
-	Commit() error
-	Rollback() error
-	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
-	Prepare(query string) (*sql.Stmt, error)
-	StmtContext(ctx context.Context, stmt *sql.Stmt) *sql.Stmt
-	Stmt(stmt *sql.Stmt) *sql.Stmt
-	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
-	Exec(query string, args ...interface{}) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
-	Query(query string, args ...interface{}) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
-	QueryRow(query string, args ...interface{}) *sql.Row
-	Rebind(query string) string
-	BindNamed(query string, arg interface{}) (string, []interface{}, error)
-	NamedQuery(query string, arg interface{}) (*sqlx.Rows, error)
-	NamedExec(query string, arg interface{}) (sql.Result, error)
-	Select(dest interface{}, query string, args ...interface{}) error
-	Queryx(query string, args ...interface{}) (*sqlx.Rows, error)
-	QueryRowx(query string, args ...interface{}) *sqlx.Row
-	Get(dest interface{}, query string, args ...interface{}) error
-	MustExec(query string, args ...interface{}) sql.Result
-	Preparex(query string) (*sqlx.Stmt, error)
-	Stmtx(stmt interface{}) *sqlx.Stmt
-	NamedStmt(stmt *sqlx.NamedStmt) *sqlx.NamedStmt
-	PrepareNamed(query string) (*sqlx.NamedStmt, error)
-}
-
 type clientOptions struct {
-	Connection      string
 	MaxIdleConns    *int
 	MaxOpenConns    *int
 	ConnMaxLifetime *time.Duration
@@ -101,47 +45,55 @@ type clientOptions struct {
 }
 
 type client struct {
-	opts clientOptions
 	conn *sqlx.DB
+
+	connection string
 }
 
-func newClient(opts clientOptions) (*client, error) {
-	c := new(client)
+func newClient() *client {
+	return new(client)
+}
 
-	if len(opts.Connection) == 0 {
-		return nil, errors.New(errMissingConnectionString)
+func (c *client) open(connection string, opts ...clientOptions) error {
+
+	if len(connection) == 0 {
+		return errors.New(errMissingConnectionString)
 	}
 
-	conn, err := sqlx.Open(driverName, opts.Connection)
+	conn, err := sqlx.Open(driverName, connection)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if opts.ConnMaxLifetime != nil {
-		conn.SetConnMaxLifetime(*opts.ConnMaxLifetime)
-	}
-	if opts.ConnMaxIdleTime != nil {
-		conn.SetConnMaxIdleTime(*opts.ConnMaxIdleTime)
-	}
-	if opts.MaxIdleConns != nil {
-		conn.SetMaxIdleConns(*opts.MaxIdleConns)
-	}
-	if opts.MaxOpenConns != nil {
-		conn.SetMaxOpenConns(*opts.MaxOpenConns)
+	if len(opts) > 0 {
+		o := opts[0]
+		if o.ConnMaxLifetime != nil {
+			conn.SetConnMaxLifetime(*o.ConnMaxLifetime)
+		}
+		if o.ConnMaxIdleTime != nil {
+			conn.SetConnMaxIdleTime(*o.ConnMaxIdleTime)
+		}
+		if o.MaxIdleConns != nil {
+			conn.SetMaxIdleConns(*o.MaxIdleConns)
+		}
+		if o.MaxOpenConns != nil {
+			conn.SetMaxOpenConns(*o.MaxOpenConns)
+		}
+
 	}
 
-	c.opts = opts
+	c.connection = connection
 	c.conn = conn
 
-	return c, nil
+	return nil
 }
 
-func (c *client) Begin() (*clientTx, error) {
+func (c *client) Begin() (storage2.ClientTx, error) {
 	tx := c.conn.MustBegin()
 	return &clientTx{conn: tx}, nil
 }
 
-func (c *client) Beginx() (*clientTx, error) {
+func (c *client) Beginx() (storage2.ClientTx, error) {
 	tx, err := c.conn.Beginx()
 	if err != nil {
 		return nil, err
@@ -149,7 +101,7 @@ func (c *client) Beginx() (*clientTx, error) {
 	return &clientTx{conn: tx}, nil
 }
 
-func (c *client) MustBegin() *clientTx {
+func (c *client) MustBegin() storage2.ClientTx {
 	tx := c.conn.MustBegin()
 	return &clientTx{conn: tx}
 }
@@ -162,7 +114,7 @@ func (c *client) Subscribe(ctx context.Context, channel string, listener chan st
 		}
 	}
 
-	l := pq.NewListener(c.opts.Connection, 10*time.Second, time.Minute, reportProblem)
+	l := pq.NewListener(c.connection, 10*time.Second, time.Minute, reportProblem)
 
 	if err := l.Listen(channel); err != nil {
 		return err
@@ -294,6 +246,10 @@ func (c *client) Preparex(query string) (*sqlx.Stmt, error) {
 
 func (c *client) PrepareNamed(query string) (*sqlx.NamedStmt, error) {
 	return c.conn.PrepareNamed(query)
+}
+
+func (c *client) Close() error {
+	return c.conn.Close()
 }
 
 // ====================================================================================

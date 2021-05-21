@@ -17,13 +17,12 @@ limitations under the License.
 package engine
 
 import (
+	"context"
 	"gitlab.com/lastbackend/engine/client"
 	"gitlab.com/lastbackend/engine/cmd"
-	"gitlab.com/lastbackend/engine/config"
+	"gitlab.com/lastbackend/engine/plugin"
+	"gitlab.com/lastbackend/engine/plugin/manager"
 	"gitlab.com/lastbackend/engine/server"
-	"gitlab.com/lastbackend/engine/storage"
-
-	"context"
 	"os"
 	"os/signal"
 	"sync"
@@ -36,11 +35,11 @@ type service struct {
 	context context.Context
 	once    sync.Once
 
-	cmd     cmd.Cmd
-	client  client.Client
-	server  server.Server
-	storage storage.Storage
-	config  config.Config
+	cli    cmd.CLI
+	client client.Client
+	server server.Server
+
+	pm plugin.Manager
 
 	signal bool
 }
@@ -49,9 +48,10 @@ func newService(name string) Service {
 	s := new(service)
 	s.meta = new(meta)
 	s.meta.Name = name
-	s.cmd = cmd.New()
+	s.cli = cmd.New()
 	s.context = context.Background()
 	s.server = server.DefaultServer
+	s.pm = manager.NewManager()
 	return s
 }
 
@@ -68,21 +68,27 @@ func (s *service) Meta() Meta {
 }
 
 func (s *service) CLI() CLI {
-	return s.cmd
+	return s.cli
 }
 
 func (s *service) Init() error {
-	s.cmd.SetName(s.meta.Name)
-	s.cmd.SetEnvPrefix(s.meta.EnvPrefix)
-	s.cmd.SetVersion(s.meta.Version)
-	s.cmd.SetShortDescription(s.meta.ShorDescription)
-	s.cmd.SetLongDescription(s.meta.LongDescription)
+	s.cli.SetName(s.meta.Name)
+	s.cli.SetEnvPrefix(s.meta.EnvPrefix)
+	s.cli.SetVersion(s.meta.Version)
+	s.cli.SetShortDescription(s.meta.ShorDescription)
+	s.cli.SetLongDescription(s.meta.LongDescription)
 
-	if err := s.cmd.Execute(); err != nil {
+	s.pm.ExtendСLI(s.cli)
+
+	if err := s.cli.Execute(); err != nil {
 		return err
 	}
-	
+
 	return nil
+}
+
+func (s *service) Register(in interface{}) error {
+	return s.pm.Register(in)
 }
 
 func (s *service) Client() client.Client {
@@ -93,19 +99,15 @@ func (s *service) Server() server.Server {
 	return s.server
 }
 
-func (s *service) Storage() storage.Storage {
-	return s.storage
-}
-
-func (s *service) Config() config.Config {
-	return s.config
-}
-
 func (s *service) SetContext(ctx context.Context) {
 	s.context = ctx
 }
 
 func (s *service) Run() error {
+
+	if err := s.pm.Start(); err != nil {
+		return err
+	}
 
 	if err := s.server.Start(); err != nil {
 		return err
@@ -123,6 +125,8 @@ func (s *service) Run() error {
 	// wait on context cancel
 	case <-s.context.Done():
 	}
+
+	s.pm.Stop()
 
 	return s.server.Stop()
 }

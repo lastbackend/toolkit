@@ -14,47 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package flags
+package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/pflag"
 	"strings"
 	"syscall"
 )
 
-var EnvPrefix = "ENGINE"
-
-type Flag interface {
-	Apply(*pflag.FlagSet) error
-	IsSet() bool
-}
-
-type FlagSet interface {
-	AddStringFlag(name string, shorthand string, value string, dest *string, envVars []string, usage string)
-	AddIntFlag(name string, shorthand string, value int, dest *int, envVars []string, usage string)
-	AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVars []string, usage string)
-}
-
 type Flags []Flag
 
-func New() *Flags {
-	f := make(Flags, 0)
-	return &f
-}
-
-func (f *Flags) AddStringFlag(name string, shorthand string, value string, dest *string, envVars []string, usage string) {
+func (f *Flags) AddStringFlag(name string, shorthand string, value string, dest *string, envVars []string, required bool, usage string) {
 	*f = append(*f, &StringFlag{
 		Name:        name,
 		Shorthand:   shorthand,
 		Value:       value,
 		Usage:       usage,
 		EnvVars:     envVars,
+		Required:    required,
 		Destination: dest,
 	})
 }
 
-func (f *Flags) AddIntFlag(name string, shorthand string, value int, dest *int, envVars []string, usage string) {
+func (f *Flags) AddIntFlag(name string, shorthand string, value int, dest *int, envVars []string, required bool, usage string) {
 	*f = append(*f, &IntFlag{
 		Name:        name,
 		Shorthand:   shorthand,
@@ -65,7 +47,7 @@ func (f *Flags) AddIntFlag(name string, shorthand string, value int, dest *int, 
 	})
 }
 
-func (f *Flags) AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVars []string, usage string) {
+func (f *Flags) AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVars []string, required bool, usage string) {
 	*f = append(*f, &BoolFlag{
 		Name:        name,
 		Shorthand:   shorthand,

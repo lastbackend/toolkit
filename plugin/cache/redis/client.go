@@ -14,16 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package storage
+package redis
 
-type Handler interface {
-	setClient(cli *client)
+type client struct {
 }
 
-type StoreHandler struct {
-	*client
+func newClient() *client {
+	return new(client)
 }
 
-func (h StoreHandler) setClient(cli *client) {
-	h.client = cli
+func (c *client) Close() error {
+	return nil
 }
