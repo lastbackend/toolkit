@@ -17,55 +17,20 @@ limitations under the License.
 package plugin
 
 import (
-	"gitlab.com/lastbackend/engine/cmd"
-	"gitlab.com/lastbackend/engine/plugin/broker"
-	"gitlab.com/lastbackend/engine/plugin/cache"
-	"gitlab.com/lastbackend/engine/plugin/server"
-	"gitlab.com/lastbackend/engine/plugin/storage"
+	"github.com/lastbackend/engine/cmd"
 )
 
-type PluginType int
-
-const (
-	PluginStorage PluginType = iota
-	PluginBroker
-	PluginCache
-	PluginServer
-)
-
-type Manager interface {
-	Register(interface{}) error
-	ExtendСLI(cmd.CLI)
-	Start() error
-	Stop()
+type Option struct {
+	Prefix string
 }
+
+type CreatorFunc func(o Option) interface{}
+type RegisterFunc func(Plugin)
 
 type Plugin interface {
 	Name() string
-	Type() PluginType
 	Flags() []cmd.Flag
 	Commands() []cmd.Command
-	SetPrefix(string)
 	Start() error
 	Stop() error
-}
-
-type StoragePlugin interface {
-	Plugin
-	Client() storage.Client
-}
-
-type CachePlugin interface {
-	Plugin
-	Client() cache.Client
-}
-
-type BrokerPlugin interface {
-	Plugin
-	Client() broker.Client
-}
-
-type ServerPlugin interface {
-	Plugin
-	Client() server.Client
 }

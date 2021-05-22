@@ -19,8 +19,8 @@ package server
 import (
 	"crypto/tls"
 	"github.com/google/uuid"
-	"gitlab.com/lastbackend/engine/codec"
-	"gitlab.com/lastbackend/engine/logger"
+	"github.com/lastbackend/engine/codec"
+	"github.com/lastbackend/engine/logger"
 	"google.golang.org/grpc"
 
 	"context"
@@ -30,6 +30,7 @@ import (
 
 type Server interface {
 	Init(...Option) error
+	Options() Options
 	Register(h Handler) error
 	NewHandler(h interface{}, opts ...HandlerOption) Handler
 	Handle(h Handler) error
@@ -58,11 +59,11 @@ type server struct {
 type Option func(*Options)
 
 var (
-	DefaultAddress = ":0"
-	DefaultName    = "lb.engine.server"
-	DefaultVersion = "latest"
-	DefaultId      = uuid.New().String()
-	DefaultServer  = newServer()
+	DefaultAddress          = ":0"
+	DefaultName             = "lb.engine.server"
+	DefaultVersion          = "latest"
+	DefaultId               = uuid.New().String()
+	DefaultServer           = newServer()
 )
 
 type Request interface {
@@ -124,6 +125,13 @@ func newServer(opts ...Option) Server {
 	}
 }
 
+func (s *server) Options() Options {
+	s.RLock()
+	opts := s.opts
+	s.RUnlock()
+	return opts
+}
+
 func (s *server) Init(opts ...Option) error {
 	s.Lock()
 	defer s.Unlock()
@@ -154,6 +162,8 @@ func (s *server) Start() error {
 	}
 	s.RUnlock()
 
+	config := s.Options()
+
 	var ts net.Listener
 
 	if l := s.getListener(); l != nil {
@@ -162,10 +172,10 @@ func (s *server) Start() error {
 		var err error
 
 		// check the tls config for secure connect
-		if tc := s.opts.TLSConfig; tc != nil {
-			ts, err = tls.Listen("tcp", s.opts.Address, tc)
+		if tc := config.TLSConfig; tc != nil {
+			ts, err = tls.Listen("tcp", config.Address, tc)
 		} else {
-			ts, err = net.Listen("tcp", s.opts.Address)
+			ts, err = net.Listen("tcp", config.Address)
 		}
 		if err != nil {
 			return err

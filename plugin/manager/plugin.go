@@ -14,15 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package redis
+package manager
 
-type client struct {
-}
+import (
+	"github.com/lastbackend/engine/cmd"
+	"github.com/lastbackend/engine/plugin"
+)
 
-func newClient() *client {
-	return new(client)
-}
-
-func (c *client) Close() error {
-	return nil
+type Manager interface {
+	ExtendСLI(cmd.CLI)
+	Start() error
+	Stop()
+	RegisterPlugin(plugin.Plugin)
+	Register(interface{}) error
 }

@@ -17,10 +17,9 @@ limitations under the License.
 package manager
 
 import (
+	"github.com/lastbackend/engine/cmd"
+	"github.com/lastbackend/engine/plugin"
 	"github.com/pkg/errors"
-	"gitlab.com/lastbackend/engine/cmd"
-	"gitlab.com/lastbackend/engine/plugin"
-	"gitlab.com/lastbackend/engine/plugin/storage/postgres"
 
 	"fmt"
 	"reflect"
@@ -28,20 +27,27 @@ import (
 )
 
 type manager struct {
-	sync.Mutex
+	sync.RWMutex
 
-	plugins map[string]plugin.Plugin
+	plugins map[plugin.Plugin]bool
 }
 
-func NewManager() plugin.Manager {
+func NewManager() Manager {
 	mng := new(manager)
-	mng.plugins = make(map[string]plugin.Plugin, 0)
+	mng.plugins = make(map[plugin.Plugin]bool, 0)
 	return mng
 }
 
-func (pm *manager) Register(in interface{}) error {
+func (pm *manager) RegisterPlugin(p plugin.Plugin) {
+	fmt.Println(fmt.Println(p.Name()))
 	pm.Lock()
 	defer pm.Unlock()
+	if _, ok := pm.plugins[p]; !ok {
+		pm.plugins[p] = true
+	}
+}
+
+func (pm *manager) Register(in interface{}) error {
 
 	val := reflect.ValueOf(in).Elem()
 
@@ -49,30 +55,28 @@ func (pm *manager) Register(in interface{}) error {
 
 		valueField := val.Field(i)
 		typeField := val.Type().Field(i)
+		tagPrefix := val.Type().Field(i).Tag.Get("prefix")
 
-		pluginName := typeField.Tag.Get("plugin")
-		prefixName := typeField.Tag.Get("prefix")
-
-		pluginType, ok := plugins[pluginName]
+		pm.Lock()
+		valueFunc, ok := plugins[typeField.Type]
 		if !ok {
-			return fmt.Errorf("plugin %s not registered", pluginName)
+			return fmt.Errorf("plugin %s not registered", typeField.Type)
 		}
+		pm.Unlock()
 
-		switch pluginType {
-		case reflect.TypeOf((*postgres.Plugin)(nil)).Elem():
-			p := postgres.New()
-			p.SetPrefix(prefixName)
+		funcType := reflect.TypeOf(plugin.RegisterFunc(nil))
+		funcRegister := reflect.MakeFunc(funcType, func(args []reflect.Value) []reflect.Value {
+			pm.RegisterPlugin(args[0].Interface().(plugin.Plugin))
+			return nil
+		})
 
-			name := fmt.Sprintf("%s-%s", prefixName, p.Name())
+		funcCreator := valueFunc.Call([]reflect.Value{funcRegister})
 
-			pl, exists := pm.plugins[name]
-			if exists {
-				p = pl.(plugin.StoragePlugin)
-			}
-			pm.plugins[name] = p
-			valueField.Set(reflect.ValueOf(p.Client()))
-		default:
-			return fmt.Errorf("plugin %s not foud", typeField.Type)
+		valueOptions := reflect.ValueOf(plugin.Option{Prefix: tagPrefix})
+		valueInstance := funcCreator[0].Call([]reflect.Value{valueOptions})
+
+		if len(valueInstance) > 0 {
+			valueField.Set(valueInstance[0].Elem().Convert(valueField.Type()))
 		}
 	}
 
@@ -80,31 +84,36 @@ func (pm *manager) Register(in interface{}) error {
 }
 
 func (pm *manager) ExtendСLI(cli cmd.CLI) {
+
+	if pm.plugins == nil {
+		return
+	}
+
 	pm.Lock()
 	defer pm.Unlock()
 
-	for _, p := range pm.plugins {
+	for p := range pm.plugins {
 		cli.AddFlags(p.Flags()...)
 	}
 
-	for _, p := range pm.plugins {
+	for p := range pm.plugins {
 		cli.AddCommands(p.Commands()...)
 	}
 }
 
 func (pm *manager) Start() error {
-	for n, p := range pm.plugins {
+	for p := range pm.plugins {
 		if err := p.Start(); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("Start plugin %s failed", n))
+			return errors.Wrap(err, fmt.Sprintf("Start plugin %s failed", p.Name()))
 		}
 	}
 	return nil
 }
 
 func (pm *manager) Stop() {
-	for n, p := range pm.plugins {
+	for p := range pm.plugins {
 		if err := p.Stop(); err != nil {
-			fmt.Println(errors.Wrap(err, fmt.Sprintf("Stop plugin %s failed", n)))
+			fmt.Println(errors.Wrap(err, fmt.Sprintf("Stop plugin %s failed", p.Name())))
 		}
 	}
 }

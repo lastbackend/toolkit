@@ -17,10 +17,10 @@ limitations under the License.
 package engine
 
 import (
-	"gitlab.com/lastbackend/engine/client"
-	"gitlab.com/lastbackend/engine/cmd"
-	"gitlab.com/lastbackend/engine/plugin"
-	"gitlab.com/lastbackend/engine/server"
+	"github.com/lastbackend/engine/client"
+	"github.com/lastbackend/engine/cmd"
+	"github.com/lastbackend/engine/plugin"
+	"github.com/lastbackend/engine/server"
 
 	"context"
 )

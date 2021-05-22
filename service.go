@@ -18,11 +18,11 @@ package engine
 
 import (
 	"context"
-	"gitlab.com/lastbackend/engine/client"
-	"gitlab.com/lastbackend/engine/cmd"
-	"gitlab.com/lastbackend/engine/plugin"
-	"gitlab.com/lastbackend/engine/plugin/manager"
-	"gitlab.com/lastbackend/engine/server"
+	"github.com/lastbackend/engine/client"
+	"github.com/lastbackend/engine/cmd"
+	"github.com/lastbackend/engine/plugin"
+	"github.com/lastbackend/engine/plugin/manager"
+	"github.com/lastbackend/engine/server"
 	"os"
 	"os/signal"
 	"sync"
@@ -39,7 +39,7 @@ type service struct {
 	client client.Client
 	server server.Server
 
-	pm plugin.Manager
+	pm manager.Manager
 
 	signal bool
 }
@@ -85,6 +85,10 @@ func (s *service) Init() error {
 	}
 
 	return nil
+}
+
+func (s *service) RegisterPlugin(p plugin.Plugin) {
+	s.pm.RegisterPlugin(p)
 }
 
 func (s *service) Register(in interface{}) error {

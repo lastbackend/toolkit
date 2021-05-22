@@ -14,7 +14,8 @@ for PROTO in $PROTOS; do
     -I. \
     -I$(dirname $PROTO) \
     --validate_out=paths=source_relative,lang=go:. \
-    --go_out=plugins=grpc,paths=source_relative:. \
+    --go_out=paths=source_relative:. \
+    --go-grpc_out=paths=source_relative:. \
     --engine_out=paths=source_relative:. \
     $PROTO
 done

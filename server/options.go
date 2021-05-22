@@ -17,9 +17,9 @@ limitations under the License.
 package server
 
 import (
-	"context"
-	"gitlab.com/lastbackend/engine/codec"
+	"github.com/lastbackend/engine/codec"
 
+	"context"
 	"crypto/tls"
 )
 
