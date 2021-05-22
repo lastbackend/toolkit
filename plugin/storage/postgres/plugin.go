@@ -17,174 +17,84 @@ limitations under the License.
 package postgres
 
 import (
-	"fmt"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"database/sql"
+	"encoding/json"
+	"github.com/jmoiron/sqlx"
+	"github.com/lastbackend/engine/plugin"
+
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
-	"github.com/pkg/errors"
-	"gitlab.com/lastbackend/engine/cmd"
-	"gitlab.com/lastbackend/engine/plugin"
-	storage2 "gitlab.com/lastbackend/engine/plugin/storage"
-	"strings"
-	"time"
+
+	"context"
 )
 
 const (
-	PluginName         = "postgres"
-	defaultPrefix      = "psql"
-	defaultPingTimeout = 60 * time.Second
+	PluginName    = "postgres"
+	defaultPrefix = "psql"
 )
 
-type Plugin plugin.StoragePlugin
-
-type Options struct {
-	clientOptions
-
-	ConnectionString string
-	MigrationsDir    *string
-}
-
-type postgresPlugin struct {
-	client *client
-
-	prefix string
-	opts   Options
-}
-
-func New() plugin.StoragePlugin {
-	s := new(postgresPlugin)
-	s.prefix = defaultPrefix
-	s.client = newClient()
-	return s
-}
-
-func (s *postgresPlugin) Name() string {
-	return PluginName
-}
-
-func (s *postgresPlugin) Type() plugin.PluginType {
-	return plugin.PluginStorage
-}
-
-func (s *postgresPlugin) SetPrefix(prefix string) {
-	s.prefix = prefix
-}
-
-func (s *postgresPlugin) Flags() []cmd.Flag {
-	return []cmd.Flag{
-		&cmd.StringFlag{
-			Name:        s.withPrefix("connection"),
-			EnvVars:     []string{s.withEnvPrefix("CONNECTION")},
-			Usage:       "PostgreSQL connection string",
-			Required:    true,
-			Destination: &s.opts.ConnectionString,
-		},
+func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
+	return func(o plugin.Option) interface{} {
+		p := newPlugin(o.Prefix)
+		f(p)
+		return p.getClient()
 	}
 }
 
-func (s *postgresPlugin) Commands() []cmd.Command {
 
-	migrateCmd := &cmd.Cmd{
-		Use:       "migrate [SOURCE_PATH]",
-		ShortDesc: "Database migrations",
-		Run: func(cmd cmd.Command, args []string) error {
-
-			c := newClient()
-
-			psqlConnection, err := cmd.Flags().GetString(s.withPrefix("connection"))
-			if err != nil {
-				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct", s.withPrefix("connection"))
-			}
-
-			if len(args) == 0 {
-				return errors.Wrapf(err, "argument \"source path\" is not set, programmer error, please correct")
-			}
-
-			if err := c.open(psqlConnection); err != nil {
-				return err
-			}
-
-			// Parse connection string and get database name
-			items := strings.Split(psqlConnection, " ")
-
-			dbName := ""
-			for _, item := range items {
-				if strings.HasPrefix(item, "dbname") {
-					dbName = strings.Split(item, "=")[1]
-					break
-				}
-			}
-
-			driver, err := postgres.WithInstance(c.conn.DB, &postgres.Config{})
-			m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", args[0]), dbName, driver)
-			if err != nil {
-				return err
-			}
-
-			version, dirty, err := m.Version()
-			if err != nil && err != migrate.ErrNilVersion {
-				return err
-			}
-			if dirty {
-				if err := m.Force(int(version)); err != nil {
-					return err
-				}
-				if err := m.Down(); err != nil {
-					return err
-				}
-			}
-
-			if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-				return err
-			}
-
-			return c.Close()
-		},
-	}
-
-	migrateCmd.AddStringFlag(s.withPrefix("connection"), "", "", nil, []string{s.withEnvPrefix("CONNECTION")}, true, "PostgreSQL connection string")
-
-	return []cmd.Command{migrateCmd}
+type Postgres interface {
+	Begin() (ClientTx, error)
+	Beginx() (ClientTx, error)
+	Subscribe(ctx context.Context, channel string, listener chan string) error
+	Publish(ctx context.Context, channel string, data json.RawMessage) (sql.Result, error)
+	MustBegin() ClientTx
+	MapperFunc(mf func(string) string)
+	Rebind(query string) string
+	BindNamed(query string, arg interface{}) (string, []interface{}, error)
+	NamedQuery(query string, arg interface{}) (*sqlx.Rows, error)
+	NamedExec(query string, arg interface{}) (sql.Result, error)
+	Select(dest interface{}, query string, args ...interface{}) error
+	Get(dest interface{}, query string, args ...interface{}) error
+	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
+	Prepare(query string) (*sql.Stmt, error)
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+	QueryRow(query string, args ...interface{}) *sql.Row
+	Queryx(query string, args ...interface{}) (*sqlx.Rows, error)
+	QueryRowx(query string, args ...interface{}) *sqlx.Row
+	MustExec(query string, args ...interface{}) sql.Result
+	Preparex(query string) (*sqlx.Stmt, error)
+	PrepareNamed(query string) (*sqlx.NamedStmt, error)
 }
 
-func (s *postgresPlugin) Client() storage2.Client {
-	return s.client
+type ClientTx interface {
+	Commit() error
+	Rollback() error
+	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
+	Prepare(query string) (*sql.Stmt, error)
+	StmtContext(ctx context.Context, stmt *sql.Stmt) *sql.Stmt
+	Stmt(stmt *sql.Stmt) *sql.Stmt
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+	QueryRow(query string, args ...interface{}) *sql.Row
+	Rebind(query string) string
+	BindNamed(query string, arg interface{}) (string, []interface{}, error)
+	NamedQuery(query string, arg interface{}) (*sqlx.Rows, error)
+	NamedExec(query string, arg interface{}) (sql.Result, error)
+	Select(dest interface{}, query string, args ...interface{}) error
+	Queryx(query string, args ...interface{}) (*sqlx.Rows, error)
+	QueryRowx(query string, args ...interface{}) *sqlx.Row
+	Get(dest interface{}, query string, args ...interface{}) error
+	MustExec(query string, args ...interface{}) sql.Result
+	Preparex(query string) (*sqlx.Stmt, error)
+	Stmtx(stmt interface{}) *sqlx.Stmt
+	NamedStmt(stmt *sqlx.NamedStmt) *sqlx.NamedStmt
+	PrepareNamed(query string) (*sqlx.NamedStmt, error)
 }
 
-func (s *postgresPlugin) Start() error {
-
-	if err := s.client.open(s.opts.ConnectionString); err != nil {
-		return err
-	}
-
-	if err := s.client.conn.Ping(); err != nil {
-		return err
-	}
-
-	go func() {
-		for {
-			select {
-			case <-time.After(defaultPingTimeout):
-				if err := s.client.conn.Ping(); err != nil {
-					fmt.Println(err)
-					return
-				}
-			}
-		}
-	}()
-
-	return nil
-}
-
-func (s *postgresPlugin) Stop() error {
-	return s.client.Close()
-}
-
-func (s *postgresPlugin) withPrefix(name string) string {
-	return fmt.Sprintf("%s-%s", s.prefix, name)
-}
-
-func (s *postgresPlugin) withEnvPrefix(name string) string {
-	return strings.ToUpper(fmt.Sprintf("%s_%s", s.prefix, name))
-}

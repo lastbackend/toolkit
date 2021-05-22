@@ -17,11 +17,10 @@ limitations under the License.
 package manager
 
 import (
-	"gitlab.com/lastbackend/engine/plugin/storage/postgres"
-
+	"github.com/lastbackend/engine/plugin/storage/postgres"
 	"reflect"
 )
 
-var plugins = map[string]reflect.Type{
-	postgres.PluginName: reflect.TypeOf((*postgres.Plugin)(nil)).Elem(),
+var plugins = map[reflect.Type]reflect.Value{
+	reflect.TypeOf((*postgres.Postgres)(nil)).Elem(): reflect.ValueOf(postgres.Register),
 }

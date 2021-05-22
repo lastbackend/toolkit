@@ -17,11 +17,11 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/types/pluginpb"
 
 	"flag"
+	"fmt"
 )
 
 const version = "1.0.0"

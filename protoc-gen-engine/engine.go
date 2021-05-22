@@ -30,9 +30,9 @@ const deprecationComment = "// Deprecated: Do not use."
 
 const (
 	contextPackage = protogen.GoImportPath("context")
-	apiPackage     = protogen.GoImportPath("gitlab.com/lastbackend/engine/api")
-	clientPackage  = protogen.GoImportPath("gitlab.com/lastbackend/engine/client")
-	serverPackage  = protogen.GoImportPath("gitlab.com/lastbackend/engine/server")
+	apiPackage     = protogen.GoImportPath("github.com/lastbackend/engine/api")
+	clientPackage  = protogen.GoImportPath("github.com/lastbackend/engine/client")
+	serverPackage  = protogen.GoImportPath("github.com/lastbackend/engine/server")
 	protoPackage   = protogen.GoImportPath("github.com/golang/protobuf/proto")
 )
 

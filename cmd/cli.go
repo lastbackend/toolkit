@@ -89,10 +89,16 @@ func (c *cli) SetEnvPrefix(s string) {
 }
 
 func (c *cli) AddFlags(flags ...Flag) {
+	if len(flags) == 0 {
+		return
+	}
 	c.Flags = append(c.Flags, flags...)
 }
 
 func (c *cli) AddCommands(commands ...Command) {
+	if len(commands) == 0 {
+		return
+	}
 	c.Commands = append(c.Commands, commands...)
 }
 

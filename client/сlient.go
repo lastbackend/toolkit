@@ -18,7 +18,7 @@ package client
 
 import (
 	"context"
-	"gitlab.com/lastbackend/engine/codec"
+	"github.com/lastbackend/engine/codec"
 )
 
 type Client interface {

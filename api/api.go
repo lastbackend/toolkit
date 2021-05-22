@@ -17,7 +17,7 @@ limitations under the License.
 package api
 
 import (
-	"gitlab.com/lastbackend/engine/server"
+	"github.com/lastbackend/engine/server"
 	"strings"
 )
 

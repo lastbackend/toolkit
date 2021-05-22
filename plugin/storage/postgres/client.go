@@ -20,16 +20,16 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
-	storage2 "gitlab.com/lastbackend/engine/plugin/storage"
+
+	"fmt"
 	"time"
 )
 
 const (
-	driverName = "postgres"
+	driverName             = "postgres"
 	receivedSubscribeDelay = 60 * time.Second
 )
 
@@ -88,12 +88,12 @@ func (c *client) open(connection string, opts ...clientOptions) error {
 	return nil
 }
 
-func (c *client) Begin() (storage2.ClientTx, error) {
+func (c *client) Begin() (ClientTx, error) {
 	tx := c.conn.MustBegin()
 	return &clientTx{conn: tx}, nil
 }
 
-func (c *client) Beginx() (storage2.ClientTx, error) {
+func (c *client) Beginx() (ClientTx, error) {
 	tx, err := c.conn.Beginx()
 	if err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func (c *client) Beginx() (storage2.ClientTx, error) {
 	return &clientTx{conn: tx}, nil
 }
 
-func (c *client) MustBegin() storage2.ClientTx {
+func (c *client) MustBegin() ClientTx {
 	tx := c.conn.MustBegin()
 	return &clientTx{conn: tx}
 }

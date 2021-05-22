@@ -18,7 +18,7 @@ package grpc
 
 import (
 	"github.com/golang/protobuf/proto"
-	"gitlab.com/lastbackend/engine/codec"
+	"github.com/lastbackend/engine/codec"
 
 	"encoding/json"
 	"errors"
