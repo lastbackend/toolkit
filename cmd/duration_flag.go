@@ -22,40 +22,40 @@ import (
 
 	"fmt"
 	"strconv"
+	"time"
 )
 
-type IntFlag struct {
+type DurationFlag struct {
 	flag
 
-	Name        string   // name as it appears on command line
-	Shorthand   string   // one-letter abbreviated flag
-	Usage       string   // help message
-	Value       int      // value as set
-	Destination *int     // the return value is the address of a int variable that stores the value of the flag.
-	EnvVars     []string // environment values as set
-	Required    bool     // mark flag as required
+	Name        string         // name as it appears on command line
+	Shorthand   string         // one-letter abbreviated flag
+	Usage       string         // help message
+	Value       time.Duration  // value as set
+	Destination *time.Duration // the return value is the address of a int variable that stores the value of the flag.
+	EnvVars     []string       // environment values as set
+	Required    bool           // mark flag as required
 
 	hasBeenSet bool
 }
 
-func (f *IntFlag) apply(set *pflag.FlagSet) error {
+func (f *DurationFlag) apply(set *pflag.FlagSet) error {
 	if val, ok := flagFromEnv(f.EnvVars); ok {
 		if val != "" {
 			valInt, err := strconv.ParseInt(val, 0, 64)
-
 			if err != nil {
-				return fmt.Errorf("could not parse %q as int value for flag %s: %s", val, f.Name, err)
+				return fmt.Errorf("could not parse %q as int64 value for flag %s: %s", val, f.Name, err)
 			}
 
-			f.Value = int(valInt)
+			f.Value = time.Duration(valInt) * time.Millisecond
 			f.hasBeenSet = true
 		}
 	}
 
 	if f.Destination == nil {
-		set.IntP(f.Name, f.Shorthand, f.Value, f.Usage)
+		set.DurationP(f.Name, f.Shorthand, f.Value, f.Usage)
 	} else {
-		set.IntVarP(f.Destination, f.Name, f.Shorthand, f.Value, f.Usage)
+		set.DurationVarP(f.Destination, f.Name, f.Shorthand, f.Value, f.Usage)
 	}
 
 	if f.Required && !f.hasBeenSet {
@@ -67,6 +67,6 @@ func (f *IntFlag) apply(set *pflag.FlagSet) error {
 	return nil
 }
 
-func (f IntFlag) IsSet() bool {
+func (f DurationFlag) IsSet() bool {
 	return f.hasBeenSet
 }

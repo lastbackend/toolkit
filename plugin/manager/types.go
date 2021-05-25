@@ -22,9 +22,10 @@ import (
 )
 
 type Manager interface {
-	ExtendСLI(cmd.CLI)
 	Start() error
 	Stop()
+	Flags() []cmd.Flag
+	Commands() []cmd.Command
 	RegisterPlugin(plugin.Plugin)
 	Register(interface{}) error
 }

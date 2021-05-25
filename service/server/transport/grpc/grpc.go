@@ -18,10 +18,12 @@ package grpc
 
 import (
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/lastbackend/engine/cmd"
 	"github.com/lastbackend/engine/service/server"
 	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"strings"
 
 	"crypto/tls"
 	"fmt"
@@ -34,18 +36,10 @@ const (
 	ServiceName = "grpc"
 )
 
-var (
-	// DefaultMaxRecvMsgSize maximum message that client can receive (16 MB).
-	DefaultMaxRecvMsgSize = 1024 * 1024 * 16
-	// DefaultMaxSendMsgSize maximum message that client can send (16 MB).
-	DefaultMaxSendMsgSize = 1024 * 1024 * 16
-	// DefaultMaxMsgSize define maximum message size that server can send
-	// or receive.  Default value is 4MB.
-	DefaultMaxMsgSize = 1024 * 1024 * 4
-)
-
 type grpcServer struct {
 	sync.RWMutex
+
+	prefix string
 
 	opts Options
 
@@ -59,18 +53,12 @@ type grpcServer struct {
 	exit chan chan error
 }
 
-func NewServer(opts Options) server.Server {
-	return newServer(opts)
+func NewServer(prefix string) server.Server {
+	return newServer(prefix)
 }
 
 func (g *grpcServer) Name() string {
 	return ServiceName
-}
-
-func (g *grpcServer) Init(opts Options) error {
-	g.opts = patchOptions(g.opts, opts)
-	g.configure()
-	return nil
 }
 
 func (g *grpcServer) NewHandler(h interface{}, opts ...server.HandlerOption) server.Handler {
@@ -82,6 +70,7 @@ func (g *grpcServer) Handle(h server.Handler) error {
 }
 
 func (g *grpcServer) Start() error {
+	g.configure()
 
 	g.RLock()
 	if g.started {
@@ -104,8 +93,8 @@ func (g *grpcServer) Start() error {
 		return err
 	}
 
-	if g.opts.MaxConnKey > 0 {
-		listener = netutil.LimitListener(listener, g.opts.MaxConnKey)
+	if g.opts.MaxConnSize > 0 {
+		listener = netutil.LimitListener(listener, g.opts.MaxConnSize)
 	}
 
 	fmt.Println(fmt.Sprintf("server [grpc] Listening on %s", listener.Addr().String()))
@@ -219,9 +208,56 @@ func (g *grpcServer) Stop() error {
 	return err
 }
 
-func newServer(opts Options) server.Server {
+func (g *grpcServer) Flags() []cmd.Flag {
+	return []cmd.Flag{
+		&cmd.StringFlag{
+			Name:        g.withPrefix("name"),
+			EnvVars:     []string{g.withEnvPrefix("NAME")},
+			Usage:       "Server name",
+			Required:    true,
+			Value:       defaultName,
+			Destination: &g.opts.Name,
+		},
+		&cmd.StringFlag{
+			Name:        g.withPrefix("address"),
+			EnvVars:     []string{g.withEnvPrefix("ADDRESS")},
+			Usage:       "Server address for listening",
+			Required:    true,
+			Value:       defaultAddress,
+			Destination: &g.opts.Address,
+		},
+		&cmd.IntFlag{
+			Name:        g.withPrefix("max-recv-msg-size"),
+			EnvVars:     []string{g.withEnvPrefix("MAC-RECV-MSG-SIZE")},
+			Usage:       "Sets the max message size in bytes the server can receive (default 16 MB)",
+			Required:    true,
+			Destination: &g.opts.MaxRecvMsgSize,
+		},
+		&cmd.IntFlag{
+			Name:        g.withPrefix("max-send-msg-size"),
+			EnvVars:     []string{g.withEnvPrefix("MAC-RECV-MSG-SIZE")},
+			Usage:       "Sets the max message size in bytes the server can send (default 16 MB)",
+			Required:    true,
+			Destination: &g.opts.MaxSendMsgSize,
+		},
+		&cmd.IntFlag{
+			Name:        g.withPrefix("max-conn-size"),
+			EnvVars:     []string{g.withEnvPrefix("MAX-CONN-SIZE")},
+			Usage:       "Sets the max simultaneous connections for server (default unlimited)",
+			Required:    true,
+			Destination: &g.opts.MaxConnSize,
+		},
+	}
+}
+
+func (g *grpcServer) Commands() []cmd.Command {
+	return make([]cmd.Command, 0)
+}
+
+func newServer(prefix string) server.Server {
 	srv := &grpcServer{
-		opts: patchOptions(defaultOptions(), opts),
+		prefix: prefix,
+		opts:   defaultOptions(),
 		//rpc: &rServer{
 		//	serviceMap: make(map[string]*service),
 		//},
@@ -246,12 +282,12 @@ func (g *grpcServer) configure() {
 		return
 	}
 
-	maxRecvMsgSize := DefaultMaxRecvMsgSize
+	maxRecvMsgSize := defaultMaxRecvMsgSize
 	if g.opts.MaxRecvMsgSize != 0 {
 		maxRecvMsgSize = g.opts.MaxRecvMsgSize
 	}
 
-	maxSendMsgSize := DefaultMaxSendMsgSize
+	maxSendMsgSize := defaultMaxSendMsgSize
 	if g.opts.MaxSendMsgSize != 0 {
 		maxSendMsgSize = g.opts.MaxSendMsgSize
 	}
@@ -272,4 +308,12 @@ func (g *grpcServer) configure() {
 
 	//g.rsvc = nil
 	g.srv = grpc.NewServer(gopts...)
+}
+
+func (g *grpcServer) withPrefix(name string) string {
+	return fmt.Sprintf("%s-%s", g.prefix, name)
+}
+
+func (g *grpcServer) withEnvPrefix(name string) string {
+	return strings.ToUpper(fmt.Sprintf("%s_%s", g.prefix, name))
 }

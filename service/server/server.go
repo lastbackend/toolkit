@@ -17,11 +17,9 @@ limitations under the License.
 package server
 
 import (
-	"context"
-)
+	"github.com/lastbackend/engine/cmd"
 
-var (
-	DefaultServer Server
+	"context"
 )
 
 type Server interface {
@@ -29,6 +27,8 @@ type Server interface {
 	Stop() error
 	Handle(Handler) error
 	NewHandler(interface{}, ...HandlerOption) Handler
+	Flags() []cmd.Flag
+	Commands() []cmd.Command
 }
 
 type Request interface {

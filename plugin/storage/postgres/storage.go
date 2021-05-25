@@ -68,6 +68,34 @@ func (s *postgresStorage) Flags() []cmd.Flag {
 			Required:    true,
 			Destination: &s.opts.ConnectionString,
 		},
+		&cmd.DurationFlag{
+			Name:        s.withPrefix("conn-max-lifetime"),
+			EnvVars:     []string{s.withEnvPrefix("CONN_MAX_LIFETIME")},
+			Usage:       "Sets the maximum amount of time a connection may be reused.\nIf <= 0, connections are not closed due to a connection's age",
+			Required:    true,
+			Destination: s.opts.ConnMaxLifetime,
+		},
+		&cmd.DurationFlag{
+			Name:        s.withPrefix("conn-max-idle-time"),
+			EnvVars:     []string{s.withEnvPrefix("CONN_MAX_IDLE_TIME")},
+			Usage:       "Sets the maximum amount of time a connection may be idle.\nIf <= 0, connections are not closed due to a connection's idle time",
+			Required:    true,
+			Destination: s.opts.ConnMaxIdleTime,
+		},
+		&cmd.IntFlag{
+			Name:        s.withPrefix("max-idle-conns"),
+			EnvVars:     []string{s.withEnvPrefix("MAX_IDLE_CONNS")},
+			Usage:       "Sets the maximum number of connections in the idle connection pool.\nIf <= 0, no idle connections are retained.\n(The default max idle connections is currently 2)",
+			Required:    true,
+			Destination: s.opts.MaxIdleConns,
+		},
+		&cmd.IntFlag{
+			Name:        s.withPrefix("max-open-conns"),
+			EnvVars:     []string{s.withEnvPrefix("MAX_OPEN_CONNS")},
+			Usage:       "Sets the maximum number of open connections to the database.\nIf <= 0, then there is no limit on the number of open connections.\n(default unlimited)",
+			Required:    true,
+			Destination: s.opts.MaxOpenConns,
+		},
 	}
 }
 
