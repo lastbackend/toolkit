@@ -30,6 +30,10 @@ const (
 	defaultName             = "go.engine.server"
 	defaultRegisterInterval = time.Second * 30
 	defaultRegisterTTL      = time.Second * 90
+	// DefaultMaxRecvMsgSize maximum message that client can receive (16 MB).
+	defaultMaxRecvMsgSize = 1024 * 1024 * 16
+	// DefaultMaxSendMsgSize maximum message that client can send (16 MB).
+	defaultMaxSendMsgSize = 1024 * 1024 * 16
 )
 
 type Options struct {
@@ -37,7 +41,7 @@ type Options struct {
 	Name    string
 	Address string
 
-	MaxConnKey     int
+	MaxConnSize    int
 	MaxRecvMsgSize int
 	MaxSendMsgSize int
 
@@ -49,46 +53,6 @@ type Options struct {
 
 	RegisterInterval time.Duration
 	RegisterTTL      time.Duration
-}
-
-func patchOptions(opts, patch Options) Options {
-	if len(patch.Id) > 0 {
-		opts.Id = patch.Id
-	}
-	if len(patch.Name) > 0 {
-		opts.Name = patch.Name
-	}
-	if len(patch.Address) > 0 {
-		opts.Address = patch.Address
-	}
-	if patch.MaxConnKey > 0 {
-		opts.MaxConnKey = patch.MaxConnKey
-	}
-	if patch.MaxRecvMsgSize > 0 {
-		opts.MaxRecvMsgSize = patch.MaxRecvMsgSize
-	}
-	if patch.MaxSendMsgSize > 0 {
-		opts.MaxSendMsgSize = patch.MaxSendMsgSize
-	}
-	if patch.GrpcOptions != nil {
-		opts.GrpcOptions = patch.GrpcOptions
-	}
-	if patch.TLSConfig != nil {
-		opts.TLSConfig = patch.TLSConfig
-	}
-	if len(patch.GRPCWebAddr) > 0 {
-		opts.GRPCWebAddr = patch.GRPCWebAddr
-	}
-	if patch.GrpcWebOptions != nil {
-		opts.GrpcWebOptions = patch.GrpcWebOptions
-	}
-	if patch.RegisterInterval > time.Duration(0) {
-		opts.RegisterInterval = patch.RegisterInterval
-	}
-	if patch.RegisterTTL > time.Duration(0) {
-		opts.RegisterTTL = patch.RegisterTTL
-	}
-	return opts
 }
 
 func defaultOptions() Options {

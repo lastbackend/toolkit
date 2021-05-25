@@ -82,22 +82,38 @@ func (pm *manager) Register(in interface{}) error {
 	return nil
 }
 
-func (pm *manager) ExtendСLI(cli cmd.CLI) {
-
+func (pm *manager) Flags() []cmd.Flag {
 	if pm.plugins == nil {
-		return
+		return make([]cmd.Flag, 0)
 	}
 
 	pm.Lock()
 	defer pm.Unlock()
 
-	for p := range pm.plugins {
-		cli.AddFlags(p.Flags()...)
-	}
+	flags := make([]cmd.Flag, 0)
 
 	for p := range pm.plugins {
-		cli.AddCommands(p.Commands()...)
+		flags = append(flags, p.Flags()...)
 	}
+
+	return flags
+}
+
+func (pm *manager) Commands() []cmd.Command {
+	if pm.plugins == nil {
+		return make([]cmd.Command, 0)
+	}
+
+	pm.Lock()
+	defer pm.Unlock()
+
+	commands := make([]cmd.Command, 0)
+
+	for p := range pm.plugins {
+		commands = append(commands, p.Commands()...)
+	}
+
+	return commands
 }
 
 func (pm *manager) Start() error {

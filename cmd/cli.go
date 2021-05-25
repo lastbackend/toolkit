@@ -29,10 +29,6 @@ const (
 	defaultShortDescription = "a engine service"
 )
 
-func init() {
-	setupDefaults()
-}
-
 type CLI interface {
 	FlagSet
 

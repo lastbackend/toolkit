@@ -22,6 +22,7 @@ import (
 	"github.com/lastbackend/engine/plugin/manager"
 	"github.com/lastbackend/engine/service/client"
 	"github.com/lastbackend/engine/service/server"
+	"github.com/lastbackend/engine/service/server/transport/grpc"
 
 	"context"
 	"os"
@@ -52,7 +53,7 @@ func newService(name string) Service {
 	s.meta.Name = name
 	s.cli = cmd.New()
 	s.context = context.Background()
-	s.server = server.DefaultServer
+	s.server = grpc.NewServer("server")
 	s.pm = manager.NewManager()
 	return s
 }
@@ -80,7 +81,11 @@ func (s *service) Init() error {
 	s.cli.SetShortDescription(s.meta.ShorDescription)
 	s.cli.SetLongDescription(s.meta.LongDescription)
 
-	s.pm.ExtendСLI(s.cli)
+	s.cli.AddFlags(s.server.Flags()...)
+	s.cli.AddCommands(s.server.Commands()...)
+
+	s.cli.AddFlags(s.pm.Flags()...)
+	s.cli.AddCommands(s.pm.Commands()...)
 
 	if err := s.cli.Execute(); err != nil {
 		return err
