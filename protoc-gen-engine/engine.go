@@ -31,8 +31,8 @@ const deprecationComment = "// Deprecated: Do not use."
 const (
 	contextPackage = protogen.GoImportPath("context")
 	apiPackage     = protogen.GoImportPath("github.com/lastbackend/engine/api")
-	clientPackage  = protogen.GoImportPath("github.com/lastbackend/engine/client")
-	serverPackage  = protogen.GoImportPath("github.com/lastbackend/engine/server")
+	clientPackage  = protogen.GoImportPath("github.com/lastbackend/engine/service/client")
+	serverPackage  = protogen.GoImportPath("github.com/lastbackend/engine/service/server")
 	protoPackage   = protogen.GoImportPath("github.com/golang/protobuf/proto")
 )
 
@@ -81,11 +81,10 @@ func generateFileContent(gen *protogen.Plugin, file *protogen.File, g *protogen.
 	g.P("// is compatible with the grpc package it is being compiled against.")
 	g.P("const _ = ", protoPackage.Ident("ProtoPackageIsVersion3")) // When changing, update version number above.
 	g.P("// Reference imports to suppress errors if they are not otherwise used.")
-	//g.P("var _ ", apiPackage, ".Endpoint")
 	g.P("var _ ", contextPackage.Ident("Context"))
-	g.P("var _ ", apiPackage.Ident("Endpoint"))
-	g.P("var _ ", clientPackage.Ident("Option"))
-	g.P("var _ ", serverPackage.Ident("Option"))
+	//g.P("var _ ", apiPackage.Ident("Endpoint"))
+	//g.P("var _ ", clientPackage.Ident("Option"))
+	//g.P("var _ ", serverPackage.Ident("Option"))
 	g.P()
 	for _, service := range file.Services {
 		genService(gen, file, g, service)

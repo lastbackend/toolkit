@@ -38,15 +38,15 @@ type Options struct {
 	MigrationsDir    *string
 }
 
-type postgresPlugin struct {
+type postgresStorage struct {
 	client *client
 
 	prefix string
 	opts   Options
 }
 
-func newPlugin(prefix string) *postgresPlugin {
-	s := new(postgresPlugin)
+func newPostgresStorage(prefix string) *postgresStorage {
+	s := new(postgresStorage)
 	if len(prefix) == 0 {
 		s.prefix = defaultPrefix
 	}
@@ -55,11 +55,11 @@ func newPlugin(prefix string) *postgresPlugin {
 	return s
 }
 
-func (s *postgresPlugin) Name() string {
+func (s *postgresStorage) Name() string {
 	return PluginName
 }
 
-func (s *postgresPlugin) Flags() []cmd.Flag {
+func (s *postgresStorage) Flags() []cmd.Flag {
 	return []cmd.Flag{
 		&cmd.StringFlag{
 			Name:        s.withPrefix("connection"),
@@ -71,7 +71,7 @@ func (s *postgresPlugin) Flags() []cmd.Flag {
 	}
 }
 
-func (s *postgresPlugin) Commands() []cmd.Command {
+func (s *postgresStorage) Commands() []cmd.Command {
 
 	migrateCmd := &cmd.Cmd{
 		Use:       "migrate [SOURCE_PATH]",
@@ -136,7 +136,7 @@ func (s *postgresPlugin) Commands() []cmd.Command {
 	return []cmd.Command{migrateCmd}
 }
 
-func (s *postgresPlugin) Start() error {
+func (s *postgresStorage) Start() error {
 
 	if err := s.client.open(s.opts.ConnectionString); err != nil {
 		return err
@@ -161,18 +161,18 @@ func (s *postgresPlugin) Start() error {
 	return nil
 }
 
-func (s *postgresPlugin) Stop() error {
+func (s *postgresStorage) Stop() error {
 	return s.client.Close()
 }
 
-func (s *postgresPlugin) getClient() Postgres {
+func (s *postgresStorage) getClient() Postgres {
 	return s.client
 }
 
-func (s *postgresPlugin) withPrefix(name string) string {
+func (s *postgresStorage) withPrefix(name string) string {
 	return fmt.Sprintf("%s-%s", s.prefix, name)
 }
 
-func (s *postgresPlugin) withEnvPrefix(name string) string {
+func (s *postgresStorage) withEnvPrefix(name string) string {
 	return strings.ToUpper(fmt.Sprintf("%s_%s", s.prefix, name))
 }

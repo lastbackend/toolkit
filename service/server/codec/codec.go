@@ -14,19 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package server
+package codec
 
-type HandlerOption func(*HandlerOptions)
-
-type HandlerOptions struct {
-	Internal bool
-	Metadata map[string]map[string]string
+type Marshaler interface {
+	Marshal(interface{}) ([]byte, error)
+	Unmarshal([]byte, interface{}) error
+	String() string
 }
 
-// EndpointMetadata is a Handler option that allows metadata to be added to
-// individual endpoints.
-func EndpointMetadata(name string, md map[string]string) HandlerOption {
-	return func(o *HandlerOptions) {
-		o.Metadata[name] = md
-	}
-}

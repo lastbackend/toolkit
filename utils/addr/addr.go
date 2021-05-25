@@ -14,38 +14,47 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package engine
+package addr
 
 import (
-	"github.com/lastbackend/engine/cmd"
-	server2 "github.com/lastbackend/engine/service/server"
-
-	"context"
+	"net"
 )
 
-type Service interface {
-	Name() string
-	Version() string
-	Meta() Meta
-	CLI() CLI
-	Init() error
-	Server() server2.Server
-	SetContext(ctx context.Context)
-	Register(i interface{}) error
-	Run() error
+func addrToIP(addr net.Addr) net.IP {
+	switch v := addr.(type) {
+	case *net.IPAddr:
+		return v.IP
+	case *net.IPNet:
+		return v.IP
+	default:
+		return nil
+	}
 }
 
-type Meta interface {
-	SetVersion(string)
-	SetEnvPrefix(string)
-	SetShortDescription(string)
-	SetLongDescription(string)
+func localIPs() []string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil
+	}
+
+	var ipAddrs []string
+
+	for _, iface := range ifaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue // ignore error
+		}
+
+		for _, addr := range addrs {
+			if ip := addrToIP(addr); ip != nil {
+				ipAddrs = append(ipAddrs, ip.String())
+			}
+		}
+	}
+
+	return ipAddrs
 }
 
-type CLI interface {
-	cmd.FlagSet
-}
-
-func NewService(name string) Service {
-	return newService(name)
+func IPs() []string {
+	return localIPs()
 }
