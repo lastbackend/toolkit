@@ -39,7 +39,6 @@ func NewManager() Manager {
 }
 
 func (pm *manager) RegisterPlugin(p plugin.Plugin) {
-	fmt.Println(fmt.Println(p.Name()))
 	pm.Lock()
 	defer pm.Unlock()
 	if _, ok := pm.plugins[p]; !ok {

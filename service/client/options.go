@@ -16,25 +16,17 @@ limitations under the License.
 
 package client
 
-import "context"
-
 type Options struct {
 }
 
 type CallOptions struct {
 }
 
-type MessageOptions struct {
-	ContentType string
+type PublishOptions struct {
 }
 
-type PublishOptions struct {
-	Context  context.Context
-	Exchange string
+type MessageOptions struct {
 }
 
 type RequestOptions struct {
-	Context     context.Context
-	ContentType string
-	Stream      bool
 }

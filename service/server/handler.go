@@ -16,14 +16,15 @@ limitations under the License.
 
 package server
 
-type router struct {
-	name string
+type HandlerOption func(*HandlerOptions)
+
+type HandlerOptions struct {
+	Internal bool
+	Metadata map[string]map[string]string
 }
 
-func (router *router) NewHandler(h interface{}, opts ...HandlerOption) Handler {
-	return nil
-}
-
-func (router *router) Handle(h Handler) error {
-	return nil
+func EndpointMetadata(name string, md map[string]string) HandlerOption {
+	return func(o *HandlerOptions) {
+		o.Metadata[name] = md
+	}
 }

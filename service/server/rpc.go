@@ -14,38 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package engine
+package server
 
 import (
-	"github.com/lastbackend/engine/cmd"
-	server2 "github.com/lastbackend/engine/service/server"
-
-	"context"
+	"github.com/lastbackend/engine/service/server/transport"
 )
 
-type Service interface {
-	Name() string
-	Version() string
-	Meta() Meta
-	CLI() CLI
-	Init() error
-	Server() server2.Server
-	SetContext(ctx context.Context)
-	Register(i interface{}) error
-	Run() error
+type rpcOptions struct {
+	Address   string
+	Transport transport.Transport
 }
 
-type Meta interface {
-	SetVersion(string)
-	SetEnvPrefix(string)
-	SetShortDescription(string)
-	SetLongDescription(string)
+type rpcServer struct {
 }
 
-type CLI interface {
-	cmd.FlagSet
+func newRpcServer(opts rpcOptions) *rpcServer {
+	s := new(rpcServer)
+	return s
 }
 
-func NewService(name string) Service {
-	return newService(name)
+func (s *rpcServer) Start() error {
+	return nil
+}
+
+func (s *rpcServer) Stop() error {
+	return nil
 }

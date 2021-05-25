@@ -17,9 +17,10 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	"fmt"
 	"os"
 	"strings"
 )
@@ -27,6 +28,10 @@ import (
 const (
 	defaultShortDescription = "a engine service"
 )
+
+func init() {
+	setupDefaults()
+}
 
 type CLI interface {
 	FlagSet

@@ -17,12 +17,13 @@ limitations under the License.
 package engine
 
 import (
-	"context"
-	"github.com/lastbackend/engine/client"
 	"github.com/lastbackend/engine/cmd"
 	"github.com/lastbackend/engine/plugin"
 	"github.com/lastbackend/engine/plugin/manager"
-	"github.com/lastbackend/engine/server"
+	"github.com/lastbackend/engine/service/client"
+	"github.com/lastbackend/engine/service/server"
+
+	"context"
 	"os"
 	"os/signal"
 	"sync"
@@ -35,7 +36,8 @@ type service struct {
 	context context.Context
 	once    sync.Once
 
-	cli    cmd.CLI
+	cli cmd.CLI
+
 	client client.Client
 	server server.Server
 

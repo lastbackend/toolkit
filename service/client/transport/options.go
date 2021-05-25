@@ -14,38 +14,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package engine
+package transport
 
 import (
-	"github.com/lastbackend/engine/cmd"
-	server2 "github.com/lastbackend/engine/service/server"
+	"github.com/lastbackend/engine/service/codec"
 
 	"context"
+	"crypto/tls"
+	"time"
 )
 
-type Service interface {
-	Name() string
-	Version() string
-	Meta() Meta
-	CLI() CLI
-	Init() error
-	Server() server2.Server
-	SetContext(ctx context.Context)
-	Register(i interface{}) error
-	Run() error
+type Options struct {
+	Addrs     []string
+	Secure    bool
+	Codec     codec.Marshaler
+	TLSConfig *tls.Config
+	Timeout   time.Duration
+	Context   context.Context
 }
 
-type Meta interface {
-	SetVersion(string)
-	SetEnvPrefix(string)
-	SetShortDescription(string)
-	SetLongDescription(string)
+type DialOptions struct {
+	Stream  bool
+	Timeout time.Duration
+	Context context.Context
 }
 
-type CLI interface {
-	cmd.FlagSet
-}
-
-func NewService(name string) Service {
-	return newService(name)
+type ListenOptions struct {
+	Context context.Context
 }

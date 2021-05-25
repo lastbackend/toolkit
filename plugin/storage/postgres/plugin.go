@@ -35,12 +35,11 @@ const (
 
 func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
 	return func(o plugin.Option) interface{} {
-		p := newPlugin(o.Prefix)
+		p := newPostgresStorage(o.Prefix)
 		f(p)
 		return p.getClient()
 	}
 }
-
 
 type Postgres interface {
 	Begin() (ClientTx, error)
