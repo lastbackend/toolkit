@@ -18,6 +18,7 @@ package engine
 
 import (
 	"github.com/lastbackend/engine/cmd"
+	"github.com/lastbackend/engine/logger"
 	"github.com/lastbackend/engine/plugin"
 	"github.com/lastbackend/engine/plugin/manager"
 	"github.com/lastbackend/engine/service/client"
@@ -41,6 +42,7 @@ type service struct {
 
 	client client.Client
 	server server.Server
+	logger logger.Logger
 
 	pm manager.Manager
 
@@ -54,6 +56,7 @@ func newService(name string) Service {
 	s.cli = cmd.New()
 	s.context = context.Background()
 	s.server = grpc.NewServer("server")
+	s.logger = logger.DefaultLogger
 	s.pm = manager.NewManager()
 	return s
 }
@@ -108,6 +111,10 @@ func (s *service) Client() client.Client {
 
 func (s *service) Server() server.Server {
 	return s.server
+}
+
+func (s *service) Logger() logger.Logger {
+	return s.logger
 }
 
 func (s *service) SetContext(ctx context.Context) {
