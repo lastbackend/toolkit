@@ -14,29 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package server
+package logger
 
-import (
-	"github.com/lastbackend/engine/service/server/transport"
-)
-
-type rpcOptions struct {
-	Address   string
-	Transport transport.Transport
-}
-
-type rpcServer struct {
-}
-
-func newRpcServer(opts rpcOptions) *rpcServer {
-	s := new(rpcServer)
-	return s
-}
-
-func (s *rpcServer) Start() error {
-	return nil
-}
-
-func (s *rpcServer) Stop() error {
-	return nil
+func fieldsMerge(parent, src map[string]interface{}) map[string]interface{} {
+	dst := make(map[string]interface{}, len(parent)+len(src))
+	for k, v := range parent {
+		dst[k] = v
+	}
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
 }

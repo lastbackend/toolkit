@@ -18,7 +18,8 @@ package engine
 
 import (
 	"github.com/lastbackend/engine/cmd"
-	server2 "github.com/lastbackend/engine/service/server"
+	"github.com/lastbackend/engine/logger"
+	"github.com/lastbackend/engine/service/server"
 
 	"context"
 )
@@ -29,7 +30,8 @@ type Service interface {
 	Meta() Meta
 	CLI() CLI
 	Init() error
-	Server() server2.Server
+	Server() server.Server
+	Logger() logger.Logger
 	SetContext(ctx context.Context)
 	Register(i interface{}) error
 	Run() error

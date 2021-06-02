@@ -23,12 +23,12 @@ import (
 	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"strings"
 
 	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 )
 
@@ -43,11 +43,11 @@ type grpcServer struct {
 
 	opts Options
 
+	rpc        *rpcServer
 	srv        *grpc.Server
 	started    bool
 	registered bool
 	handlers   map[string]server.Handler
-	//rpc        *rServer
 	//rsvc       *registry.Service
 
 	exit chan chan error
@@ -62,10 +62,15 @@ func (g *grpcServer) Name() string {
 }
 
 func (g *grpcServer) NewHandler(h interface{}, opts ...server.HandlerOption) server.Handler {
-	return nil
+	return nil//newRpcHandler(h, opts...)
 }
 
 func (g *grpcServer) Handle(h server.Handler) error {
+	if err := g.rpc.register(h.Handler()); err != nil {
+		return err
+	}
+
+	g.handlers[h.Name()] = h
 	return nil
 }
 
@@ -211,40 +216,40 @@ func (g *grpcServer) Stop() error {
 func (g *grpcServer) Flags() []cmd.Flag {
 	return []cmd.Flag{
 		&cmd.StringFlag{
-			Name:        g.withPrefix("name"),
-			EnvVars:     []string{g.withEnvPrefix("NAME")},
-			Usage:       "Server name",
-			Required:    true,
-			Value:       defaultName,
-			Destination: &g.opts.Name,
-		},
-		&cmd.StringFlag{
 			Name:        g.withPrefix("address"),
 			EnvVars:     []string{g.withEnvPrefix("ADDRESS")},
 			Usage:       "Server address for listening",
-			Required:    true,
+			Required:    false,
 			Value:       defaultAddress,
 			Destination: &g.opts.Address,
+		},
+		&cmd.StringFlag{
+			Name:        g.withPrefix("name"),
+			EnvVars:     []string{g.withEnvPrefix("NAME")},
+			Usage:       "Server name",
+			Required:    false,
+			Value:       defaultName,
+			Destination: &g.opts.Name,
 		},
 		&cmd.IntFlag{
 			Name:        g.withPrefix("max-recv-msg-size"),
 			EnvVars:     []string{g.withEnvPrefix("MAC-RECV-MSG-SIZE")},
 			Usage:       "Sets the max message size in bytes the server can receive (default 16 MB)",
-			Required:    true,
+			Required:    false,
 			Destination: &g.opts.MaxRecvMsgSize,
 		},
 		&cmd.IntFlag{
 			Name:        g.withPrefix("max-send-msg-size"),
 			EnvVars:     []string{g.withEnvPrefix("MAC-RECV-MSG-SIZE")},
 			Usage:       "Sets the max message size in bytes the server can send (default 16 MB)",
-			Required:    true,
+			Required:    false,
 			Destination: &g.opts.MaxSendMsgSize,
 		},
 		&cmd.IntFlag{
 			Name:        g.withPrefix("max-conn-size"),
 			EnvVars:     []string{g.withEnvPrefix("MAX-CONN-SIZE")},
 			Usage:       "Sets the max simultaneous connections for server (default unlimited)",
-			Required:    true,
+			Required:    false,
 			Destination: &g.opts.MaxConnSize,
 		},
 	}
@@ -258,9 +263,9 @@ func newServer(prefix string) server.Server {
 	srv := &grpcServer{
 		prefix: prefix,
 		opts:   defaultOptions(),
-		//rpc: &rServer{
-		//	serviceMap: make(map[string]*service),
-		//},
+		rpc: &rpcServer{
+			serviceMap: make(map[string]*service),
+		},
 		handlers: make(map[string]server.Handler),
 		exit:     make(chan chan error),
 	}
@@ -270,7 +275,8 @@ func newServer(prefix string) server.Server {
 	return srv
 }
 
-func (g *grpcServer) handler(srv interface{}, stream grpc.ServerStream) error {
+// TODO: need implement defaultHandler method
+func (g *grpcServer) defaultHandler(srv interface{}, stream grpc.ServerStream) error {
 	return nil
 }
 
@@ -295,7 +301,7 @@ func (g *grpcServer) configure() {
 	gopts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(maxRecvMsgSize),
 		grpc.MaxSendMsgSize(maxSendMsgSize),
-		grpc.UnknownServiceHandler(g.handler),
+		grpc.UnknownServiceHandler(g.defaultHandler),
 	}
 
 	if g.opts.TLSConfig != nil {

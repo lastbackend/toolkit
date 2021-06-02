@@ -16,19 +16,19 @@ limitations under the License.
 
 package logger
 
+import (
+	"fmt"
+	"os"
+)
+
 type Level int8
 
 const (
-	// DebugLevel level. Usually only enabled when debugging. Very verbose logging.
-	DebugLevel = iota - 1
-	// InfoLevel is the default logging priority.
-	// General operational entries about what's going on inside the application.
+	DebugLevel Level = iota - 1
 	InfoLevel
-	// WarnLevel level. Non-critical entries that deserve eyes.
 	WarnLevel
-	// ErrorLevel level. Logs. Used for errors that should definitely be noted.
 	ErrorLevel
-	// FatalLevel level. Logs and then calls `logger.Exit(1)`. highest level of severity.
+	PanicLevel
 	FatalLevel
 )
 
@@ -42,13 +42,92 @@ func (l Level) String() string {
 		return "warn"
 	case ErrorLevel:
 		return "error"
+	case PanicLevel:
+		return "panic"
 	case FatalLevel:
 		return "fatal"
 	}
 	return ""
 }
 
-// Enabled returns true if the given level is at or above this level.
-func (l Level) Enabled(lvl Level) bool {
-	return lvl >= l
+func GetLevel(lvl string) (Level, error) {
+	switch lvl {
+	case DebugLevel.String():
+		return DebugLevel, nil
+	case InfoLevel.String():
+		return InfoLevel, nil
+	case WarnLevel.String():
+		return WarnLevel, nil
+	case ErrorLevel.String():
+		return ErrorLevel, nil
+	case PanicLevel.String():
+		return PanicLevel, nil
+	case FatalLevel.String():
+		return FatalLevel, nil
+	}
+	return InfoLevel, fmt.Errorf("unknown log level: '%s', defaulting to InfoLevel", lvl)
+}
+
+func WithFields(fields Fields) Logger {
+	return DefaultLogger.WithFields(fields)
+}
+
+func Debug(args ...interface{}) {
+	DefaultLogger.Debug(args)
+}
+
+func Debugf(format string, args ...interface{}) {
+	DefaultLogger.Debugf(format, args)
+}
+
+func Info(args ...interface{}) {
+	DefaultLogger.Info(args)
+}
+
+func Infof(format string, args ...interface{}) {
+	DefaultLogger.Infof(format, args)
+}
+
+func Warn(args ...interface{}) {
+	DefaultLogger.Warn(args)
+}
+
+func Warnf(format string, args ...interface{}) {
+	DefaultLogger.Warnf(format, args)
+}
+
+func Error(args ...interface{}) {
+	DefaultLogger.Error(args)
+}
+
+func Errorf(format string, args ...interface{}) {
+	DefaultLogger.Errorf(format, args)
+}
+
+func Panic(args ...interface{}) {
+	DefaultLogger.Panic(args)
+	os.Exit(1)
+}
+
+func Panicf(format string, args ...interface{}) {
+	DefaultLogger.Panicf(format, args)
+	os.Exit(1)
+}
+
+func Fatal(args ...interface{}) {
+	DefaultLogger.Fatal(args)
+	os.Exit(1)
+}
+
+func Fatalf(format string, args ...interface{}) {
+	DefaultLogger.Fatalf(format, args)
+	os.Exit(1)
+}
+
+func V(lvl Level, log Logger) bool {
+	l := DefaultLogger
+	if log != nil {
+		l = log
+	}
+	return l.Options().VerboseLevel <= lvl
 }
