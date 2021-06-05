@@ -193,7 +193,7 @@ func (s *postgresStorage) Stop() error {
 	return s.client.Close()
 }
 
-func (s *postgresStorage) getClient() Postgres {
+func (s *postgresStorage) getClient() *client {
 	return s.client
 }
 

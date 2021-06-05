@@ -19,10 +19,9 @@ package postgres
 import (
 	"database/sql"
 	"encoding/json"
-	"github.com/jmoiron/sqlx"
-	"github.com/lastbackend/engine/plugin"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 
 	"context"
@@ -33,13 +32,18 @@ const (
 	defaultPrefix = "psql"
 )
 
-func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
-	return func(o plugin.Option) interface{} {
-		p := newPostgresStorage(o.Prefix)
-		f(p)
-		return p.getClient()
-	}
+func Register() Postgres {
+	s := newPostgresStorage("xxx")
+	return s.getClient()
 }
+
+//func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
+//	return func(o plugin.Option) interface{} {
+//		p := newPostgresStorage(o.Prefix)
+//		f(p)
+//		return p.getClient()
+//	}
+//}
 
 type Postgres interface {
 	Begin() (ClientTx, error)
@@ -96,4 +100,3 @@ type ClientTx interface {
 	NamedStmt(stmt *sqlx.NamedStmt) *sqlx.NamedStmt
 	PrepareNamed(query string) (*sqlx.NamedStmt, error)
 }
-

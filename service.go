@@ -17,20 +17,21 @@ limitations under the License.
 package engine
 
 import (
+	"context"
 	"github.com/lastbackend/engine/cmd"
 	"github.com/lastbackend/engine/logger"
 	"github.com/lastbackend/engine/plugin"
 	"github.com/lastbackend/engine/plugin/manager"
+	"github.com/lastbackend/engine/proto"
 	"github.com/lastbackend/engine/service/client"
 	"github.com/lastbackend/engine/service/server"
-	"github.com/lastbackend/engine/service/server/transport/grpc"
-
-	"context"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 )
+
+var Proto proto.Proto
 
 type service struct {
 	*meta
@@ -55,7 +56,7 @@ func newService(name string) Service {
 	s.meta.Name = name
 	s.cli = cmd.New()
 	s.context = context.Background()
-	s.server = grpc.NewServer("server")
+	s.server = server.New()
 	s.logger = logger.DefaultLogger
 	s.pm = manager.NewManager()
 	return s
@@ -102,7 +103,8 @@ func (s *service) RegisterPlugin(p plugin.Plugin) {
 }
 
 func (s *service) Register(in interface{}) error {
-	return s.pm.Register(in)
+	return Proto.Register(in)
+	//return s.pm.Register(in)
 }
 
 func (s *service) Client() client.Client {

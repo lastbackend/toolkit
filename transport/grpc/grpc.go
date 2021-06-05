@@ -19,7 +19,6 @@ package grpc
 import (
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/lastbackend/engine/cmd"
-	"github.com/lastbackend/engine/service/server"
 	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -47,13 +46,13 @@ type grpcServer struct {
 	srv        *grpc.Server
 	started    bool
 	registered bool
-	handlers   map[string]server.Handler
+	handlers   map[string]Handler
 	//rsvc       *registry.Service
 
 	exit chan chan error
 }
 
-func NewServer(prefix string) server.Server {
+func NewServer(prefix string) *grpcServer {
 	return newServer(prefix)
 }
 
@@ -61,11 +60,11 @@ func (g *grpcServer) Name() string {
 	return ServiceName
 }
 
-func (g *grpcServer) NewHandler(h interface{}, opts ...server.HandlerOption) server.Handler {
-	return nil//newRpcHandler(h, opts...)
+func (g *grpcServer) NewHandler(h interface{}, opts ...HandlerOption) *Handler {
+	return newHandler(h, opts...)
 }
 
-func (g *grpcServer) Handle(h server.Handler) error {
+func (g *grpcServer) Handle(h Handler) error {
 	if err := g.rpc.register(h.Handler()); err != nil {
 		return err
 	}
@@ -259,14 +258,14 @@ func (g *grpcServer) Commands() []cmd.Command {
 	return make([]cmd.Command, 0)
 }
 
-func newServer(prefix string) server.Server {
+func newServer(prefix string) *grpcServer {
 	srv := &grpcServer{
 		prefix: prefix,
 		opts:   defaultOptions(),
 		rpc: &rpcServer{
 			serviceMap: make(map[string]*service),
 		},
-		handlers: make(map[string]server.Handler),
+		handlers: make(map[string]Handler),
 		exit:     make(chan chan error),
 	}
 
