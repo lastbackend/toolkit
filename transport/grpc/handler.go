@@ -15,73 +15,73 @@ limitations under the License.
 */
 
 package grpc
-//
-//import (
-//	"github.com/lastbackend/engine/service/server"
-//
-//	"fmt"
-//	"reflect"
-//	"strings"
-//)
-//
-//type rpcHandler struct {
-//	name      string
-//	handler   interface{}
-//	//endpoints []*registry.Endpoint
-//	opts      server.HandlerOptions
-//}
-//
-//func newRpcHandler(handler interface{}, opts ...server.HandlerOption) server.Handler {
-//	options := server.HandlerOptions{
-//		Metadata: make(map[string]map[string]string),
-//	}
-//
-//	for _, o := range opts {
-//		o(&options)
-//	}
-//
-//	typ := reflect.TypeOf(handler)
-//	hdlr := reflect.ValueOf(handler)
-//	name := reflect.Indirect(hdlr).Type().Name()
-//
-//	var endpoints []*registry.Endpoint
-//
-//	for m := 0; m < typ.NumMethod(); m++ {
-//		if e := extractEndpoint(typ.Method(m)); e != nil {
-//			e.Name = name + "." + e.Name
-//
-//			for k, v := range options.Metadata[e.Name] {
-//				e.Metadata[k] = v
-//			}
-//
-//			endpoints = append(endpoints, e)
-//		}
-//	}
-//
-//	return &rpcHandler{
-//		name:      name,
-//		handler:   handler,
-//		endpoints: endpoints,
-//		opts:      options,
-//	}
-//}
-//
-//func (r *rpcHandler) Name() string {
-//	return r.name
-//}
-//
-//func (r *rpcHandler) Handler() interface{} {
-//	return r.handler
-//}
-//
-//func (r *rpcHandler) Endpoints() []*registry.Endpoint {
-//	return r.endpoints
-//}
-//
-//func (r *rpcHandler) Options() server.HandlerOptions {
-//	return r.opts
-//}
-//
+
+import (
+	"fmt"
+	"reflect"
+)
+
+type HandlerOption func(*HandlerOptions)
+
+type Handler struct {
+	name    string
+	handler interface{}
+	//endpoints []*registry.Endpoint
+	//opts      server.HandlerOptions
+}
+
+type HandlerOptions struct {
+	Internal bool
+	Metadata map[string]map[string]string
+}
+
+func newHandler(h interface{}, opts ...HandlerOption) *Handler {
+	options := HandlerOptions{
+		Metadata: make(map[string]map[string]string),
+	}
+
+	for _, o := range opts {
+		o(&options)
+	}
+
+	typ := reflect.TypeOf(h)
+	hdlr := reflect.ValueOf(h)
+	name := reflect.Indirect(hdlr).Type().Name()
+
+	fmt.Println(">>>>>>>>>>>>>>>>>>>>")
+	fmt.Println(typ, hdlr, name)
+	fmt.Println(">>>>>>>>>>>>>>>>>>>>")
+
+	//var endpoints []*registry.Endpoint
+	//
+	//for m := 0; m < typ.NumMethod(); m++ {
+	//	if e := extractEndpoint(typ.Method(m)); e != nil {
+	//		e.Name = name + "." + e.Name
+	//
+	//		for k, v := range options.Metadata[e.Name] {
+	//			e.Metadata[k] = v
+	//		}
+	//
+	//		endpoints = append(endpoints, e)
+	//	}
+	//}
+
+	return &Handler{
+		//name:      name,
+		//handler:   handler,
+		//endpoints: endpoints,
+		//opts:      options,
+	}
+}
+
+func (r *Handler) Name() string {
+	return r.name
+}
+
+func (r *Handler) Handler() interface{} {
+	return r.handler
+}
+
 //func extractValue(v reflect.Type, d int) *registry.Value {
 //	if d == 6 {
 //		return nil

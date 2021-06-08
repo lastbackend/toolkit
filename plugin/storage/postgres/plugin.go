@@ -19,10 +19,10 @@ package postgres
 import (
 	"database/sql"
 	"encoding/json"
-	"github.com/jmoiron/sqlx"
 	"github.com/lastbackend/engine/plugin"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 
 	"context"
@@ -33,20 +33,21 @@ const (
 	defaultPrefix = "psql"
 )
 
+// The plugin implements storage using Postgres as a database storage
 func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
 	return func(o plugin.Option) interface{} {
-		p := newPostgresStorage(o.Prefix)
+		p := newStorage(o.Prefix)
 		f(p)
 		return p.getClient()
 	}
 }
 
-type Postgres interface {
+type Storage interface {
 	Begin() (ClientTx, error)
-	Beginx() (ClientTx, error)
+	Beginx() (ClientTxx, error)
 	Subscribe(ctx context.Context, channel string, listener chan string) error
 	Publish(ctx context.Context, channel string, data json.RawMessage) (sql.Result, error)
-	MustBegin() ClientTx
+	MustBegin() ClientTxx
 	MapperFunc(mf func(string) string)
 	Rebind(query string) string
 	BindNamed(query string, arg interface{}) (string, []interface{}, error)
@@ -74,6 +75,19 @@ type ClientTx interface {
 	Rollback() error
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 	Prepare(query string) (*sql.Stmt, error)
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+	QueryRow(query string, args ...interface{}) *sql.Row
+}
+
+type ClientTxx interface {
+	Commit() error
+	Rollback() error
+	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
+	Prepare(query string) (*sql.Stmt, error)
 	StmtContext(ctx context.Context, stmt *sql.Stmt) *sql.Stmt
 	Stmt(stmt *sql.Stmt) *sql.Stmt
 	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
@@ -96,4 +110,3 @@ type ClientTx interface {
 	NamedStmt(stmt *sqlx.NamedStmt) *sqlx.NamedStmt
 	PrepareNamed(query string) (*sqlx.NamedStmt, error)
 }
-

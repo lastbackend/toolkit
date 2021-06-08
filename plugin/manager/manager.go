@@ -29,61 +29,73 @@ import (
 type manager struct {
 	sync.RWMutex
 
-	plugins map[plugin.Plugin]bool
+	registered map[plugin.Plugin]bool
 }
 
 func NewManager() Manager {
 	mng := new(manager)
-	mng.plugins = make(map[plugin.Plugin]bool, 0)
+	mng.registered = make(map[plugin.Plugin]bool, 0)
 	return mng
 }
 
 func (pm *manager) RegisterPlugin(p plugin.Plugin) {
 	pm.Lock()
 	defer pm.Unlock()
-	if _, ok := pm.plugins[p]; !ok {
-		pm.plugins[p] = true
+	if _, ok := pm.registered[p]; !ok {
+		pm.registered[p] = true
 	}
 }
 
-func (pm *manager) Register(in interface{}) error {
+func (pm *manager) Register(i interface{}, f func(f plugin.RegisterFunc) plugin.CreatorFunc, o plugin.Option) error {
 
-	val := reflect.ValueOf(in).Elem()
+	valIface := reflect.ValueOf(i).Elem()
+	funcType := reflect.TypeOf(plugin.RegisterFunc(nil))
+	funcRegister := reflect.MakeFunc(funcType, func(args []reflect.Value) []reflect.Value {
+		pm.RegisterPlugin(args[0].Interface().(plugin.Plugin))
+		return nil
+	})
+	funcCreator := reflect.ValueOf(f).Call([]reflect.Value{funcRegister})
+	valueOptions := reflect.ValueOf(o)
+	valueInstance := funcCreator[0].Call([]reflect.Value{valueOptions})
 
-	for i := 0; i < val.NumField(); i++ {
+	fmt.Println("+++ ", valIface.Field(0).Type(), valIface.Field(0).Kind(), valIface.Field(0).Type().PkgPath())
 
-		valueField := val.Field(i)
-		typeField := val.Type().Field(i)
-		tagPrefix := val.Type().Field(i).Tag.Get("prefix")
+	valIface.Field(0).Set(valueInstance[0].Elem().Convert(valIface.Field(0).Type()))
 
-		pm.Lock()
-		valueFunc, ok := plugins[typeField.Type]
-		if !ok {
-			return fmt.Errorf("plugin %s not registered", typeField.Type)
-		}
-		pm.Unlock()
-
-		funcType := reflect.TypeOf(plugin.RegisterFunc(nil))
-		funcRegister := reflect.MakeFunc(funcType, func(args []reflect.Value) []reflect.Value {
-			pm.RegisterPlugin(args[0].Interface().(plugin.Plugin))
-			return nil
-		})
-
-		funcCreator := valueFunc.Call([]reflect.Value{funcRegister})
-
-		valueOptions := reflect.ValueOf(plugin.Option{Prefix: tagPrefix})
-		valueInstance := funcCreator[0].Call([]reflect.Value{valueOptions})
-
-		if len(valueInstance) > 0 {
-			valueField.Set(valueInstance[0].Elem().Convert(valueField.Type()))
-		}
-	}
+	//for i := 0; i < valIface.NumField(); i++ {
+	//
+	//	valueField := valIface.Field(i)
+	//	typeField := valIface.Type().Field(i)
+	//	tagPrefix := valIface.Type().Field(i).Tag.Get("prefix")
+	//
+	//	pm.Lock()
+	//	valueFunc, ok := registered[typeField.Type]
+	//	if !ok {
+	//		return fmt.Errorf("plugin %s not registered", typeField.Type)
+	//	}
+	//	pm.Unlock()
+	//
+	//	funcType := reflect.TypeOf(plugin.RegisterFunc(nil))
+	//	funcRegister := reflect.MakeFunc(funcType, func(args []reflect.Value) []reflect.Value {
+	//		pm.RegisterPlugin(args[0].Interface().(plugin.Plugin))
+	//		return nil
+	//	})
+	//
+	//	funcCreator := valueFunc.Call([]reflect.Value{funcRegister})
+	//
+	//	valueOptions := reflect.ValueOf(plugin.Option{Prefix: tagPrefix})
+	//	valueInstance := funcCreator[0].Call([]reflect.Value{valueOptions})
+	//
+	//	if len(valueInstance) > 0 {
+	//		valueField.Set(valueInstance[0].Elem().Convert(valueField.Type()))
+	//	}
+	//}
 
 	return nil
 }
 
 func (pm *manager) Flags() []cmd.Flag {
-	if pm.plugins == nil {
+	if pm.registered == nil {
 		return make([]cmd.Flag, 0)
 	}
 
@@ -92,7 +104,7 @@ func (pm *manager) Flags() []cmd.Flag {
 
 	flags := make([]cmd.Flag, 0)
 
-	for p := range pm.plugins {
+	for p := range pm.registered {
 		flags = append(flags, p.Flags()...)
 	}
 
@@ -100,7 +112,7 @@ func (pm *manager) Flags() []cmd.Flag {
 }
 
 func (pm *manager) Commands() []cmd.Command {
-	if pm.plugins == nil {
+	if pm.registered == nil {
 		return make([]cmd.Command, 0)
 	}
 
@@ -109,7 +121,7 @@ func (pm *manager) Commands() []cmd.Command {
 
 	commands := make([]cmd.Command, 0)
 
-	for p := range pm.plugins {
+	for p := range pm.registered {
 		commands = append(commands, p.Commands()...)
 	}
 
@@ -117,7 +129,7 @@ func (pm *manager) Commands() []cmd.Command {
 }
 
 func (pm *manager) Start() error {
-	for p := range pm.plugins {
+	for p := range pm.registered {
 		if err := p.Start(); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("Start plugin %s failed", p.Name()))
 		}
@@ -126,9 +138,10 @@ func (pm *manager) Start() error {
 }
 
 func (pm *manager) Stop() {
-	for p := range pm.plugins {
+	for p := range pm.registered {
 		if err := p.Stop(); err != nil {
 			fmt.Println(errors.Wrap(err, fmt.Sprintf("Stop plugin %s failed", p.Name())))
 		}
+		delete(pm.registered, p)
 	}
 }

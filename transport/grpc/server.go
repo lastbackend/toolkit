@@ -29,8 +29,6 @@ import (
 )
 
 var (
-	// Precompute the reflect type for error. Can't use error directly
-	// because Typeof takes an empty interface value. This is annoying.
 	typeOfError = reflect.TypeOf((*error)(nil)).Elem()
 )
 
@@ -49,30 +47,23 @@ type service struct {
 	method          map[string]*methodType
 }
 
-// server represents an RPC Server.
 type rpcServer struct {
 	mu         sync.Mutex // protects the serviceMap
 	serviceMap map[string]*service
 }
 
-// Is this an exported - upper case - name?
 func isExported(name string) bool {
 	rune, _ := utf8.DecodeRuneInString(name)
 	return unicode.IsUpper(rune)
 }
 
-// Is this type exported or a builtin?
 func isExportedOrBuiltinType(t reflect.Type) bool {
 	for t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
-	// PkgPath will be non-empty even for an exported type,
-	// so we need to check the type name as well.
 	return isExported(t.Name()) || t.PkgPath() == ""
 }
 
-// prepareEndpoint() returns a methodType for the provided method or nil
-// in case if the method was unsuitable.
 func prepareEndpoint(method reflect.Method) *methodType {
 	mtype := method.Type
 	mname := method.Name

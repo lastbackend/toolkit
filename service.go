@@ -23,11 +23,12 @@ import (
 	"github.com/lastbackend/engine/plugin/manager"
 	"github.com/lastbackend/engine/service/client"
 	"github.com/lastbackend/engine/service/server"
-	"github.com/lastbackend/engine/service/server/transport/grpc"
 
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
+	"reflect"
 	"sync"
 	"syscall"
 )
@@ -55,7 +56,7 @@ func newService(name string) Service {
 	s.meta.Name = name
 	s.cli = cmd.New()
 	s.context = context.Background()
-	s.server = grpc.NewServer("server")
+	s.server = server.New()
 	s.logger = logger.DefaultLogger
 	s.pm = manager.NewManager()
 	return s
@@ -101,8 +102,54 @@ func (s *service) RegisterPlugin(p plugin.Plugin) {
 	s.pm.RegisterPlugin(p)
 }
 
-func (s *service) Register(in interface{}) error {
-	return s.pm.Register(in)
+func (s *service) Register(i interface{}, props map[string]map[string]ServiceProps) error {
+
+	valueIface := reflect.ValueOf(i)
+
+	// Check if the passed interface is a pointer
+	if valueIface.Type().Kind() != reflect.Ptr {
+		return fmt.Errorf("the argument must be a pointer")
+	}
+	if valueIface.IsNil() {
+		return fmt.Errorf("the argument must not be nil")
+	}
+
+	for tech, fields := range props {
+
+		storageField := valueIface.Elem().FieldByName(tech)
+		if !storageField.IsValid() {
+			return fmt.Errorf("interface `%s` does not have the field `%s`", valueIface.Type(), tech)
+		}
+
+		for srv := range fields {
+			srvField := valueIface.Elem().FieldByName(tech).FieldByName(srv)
+			if !srvField.IsValid() {
+				return fmt.Errorf("interface `%s` does not have the field `%s`", storageField.Type(), srv)
+			}
+			if srvField.Kind() != reflect.Ptr {
+				return fmt.Errorf("the `%s` must be a pointer`", srv)
+			}
+			if srvField.IsNil() {
+				t := reflect.TypeOf(srvField.Interface()).Elem()
+				srvField.Set(reflect.New(t))
+			}
+
+			switch tech {
+			case "Storage":
+				fallthrough
+			case "Cache":
+				if err := s.pm.Register(srvField.Interface(), props[tech][srv].Func.(func(f plugin.RegisterFunc) plugin.CreatorFunc), props[tech][srv].Options.(plugin.Option)); err != nil {
+					return err
+				}
+			case "Broker":
+			case "Service":
+
+			}
+
+		}
+	}
+
+	return nil
 }
 
 func (s *service) Client() client.Client {

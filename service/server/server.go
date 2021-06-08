@@ -17,14 +17,14 @@ limitations under the License.
 package server
 
 import (
-	"github.com/lastbackend/engine/cmd"
-
 	"context"
+	"github.com/lastbackend/engine/cmd"
 )
 
 type Server interface {
 	Start() error
 	Stop() error
+	Register(interface{}) error
 	Handle(Handler) error
 	NewHandler(interface{}, ...HandlerOption) Handler
 	Flags() []cmd.Flag
