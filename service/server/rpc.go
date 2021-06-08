@@ -17,10 +17,8 @@ limitations under the License.
 package server
 
 import (
-	"github.com/lastbackend/engine/cmd"
-	"reflect"
-
 	"fmt"
+	"github.com/lastbackend/engine/cmd"
 )
 
 type rpcServer struct {
@@ -44,23 +42,23 @@ func (r rpcServer) Register(i interface{}) error {
 		register(Server) error
 	}
 
-	val := reflect.ValueOf(i).Elem()
-
-	for i := 0; i < val.NumField(); i++ {
-
-		valueField := val.Field(i)
-		typeField := val.Type().Field(i)
-
-		fmt.Println("v >>>>", valueField.Type(), valueField.Kind())
-		fmt.Println("t >>>>", typeField.Type, typeField.Name)
-
-		//v := i.(handler)
-		//
-		//if err := v.register(r); err != nil {
-		//	return err
-		//}
-
-	}
+	//val := reflect.ValueOf(i).Elem()
+	//
+	//for i := 0; i < val.NumField(); i++ {
+	//
+	//	valueField := val.Field(i)
+	//	typeField := val.Type().Field(i)
+	//
+	//	fmt.Println("v >>>>", valueField.Type(), valueField.Kind())
+	//	fmt.Println("t >>>>", typeField.Type, typeField.Name)
+	//
+	//	//v := i.(handler)
+	//	//
+	//	//if err := v.register(r); err != nil {
+	//	//	return err
+	//	//}
+	//
+	//}
 
 	return nil
 }

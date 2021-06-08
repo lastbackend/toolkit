@@ -24,6 +24,13 @@ import (
 	"context"
 )
 
+type ServiceType uint8
+
+type ServiceProps struct {
+	Func    interface{}
+	Options interface{}
+}
+
 type Service interface {
 	Name() string
 	Version() string
@@ -33,15 +40,15 @@ type Service interface {
 	Server() server.Server
 	Logger() logger.Logger
 	SetContext(ctx context.Context)
-	Register(i interface{}) error
+	Register(i interface{}, props map[string]map[string]ServiceProps) error
 	Run() error
 }
 
 type Meta interface {
-	SetVersion(string)
-	SetEnvPrefix(string)
-	SetShortDescription(string)
-	SetLongDescription(string)
+	SetVersion(version string)
+	SetEnvPrefix(prefix string)
+	SetShortDescription(desc string)
+	SetLongDescription(desc string)
 }
 
 type CLI interface {

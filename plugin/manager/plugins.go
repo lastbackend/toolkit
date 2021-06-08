@@ -22,5 +22,5 @@ import (
 )
 
 var plugins = map[reflect.Type]reflect.Value{
-	reflect.TypeOf((*postgres.Postgres)(nil)).Elem(): reflect.ValueOf(postgres.Register),
+	reflect.TypeOf((*postgres.Storage)(nil)).Elem(): reflect.ValueOf(postgres.Register),
 }

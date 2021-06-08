@@ -14,18 +14,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package manager
+package redis
 
 import (
-	"github.com/lastbackend/engine/cmd"
+	"context"
 	"github.com/lastbackend/engine/plugin"
+	"time"
 )
 
-type Manager interface {
-	Start() error
-	Stop()
-	Flags() []cmd.Flag
-	Commands() []cmd.Command
-	RegisterPlugin(p plugin.Plugin)
-	Register(i interface{}, f func(f plugin.RegisterFunc) plugin.CreatorFunc, o plugin.Option) error
+const (
+	PluginName    = "redis"
+	defaultPrefix = "redis"
+)
+
+// The plugin implements a cache using Redis as a key/value storage
+func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
+	return func(o plugin.Option) interface{} {
+		p := newCache(o.Prefix)
+		f(p)
+		return p.getClient()
+	}
+}
+
+type Cache interface {
+	Exists(ctx context.Context, key string) bool
+	Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error
+	Get(ctx context.Context, key string, value interface{}) error
+	Del(ctx context.Context, key string) error
 }

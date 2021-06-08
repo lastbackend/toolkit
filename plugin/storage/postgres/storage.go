@@ -33,8 +33,6 @@ const (
 
 type Options struct {
 	clientOptions
-
-	ConnectionString string
 	MigrationsDir    *string
 }
 
@@ -45,7 +43,7 @@ type postgresStorage struct {
 	opts   Options
 }
 
-func newPostgresStorage(prefix string) *postgresStorage {
+func newStorage(prefix string) *postgresStorage {
 	s := new(postgresStorage)
 	if len(prefix) == 0 {
 		s.prefix = defaultPrefix
@@ -66,7 +64,7 @@ func (s *postgresStorage) Flags() []cmd.Flag {
 			EnvVars:     []string{s.withEnvPrefix("CONNECTION")},
 			Usage:       "PostgreSQL connection string",
 			Required:    true,
-			Destination: &s.opts.ConnectionString,
+			Destination: &s.opts.Connection,
 		},
 		&cmd.DurationFlag{
 			Name:        s.withPrefix("conn-max-lifetime"),
@@ -108,7 +106,7 @@ func (s *postgresStorage) Commands() []cmd.Command {
 
 			c := newClient()
 
-			psqlConnection, err := cmd.Flags().GetString(s.withPrefix("connection"))
+			connection, err := cmd.Flags().GetString(s.withPrefix("connection"))
 			if err != nil {
 				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct", s.withPrefix("connection"))
 			}
@@ -117,12 +115,12 @@ func (s *postgresStorage) Commands() []cmd.Command {
 				return errors.Wrapf(err, "argument \"source path\" is not set, programmer error, please correct")
 			}
 
-			if err := c.open(psqlConnection); err != nil {
+			if err := c.open(clientOptions{Connection: connection}); err != nil {
 				return err
 			}
 
 			// Parse connection string and get database name
-			items := strings.Split(psqlConnection, " ")
+			items := strings.Split(connection, " ")
 
 			dbName := ""
 			for _, item := range items {
@@ -132,7 +130,7 @@ func (s *postgresStorage) Commands() []cmd.Command {
 				}
 			}
 
-			driver, err := postgres.WithInstance(c.conn.DB, &postgres.Config{})
+			driver, err := postgres.WithInstance(c.c.DB, &postgres.Config{})
 			m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", args[0]), dbName, driver)
 			if err != nil {
 				return err
@@ -166,11 +164,11 @@ func (s *postgresStorage) Commands() []cmd.Command {
 
 func (s *postgresStorage) Start() error {
 
-	if err := s.client.open(s.opts.ConnectionString); err != nil {
+	if err := s.client.open(s.opts.clientOptions); err != nil {
 		return err
 	}
 
-	if err := s.client.conn.Ping(); err != nil {
+	if err := s.client.c.Ping(); err != nil {
 		return err
 	}
 
@@ -178,7 +176,7 @@ func (s *postgresStorage) Start() error {
 		for {
 			select {
 			case <-time.After(defaultPingTimeout):
-				if err := s.client.conn.Ping(); err != nil {
+				if err := s.client.c.Ping(); err != nil {
 					fmt.Println(err)
 					return
 				}
