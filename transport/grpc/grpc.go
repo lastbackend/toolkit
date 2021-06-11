@@ -17,14 +17,13 @@ limitations under the License.
 package grpc
 
 import (
+	"crypto/tls"
+	"fmt"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/lastbackend/engine/cmd"
 	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-
-	"crypto/tls"
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -42,17 +41,15 @@ type grpcServer struct {
 
 	opts Options
 
-	rpc        *rpcServer
 	srv        *grpc.Server
 	started    bool
 	registered bool
 	handlers   map[string]Handler
-	//rsvc       *registry.Service
 
 	exit chan chan error
 }
 
-func NewServer(prefix string) *grpcServer {
+func NewTransport(prefix string) *grpcServer {
 	return newServer(prefix)
 }
 
@@ -64,12 +61,8 @@ func (g *grpcServer) NewHandler(h interface{}, opts ...HandlerOption) *Handler {
 	return newHandler(h, opts...)
 }
 
-func (g *grpcServer) Handle(h Handler) error {
-	if err := g.rpc.register(h.Handler()); err != nil {
-		return err
-	}
-
-	g.handlers[h.Name()] = h
+func (g *grpcServer) Register(sd *grpc.ServiceDesc, ss interface{}) error {
+	g.srv.RegisterService(sd, ss)
 	return nil
 }
 
@@ -107,12 +100,7 @@ func (g *grpcServer) Start() error {
 	g.opts.Address = listener.Addr().String()
 	g.Unlock()
 
-	//if err := g.register(); err != nil {
-	//	fmt.Println(fmt.Sprintf("server register error: %v", err))
-	//}
-
 	if len(g.opts.GRPCWebAddr) > 0 {
-		//gRPCWebAddr := ":8082"
 		gRPCWebAddr := g.opts.GRPCWebAddr
 
 		if len(g.opts.GRPCWebAddr) > 0 {
@@ -204,7 +192,6 @@ func (g *grpcServer) Stop() error {
 	select {
 	case err = <-ch:
 		g.Lock()
-		//g.rsvc = nil
 		g.started = false
 		g.Unlock()
 	}
@@ -260,12 +247,8 @@ func (g *grpcServer) Commands() []cmd.Command {
 
 func newServer(prefix string) *grpcServer {
 	srv := &grpcServer{
-		prefix: prefix,
-		opts:   defaultOptions(),
-		rpc: &rpcServer{
-			serviceMap: make(map[string]*service),
-		},
-		handlers: make(map[string]Handler),
+		prefix:   prefix,
+		opts:     defaultOptions(),
 		exit:     make(chan chan error),
 	}
 
@@ -311,7 +294,6 @@ func (g *grpcServer) configure() {
 		gopts = append(gopts, g.opts.GrpcOptions...)
 	}
 
-	//g.rsvc = nil
 	g.srv = grpc.NewServer(gopts...)
 }
 

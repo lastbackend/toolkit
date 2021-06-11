@@ -16,63 +16,10 @@ limitations under the License.
 
 package transport
 
-import (
-	"github.com/lastbackend/engine/service/server/codec"
-
-	"context"
-	"crypto/tls"
-	"time"
-)
-
-type TransportOption func(*TransportOptions)
-type DialOption func(*DialOptions)
-type ListenOption func(*ListenOptions)
-
-type TransportOptions struct {
-	Secure    bool
-	Addrs     []string
-	Codec     codec.Marshaler
-	TLSConfig *tls.Config
-	Timeout   time.Duration
-	Context   context.Context
-}
-
-type DialOptions struct {
-	Stream  bool
-	Timeout time.Duration
-	Context context.Context
-}
-
-type ListenOptions struct {
-	Context context.Context
-}
+import "github.com/lastbackend/engine/cmd"
 
 type Transport interface {
-	Init(...TransportOption) error
-	Dial(addr string, opts ...DialOption) (Client, error)
-	Listen(addr string, opts ...ListenOption) (Listener, error)
-	String() string
-}
-
-type Message struct {
-	Header map[string]string
-	Body   []byte
-}
-
-type Socket interface {
-	Recv(*Message) error
-	Send(*Message) error
-	Close() error
-	Local() string
-	Remote() string
-}
-
-type Client interface {
-	Socket
-}
-
-type Listener interface {
-	Addr() string
-	Close() error
-	Accept(func(Socket)) error
+	Start() error
+	Stop() error
+	Flags() []cmd.Flag
 }

@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	defaultAddress          = ":0"
+	defaultAddress          = ":2992"
 	defaultName             = "go.engine.server"
 	defaultRegisterInterval = time.Second * 30
 	defaultRegisterTTL      = time.Second * 90
