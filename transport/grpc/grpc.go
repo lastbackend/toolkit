@@ -17,13 +17,14 @@ limitations under the License.
 package grpc
 
 import (
-	"crypto/tls"
-	"fmt"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/lastbackend/engine/cmd"
 	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+
+	"crypto/tls"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -44,7 +45,6 @@ type grpcServer struct {
 	srv        *grpc.Server
 	started    bool
 	registered bool
-	handlers   map[string]Handler
 
 	exit chan chan error
 }
@@ -55,10 +55,6 @@ func NewTransport(prefix string) *grpcServer {
 
 func (g *grpcServer) Name() string {
 	return ServiceName
-}
-
-func (g *grpcServer) NewHandler(h interface{}, opts ...HandlerOption) *Handler {
-	return newHandler(h, opts...)
 }
 
 func (g *grpcServer) Register(sd *grpc.ServiceDesc, ss interface{}) error {
@@ -127,48 +123,6 @@ func (g *grpcServer) Start() error {
 			fmt.Println(fmt.Sprintf("gRPC server start error: %v", err))
 		}
 	}()
-
-	//go func() {
-	//	t := new(time.Ticker)
-	//
-	//	// only process if exists
-	//	if g.opts.RegisterInterval > time.Duration(0) {
-	//		t = time.NewTicker(g.opts.RegisterInterval)
-	//	}
-	//
-	//	var chanCLoseTransport chan error
-	//
-	//Loop:
-	//	for {
-	//		select {
-	//		case <-t.C:
-	//			if err := g.register(); err != nil {
-	//				fmt.Println(fmt.Sprintf("server register error: %v", err))
-	//			}
-	//		case chanCLoseTransport = <-g.exit:
-	//			break Loop
-	//		}
-	//	}
-	//
-	//	if err := g.deregister(); err != nil {
-	//		fmt.Println(fmt.Sprintf("server deregister error: %v", err))
-	//	}
-	//
-	//	exit := make(chan bool)
-	//
-	//	go func() {
-	//		g.srv.GracefulStop()
-	//		close(exit)
-	//	}()
-	//
-	//	select {
-	//	case <-exit:
-	//	case <-time.After(time.Second):
-	//		g.srv.Stop()
-	//	}
-	//
-	//	chanCLoseTransport <- nil
-	//}()
 
 	g.Lock()
 	g.started = true
@@ -247,9 +201,9 @@ func (g *grpcServer) Commands() []cmd.Command {
 
 func newServer(prefix string) *grpcServer {
 	srv := &grpcServer{
-		prefix:   prefix,
-		opts:     defaultOptions(),
-		exit:     make(chan chan error),
+		prefix: prefix,
+		opts:   defaultOptions(),
+		exit:   make(chan chan error),
 	}
 
 	srv.configure()
