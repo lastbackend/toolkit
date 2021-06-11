@@ -20,6 +20,7 @@ import (
 	"github.com/lastbackend/engine/cmd"
 	"github.com/lastbackend/engine/logger"
 	"github.com/lastbackend/engine/service/server"
+	"github.com/lastbackend/engine/transport"
 
 	"context"
 )
@@ -29,6 +30,11 @@ type ServiceType uint8
 type ServiceProps struct {
 	Func    interface{}
 	Options interface{}
+}
+
+type HandlerProps struct {
+	Transport string
+	Options   interface{}
 }
 
 type Service interface {
@@ -41,6 +47,7 @@ type Service interface {
 	Logger() logger.Logger
 	SetContext(ctx context.Context)
 	Register(i interface{}, props map[string]map[string]ServiceProps) error
+	Transport(t transport.Transport) error
 	Run() error
 }
 

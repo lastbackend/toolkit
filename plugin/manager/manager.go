@@ -48,6 +48,10 @@ func (pm *manager) RegisterPlugin(p plugin.Plugin) {
 
 func (pm *manager) Register(i interface{}, f func(f plugin.RegisterFunc) plugin.CreatorFunc, o plugin.Option) error {
 
+	if reflect.TypeOf(i).Kind() != reflect.Ptr {
+		return fmt.Errorf("the argument must be a pointer")
+	}
+
 	valIface := reflect.ValueOf(i).Elem()
 	funcType := reflect.TypeOf(plugin.RegisterFunc(nil))
 	funcRegister := reflect.MakeFunc(funcType, func(args []reflect.Value) []reflect.Value {
@@ -58,38 +62,7 @@ func (pm *manager) Register(i interface{}, f func(f plugin.RegisterFunc) plugin.
 	valueOptions := reflect.ValueOf(o)
 	valueInstance := funcCreator[0].Call([]reflect.Value{valueOptions})
 
-	fmt.Println("+++ ", valIface.Field(0).Type(), valIface.Field(0).Kind(), valIface.Field(0).Type().PkgPath())
-
 	valIface.Field(0).Set(valueInstance[0].Elem().Convert(valIface.Field(0).Type()))
-
-	//for i := 0; i < valIface.NumField(); i++ {
-	//
-	//	valueField := valIface.Field(i)
-	//	typeField := valIface.Type().Field(i)
-	//	tagPrefix := valIface.Type().Field(i).Tag.Get("prefix")
-	//
-	//	pm.Lock()
-	//	valueFunc, ok := registered[typeField.Type]
-	//	if !ok {
-	//		return fmt.Errorf("plugin %s not registered", typeField.Type)
-	//	}
-	//	pm.Unlock()
-	//
-	//	funcType := reflect.TypeOf(plugin.RegisterFunc(nil))
-	//	funcRegister := reflect.MakeFunc(funcType, func(args []reflect.Value) []reflect.Value {
-	//		pm.RegisterPlugin(args[0].Interface().(plugin.Plugin))
-	//		return nil
-	//	})
-	//
-	//	funcCreator := valueFunc.Call([]reflect.Value{funcRegister})
-	//
-	//	valueOptions := reflect.ValueOf(plugin.Option{Prefix: tagPrefix})
-	//	valueInstance := funcCreator[0].Call([]reflect.Value{valueOptions})
-	//
-	//	if len(valueInstance) > 0 {
-	//		valueField.Set(valueInstance[0].Elem().Convert(valueField.Type()))
-	//	}
-	//}
 
 	return nil
 }

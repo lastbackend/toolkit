@@ -17,15 +17,15 @@ limitations under the License.
 package engine
 
 import (
+	"context"
+	"fmt"
 	"github.com/lastbackend/engine/cmd"
 	"github.com/lastbackend/engine/logger"
 	"github.com/lastbackend/engine/plugin"
 	"github.com/lastbackend/engine/plugin/manager"
 	"github.com/lastbackend/engine/service/client"
 	"github.com/lastbackend/engine/service/server"
-
-	"context"
-	"fmt"
+	"github.com/lastbackend/engine/transport"
 	"os"
 	"os/signal"
 	"reflect"
@@ -45,7 +45,8 @@ type service struct {
 	server server.Server
 	logger logger.Logger
 
-	pm manager.Manager
+	pm         manager.Manager
+	transports []transport.Transport
 
 	signal bool
 }
@@ -59,6 +60,7 @@ func newService(name string) Service {
 	s.server = server.New()
 	s.logger = logger.DefaultLogger
 	s.pm = manager.NewManager()
+	s.transports = make([]transport.Transport, 0)
 	return s
 }
 
@@ -91,6 +93,10 @@ func (s *service) Init() error {
 	s.cli.AddFlags(s.pm.Flags()...)
 	s.cli.AddCommands(s.pm.Commands()...)
 
+	for _, t := range s.transports {
+		s.cli.AddFlags(t.Flags()...)
+	}
+
 	if err := s.cli.Execute(); err != nil {
 		return err
 	}
@@ -98,11 +104,26 @@ func (s *service) Init() error {
 	return nil
 }
 
-func (s *service) RegisterPlugin(p plugin.Plugin) {
-	s.pm.RegisterPlugin(p)
-}
-
 func (s *service) Register(i interface{}, props map[string]map[string]ServiceProps) error {
+
+	initField := func(tech string, service ServiceProps, valueField reflect.Value) error {
+		if valueField.Kind() == reflect.Ptr && valueField.IsNil() {
+			t := reflect.TypeOf(valueField.Interface()).Elem()
+			valueField.Set(reflect.New(t))
+		}
+
+		switch tech {
+		case "Storage":
+			fallthrough
+		case "Cache":
+			if err := s.pm.Register(valueField.Interface(), service.Func.(func(f plugin.RegisterFunc) plugin.CreatorFunc), service.Options.(plugin.Option)); err != nil {
+				return err
+			}
+		case "Broker":
+		}
+
+		return nil
+	}
 
 	valueIface := reflect.ValueOf(i)
 
@@ -116,38 +137,106 @@ func (s *service) Register(i interface{}, props map[string]map[string]ServicePro
 
 	for tech, fields := range props {
 
-		storageField := valueIface.Elem().FieldByName(tech)
-		if !storageField.IsValid() {
+		valueField := valueIface.Elem().FieldByName(tech)
+		if !valueField.IsValid() {
 			return fmt.Errorf("interface `%s` does not have the field `%s`", valueIface.Type(), tech)
 		}
 
-		for srv := range fields {
-			srvField := valueIface.Elem().FieldByName(tech).FieldByName(srv)
-			if !srvField.IsValid() {
-				return fmt.Errorf("interface `%s` does not have the field `%s`", storageField.Type(), srv)
-			}
-			if srvField.Kind() != reflect.Ptr {
-				return fmt.Errorf("the `%s` must be a pointer`", srv)
-			}
-			if srvField.IsNil() {
-				t := reflect.TypeOf(srvField.Interface()).Elem()
-				srvField.Set(reflect.New(t))
+		typeField := reflect.TypeOf(valueIface.Elem().FieldByName(tech))
+
+		if typeField.Kind() == reflect.Interface {
+			return fmt.Errorf("the argument %s must not be interface", valueIface.Elem().FieldByName(tech).Type())
+		}
+
+		techValueField := valueIface.Elem().FieldByName(tech)
+
+		if techValueField.Kind() == reflect.Ptr && techValueField.IsNil() {
+
+			if len(fields) != 1 {
+				return fmt.Errorf("interface `%s` does not inplement custom options structure", techValueField.Type())
 			}
 
-			switch tech {
-			case "Storage":
-				fallthrough
-			case "Cache":
-				if err := s.pm.Register(srvField.Interface(), props[tech][srv].Func.(func(f plugin.RegisterFunc) plugin.CreatorFunc), props[tech][srv].Options.(plugin.Option)); err != nil {
-					return err
+			vField := techValueField
+
+			// Get first element from map
+			keys := reflect.ValueOf(fields).MapKeys()
+			serviceProp := fields[keys[0].String()]
+
+			if err := initField(tech, serviceProp, vField); err != nil {
+				return fmt.Errorf("can not init %s argument: %v", vField.Type(), err)
+			}
+
+			continue
+		}
+
+		if techValueField.Kind() == reflect.Struct {
+
+			if techValueField.NumField() == 1 {
+
+				elemValueFiled := techValueField.Field(0)
+				if elemValueFiled.Kind() == reflect.Interface {
+					if techValueField.Kind() != reflect.Ptr {
+						return fmt.Errorf("using unaddressable value %s", techValueField.Type().Field(0).Name)
+					}
+					elemValueFiled = techValueField
 				}
-			case "Broker":
-			case "Service":
+				if elemValueFiled.Kind() == reflect.Struct {
+					if techValueField.Kind() != reflect.Ptr {
+						return fmt.Errorf("using unaddressable value %s", techValueField.Type().Field(0).Name)
+					}
+				}
 
+				// Get first element from map
+				keys := reflect.ValueOf(fields).MapKeys()
+				serviceProp := fields[keys[0].String()]
+
+				if err := initField(tech, serviceProp, elemValueFiled); err != nil {
+					return fmt.Errorf("can not init %s argument: %v", elemValueFiled.Type(), err)
+				}
+
+				continue
+			}
+		}
+
+		for srv, serviceProp := range fields {
+			srvField := valueIface.Elem().FieldByName(tech).FieldByName(srv)
+
+			if srvField.Kind() != reflect.Interface {
+				if !srvField.IsValid() {
+					return fmt.Errorf("interface `%s` does not have the field `%s`", valueField.Type(), srv)
+				}
+				if srvField.Kind() != reflect.Ptr {
+					return fmt.Errorf("the `%s` must be a pointer`", srv)
+				}
+				if srvField.IsNil() {
+					t := reflect.TypeOf(srvField.Interface()).Elem()
+					srvField.Set(reflect.New(t))
+				}
+			}
+
+			if err := initField(tech, serviceProp, srvField); err != nil {
+				return fmt.Errorf("can not init %s argument: %v", srvField.Type(), err)
 			}
 
 		}
+
 	}
+
+	return nil
+}
+
+func (s *service) Transport(t transport.Transport) error {
+	valueIface := reflect.ValueOf(t)
+
+	// Check if the passed interface is a pointer
+	if valueIface.Type().Kind() != reflect.Ptr {
+		return fmt.Errorf("the argument must be a pointer")
+	}
+	if valueIface.IsNil() {
+		return fmt.Errorf("the argument must not be nil")
+	}
+
+	s.transports = append(s.transports, t)
 
 	return nil
 }
@@ -174,6 +263,12 @@ func (s *service) Run() error {
 		return err
 	}
 
+	for _, t := range s.transports {
+		if err := t.Start(); err != nil {
+			return err
+		}
+	}
+
 	if err := s.server.Start(); err != nil {
 		return err
 	}
@@ -189,6 +284,12 @@ func (s *service) Run() error {
 	case <-ch:
 	// wait on context cancel
 	case <-s.context.Done():
+	}
+
+	for _, t := range s.transports {
+		if err := t.Stop(); err != nil {
+			return err
+		}
 	}
 
 	s.pm.Stop()
