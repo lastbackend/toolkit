@@ -49,7 +49,7 @@ type grpcServer struct {
 	exit chan chan error
 }
 
-func NewTransport(prefix string) *grpcServer {
+func NewTransport(prefix string) Server {
 	return newServer(prefix)
 }
 

@@ -14,15 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package logger
+package generator
 
-func fieldsMerge(parent, src map[string]interface{}) map[string]interface{} {
-	dst := make(map[string]interface{}, len(parent)+len(src))
-	for k, v := range parent {
-		dst[k] = v
-	}
-	for k, v := range src {
-		dst[k] = v
-	}
-	return dst
-}
+import (
+	"os"
+)
+
+type Option func(g *Generator)
+
+func SetName(n string) Option    { return func(g *Generator) { g.name = n } }
+func SetVersion(v string) Option { return func(g *Generator) { g.version = v } }
+func DebugEnv(f string) Option   { return func(g *Generator) { g.debug = os.Getenv(f) != "" } }

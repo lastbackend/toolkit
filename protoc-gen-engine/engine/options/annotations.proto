@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package custom_options;
+
+option go_package = "github.com/lastbackend/engine/protoc-gen-engine/engine/options;annotations";
+
+import "google/protobuf/descriptor.proto";
+
+message Cache {
+  string plugin = 1;
+  string prefix = 2;
+}
+
+message Storage {
+  string plugin = 1;
+  string prefix = 2;
+}
+
+message Broker {
+  string plugin = 1;
+  string prefix = 2;
+}
+
+message Plugins {
+  map<string, Storage> storage = 1;
+  map<string, Cache> cache = 2;
+  map<string, Broker> broker = 3;
+}
+
+extend google.protobuf.ServiceOptions {
+  Plugins plugins = 50001;
+}
