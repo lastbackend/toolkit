@@ -14,15 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package logger
+package grpc
 
-func fieldsMerge(parent, src map[string]interface{}) map[string]interface{} {
-	dst := make(map[string]interface{}, len(parent)+len(src))
-	for k, v := range parent {
-		dst[k] = v
-	}
-	for k, v := range src {
-		dst[k] = v
-	}
-	return dst
+import (
+	"github.com/lastbackend/engine/cmd"
+	"google.golang.org/grpc"
+)
+
+type Server interface {
+	Name() string
+	Register(sd *grpc.ServiceDesc, ss interface{}) error
+	Start() error
+	Stop() error
+	Flags() []cmd.Flag
+	Commands() []cmd.Command
 }

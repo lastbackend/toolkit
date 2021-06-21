@@ -4,10 +4,9 @@ go 1.16
 
 require (
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
-	github.com/go-redis/cache/v8 v8.4.1 // indirect
-	github.com/go-redis/redis/v8 v8.10.0 // indirect
+	github.com/go-redis/cache/v8 v8.4.1
+	github.com/go-redis/redis/v8 v8.10.0
 	github.com/golang-migrate/migrate/v4 v4.14.1
-	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.2.0
 	github.com/improbable-eng/grpc-web v0.14.0
 	github.com/jmoiron/sqlx v1.3.3
@@ -19,7 +18,6 @@ require (
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.17.0
 	golang.org/x/net v0.0.0-20201202161906-c7110b5ffcbb
-	google.golang.org/genproto v0.0.0-20201030142918-24207fddd1c3
 	google.golang.org/grpc v1.37.0
 	google.golang.org/protobuf v1.26.0
 	nhooyr.io/websocket v1.8.7 // indirect

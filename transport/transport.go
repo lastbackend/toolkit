@@ -16,7 +16,9 @@ limitations under the License.
 
 package transport
 
-import "github.com/lastbackend/engine/cmd"
+import (
+	"github.com/lastbackend/engine/cmd"
+)
 
 type Transport interface {
 	Start() error
