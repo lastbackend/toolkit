@@ -14,31 +14,41 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package redis
+package grpc
 
 import (
 	"context"
 	"github.com/lastbackend/engine/plugin"
-	"time"
 )
 
 const (
-	PluginName    = "redis"
-	defaultPrefix = "redis"
+	PluginName    = "grpc"
+	defaultPrefix = "grpc"
 )
 
-// Register - registers the plugin implements a cache using Redis as a key/value storage
+// Register - registers the plugin implements rpc client using gRPC as a transport
 func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
 	return func(o plugin.Option) interface{} {
-		p := newCache(o.Prefix)
+		p := newRpc(o.Prefix)
 		f(p)
 		return p.getClient()
 	}
 }
 
-type Cache interface {
-	Exists(ctx context.Context, key string) bool
-	Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error
-	Get(ctx context.Context, key string, value interface{}) error
-	Del(ctx context.Context, key string) error
+type Storage interface {
+	NewRequest(service, method string, req interface{}, reqOpts ...RequestOption) Request
+	Call(ctx context.Context, req Request, rsp interface{}, opts ...CallOption) error
 }
+
+type Request interface {
+	Service() string
+	Method() string
+	Endpoint() string
+	Body() interface{}
+	Stream() bool
+}
+
+type RequestOption interface {
+}
+
+type CallOption func(*CallOptions)

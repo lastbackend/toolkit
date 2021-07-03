@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"github.com/spf13/pflag"
+	"time"
 )
 
 var EnvPrefix = "ENGINE"
@@ -31,7 +32,9 @@ type flag interface {
 }
 
 type FlagSet interface {
-	AddStringFlag(name string, shorthand string, value string, dest *string, envVars []string, required bool, usage string)
-	AddIntFlag(name string, shorthand string, value int, dest *int, envVars []string, required bool, usage string)
-	AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVars []string, required bool, usage string)
+	AddStringFlag(name string, shorthand string, value string, dest *string, envVars string, required bool, usage string)
+	AddIntFlag(name string, shorthand string, value int, dest *int, envVars string, required bool, usage string)
+	AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVars string, required bool, usage string)
+	AddStringSliceFlag(name string, shorthand string, value []string, dest *[]string, envVars string, required bool, usage string)
+	AddDurationFlag(name string, shorthand string, value time.Duration, dest *time.Duration, envVars string, required bool, usage string)
 }

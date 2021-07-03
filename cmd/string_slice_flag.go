@@ -19,33 +19,30 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-
-	"time"
 )
 
-type DurationFlag struct {
+type StringSliceFlag struct {
 	flag
 
-	Name        string         // name as it appears on command line
-	Shorthand   string         // one-letter abbreviated flag
-	Usage       string         // help message
-	Value       time.Duration  // value as set
-	Destination *time.Duration // the return value is the address of a int variable that stores the value of the flag.
-	EnvVar      string         // environment values as set
-	Required    bool           // mark flag as required
-
-	hasBeenSet bool
+	Name        string    // name as it appears on command line
+	Shorthand   string    // one-letter abbreviated flag
+	Usage       string    // help message
+	EnvVar      string    // environment values as set
+	Value       []string  // value as set
+	Destination *[]string // the return value is the address of a string variable that stores the value of the flag.
+	Required    bool      // mark flag as required
+	hasBeenSet  bool
 }
 
-func (f *DurationFlag) apply(set *pflag.FlagSet) error {
-	val, ok := getEnvAsDuration(f.EnvVar)
+func (f *StringSliceFlag) apply(set *pflag.FlagSet) error {
+	val, ok := getEnvAsSlice(f.EnvVar, ";")
 	f.Value = val
 	f.hasBeenSet = ok
 
 	if f.Destination == nil {
-		set.DurationP(f.Name, f.Shorthand, f.Value, f.Usage)
+		set.StringSliceP(f.Name, f.Shorthand, f.Value, f.Usage)
 	} else {
-		set.DurationVarP(f.Destination, f.Name, f.Shorthand, f.Value, f.Usage)
+		set.StringSliceVarP(f.Destination, f.Name, f.Shorthand, f.Value, f.Usage)
 	}
 
 	if f.Required && !f.hasBeenSet {
@@ -57,6 +54,6 @@ func (f *DurationFlag) apply(set *pflag.FlagSet) error {
 	return nil
 }
 
-func (f DurationFlag) IsSet() bool {
+func (f StringSliceFlag) IsSet() bool {
 	return f.hasBeenSet
 }

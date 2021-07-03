@@ -19,36 +19,26 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-
-	"fmt"
-	"strconv"
 )
 
 type BoolFlag struct {
 	flag
 
-	Name        string   // name as it appears on command line
-	Shorthand   string   // one-letter abbreviated flag
-	Usage       string   // help message
-	Value       bool     // value as set
-	Destination *bool    // the return value is the address of a bool variable that stores the value of the flag.
-	EnvVars     []string // environment values as set
-	Required    bool     // mark flag as required
+	Name        string // name as it appears on command line
+	Shorthand   string // one-letter abbreviated flag
+	Usage       string // help message
+	EnvVar      string // environment values as set
+	Value       bool   // value as set
+	Destination *bool  // the return value is the address of a bool variable that stores the value of the flag.
+	Required    bool   // mark flag as required
 
 	hasBeenSet bool
 }
 
 func (f *BoolFlag) apply(set *pflag.FlagSet) error {
-	if val, ok := flagFromEnv(f.EnvVars); ok {
-		if val != "" {
-			valBool, err := strconv.ParseBool(val)
-			if err != nil {
-				return fmt.Errorf("could not parse %q as bool value for flag %s: %s", val, f.Name, err)
-			}
-
-			f.Value = valBool
-			f.hasBeenSet = true
-		}
+	if val, ok := getEnvAsBool(f.EnvVar); ok {
+		f.Value = val
+		f.hasBeenSet = ok
 	}
 
 	if f.Destination == nil {

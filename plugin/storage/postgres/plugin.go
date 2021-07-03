@@ -33,7 +33,7 @@ const (
 	defaultPrefix = "psql"
 )
 
-// The plugin implements storage using Postgres as a database storage
+// Register - registers the plugin implements storage using Postgres as a database storage
 func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
 	return func(o plugin.Option) interface{} {
 		p := newStorage(o.Prefix)

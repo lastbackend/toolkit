@@ -18,55 +18,107 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 type Flags []Flag
 
-func (f *Flags) AddStringFlag(name string, shorthand string, value string, dest *string, envVars []string, required bool, usage string) {
+func (f *Flags) AddStringFlag(name string, shorthand string, value string, dest *string, envVar string, required bool, usage string) {
 	*f = append(*f, &StringFlag{
 		Name:        name,
 		Shorthand:   shorthand,
 		Value:       value,
 		Usage:       usage,
-		EnvVars:     envVars,
+		EnvVar:      envVar,
 		Required:    required,
 		Destination: dest,
 	})
 }
 
-func (f *Flags) AddIntFlag(name string, shorthand string, value int, dest *int, envVars []string, required bool, usage string) {
+func (f *Flags) AddIntFlag(name string, shorthand string, value int, dest *int, envVar string, required bool, usage string) {
 	*f = append(*f, &IntFlag{
 		Name:        name,
 		Shorthand:   shorthand,
 		Value:       value,
 		Usage:       usage,
-		EnvVars:     envVars,
+		EnvVar:      envVar,
 		Destination: dest,
 	})
 }
 
-func (f *Flags) AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVars []string, required bool, usage string) {
+func (f *Flags) AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVar string, required bool, usage string) {
 	*f = append(*f, &BoolFlag{
 		Name:        name,
 		Shorthand:   shorthand,
 		Value:       value,
 		Usage:       usage,
-		EnvVars:     envVars,
+		EnvVar:      envVar,
 		Destination: dest,
 	})
 }
 
-func flagFromEnv(envVars []string) (val string, ok bool) {
-	for _, envVar := range envVars {
-		envVar = strings.TrimSpace(envVar)
-		envVar = envName(envVar)
-		if val, ok := syscall.Getenv(envVar); ok {
-			return val, true
-		}
+func (f *Flags) AddStringSliceFlag(name string, shorthand string, value []string, dest *[]string, envVar string, required bool, usage string) {
+	*f = append(*f, &StringSliceFlag{
+		Name:        name,
+		Shorthand:   shorthand,
+		Value:       value,
+		Usage:       usage,
+		EnvVar:      envVar,
+		Destination: dest,
+	})
+}
+
+func (f *Flags) AddDurationFlag(name string, shorthand string, value time.Duration, dest *time.Duration, envVar string, required bool, usage string) {
+	*f = append(*f, &DurationFlag{
+		Name:        name,
+		Shorthand:   shorthand,
+		Value:       value,
+		Usage:       usage,
+		EnvVar:      envVar,
+		Destination: dest,
+	})
+}
+
+func getEnv(envVar string) (string, bool) {
+	envVar = strings.TrimSpace(envVar)
+	envVar = envName(envVar)
+	return syscall.Getenv(envVar)
+}
+
+func getEnvAsInt(name string) (int, bool) {
+	valueStr, ok := getEnv(name)
+	if value, err := strconv.Atoi(valueStr); err == nil {
+		return value, ok
 	}
-	return "", false
+	return 0, false
+}
+
+func getEnvAsBool(name string) (bool, bool) {
+	valStr, ok := getEnv(name)
+	if val, err := strconv.ParseBool(valStr); err == nil {
+		return val, ok
+	}
+	return false, false
+}
+
+func getEnvAsDuration(name string) (time.Duration, bool) {
+	valStr, ok := getEnv(name)
+	if val, err := strconv.ParseInt(valStr, 0, 64); err == nil {
+		return time.Duration(val) * time.Millisecond, ok
+	}
+	return time.Duration(0) * time.Millisecond, false
+}
+
+func getEnvAsSlice(name string, sep string) ([]string, bool) {
+	valStr, ok := getEnv(name)
+	if valStr == "" {
+		return make([]string, 0), false
+	}
+	val := strings.Split(valStr, sep)
+	return val, ok
 }
 
 func envName(name string) string {
