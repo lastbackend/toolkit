@@ -49,7 +49,7 @@ type grpcServer struct {
 	exit chan chan error
 }
 
-func NewTransport(prefix string) Server {
+func NewServer(prefix string) Server {
 	return newServer(prefix)
 }
 
@@ -157,7 +157,7 @@ func (g *grpcServer) Flags() []cmd.Flag {
 	return []cmd.Flag{
 		&cmd.StringFlag{
 			Name:        g.withPrefix("address"),
-			EnvVars:     []string{g.withEnvPrefix("ADDRESS")},
+			EnvVar:      []string{g.withEnvPrefix("ADDRESS")},
 			Usage:       "Server address for listening",
 			Required:    false,
 			Value:       defaultAddress,
@@ -165,7 +165,7 @@ func (g *grpcServer) Flags() []cmd.Flag {
 		},
 		&cmd.StringFlag{
 			Name:        g.withPrefix("name"),
-			EnvVars:     []string{g.withEnvPrefix("NAME")},
+			EnvVar:      []string{g.withEnvPrefix("NAME")},
 			Usage:       "Server name",
 			Required:    false,
 			Value:       defaultName,
@@ -193,10 +193,6 @@ func (g *grpcServer) Flags() []cmd.Flag {
 			Destination: &g.opts.MaxConnSize,
 		},
 	}
-}
-
-func (g *grpcServer) Commands() []cmd.Command {
-	return make([]cmd.Command, 0)
 }
 
 func newServer(prefix string) *grpcServer {

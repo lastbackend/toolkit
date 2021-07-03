@@ -14,49 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package server
+package grpc
 
 import (
-	"context"
 	"github.com/lastbackend/engine/cmd"
+	"google.golang.org/grpc"
 )
 
 type Server interface {
+	Name() string
+	Register(sd *grpc.ServiceDesc, ss interface{}) error
 	Start() error
 	Stop() error
-	Register(interface{}) error
-	Handle(Handler) error
-	NewHandler(interface{}, ...HandlerOption) Handler
 	Flags() []cmd.Flag
-	Commands() []cmd.Command
-}
-
-type Request interface {
-	Service() string
-	Method() string
-	Endpoint() string
-	ContentType() string
-	Header() map[string]string
-	Body() interface{}
-	Read() ([]byte, error)
-	Stream() bool
-}
-
-type Response interface {
-	WriteHeader(map[string]string)
-	Write([]byte) error
-}
-
-type Stream interface {
-	Context() context.Context
-	Request() Request
-	Send(interface{}) error
-	Recv(interface{}) error
-	Error() error
-	Close() error
-}
-
-type Handler interface {
-	Name() string
-	Handler() interface{}
 }

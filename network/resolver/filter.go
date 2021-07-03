@@ -14,31 +14,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package transport
-
-import (
-	"github.com/lastbackend/engine/service/codec"
-
-	"context"
-	"crypto/tls"
-	"time"
-)
-
-type Options struct {
-	Addrs     []string
-	Secure    bool
-	Codec     codec.Marshaler
-	TLSConfig *tls.Config
-	Timeout   time.Duration
-	Context   context.Context
-}
-
-type DialOptions struct {
-	Stream  bool
-	Timeout time.Duration
-	Context context.Context
-}
-
-type ListenOptions struct {
-	Context context.Context
-}
+package resolver

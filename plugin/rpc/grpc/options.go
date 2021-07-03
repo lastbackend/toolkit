@@ -14,19 +14,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package client
-
-type Options struct {
-}
-
-type CallOptions struct {
-}
-
-type PublishOptions struct {
-}
-
-type MessageOptions struct {
-}
-
-type RequestOptions struct {
-}
+package grpc

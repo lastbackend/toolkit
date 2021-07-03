@@ -92,7 +92,7 @@ import (
 var _ context.Context
 var _ logger.Logger
 var _ plugin.Plugin
-var _ grpc.Server
+var _ server.Server
 `))
 
 	funcMap = template.FuncMap{
@@ -146,7 +146,7 @@ func (s *service) Register(i interface{}) error {
 	}
 
   h := &{{$svc.GetName | ToLower}}GrpcHandler{i.({{$svc.GetName}}Handler)}
-  g := grpc.NewTransport("grpc")
+  g := server.NewServer("grpc")
   if err := g.Register(&{{$svc.GetName}}_ServiceDesc, &{{$svc.GetName}}GrpcHandler{h}); err != nil {
   	return err
   }

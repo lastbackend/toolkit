@@ -14,18 +14,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package grpc
-
-import (
-	"github.com/lastbackend/engine/cmd"
-	"google.golang.org/grpc"
-)
-
-type Server interface {
-	Name() string
-	Register(sd *grpc.ServiceDesc, ss interface{}) error
-	Start() error
-	Stop() error
-	Flags() []cmd.Flag
-	Commands() []cmd.Command
-}
+package resolver

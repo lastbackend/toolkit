@@ -35,7 +35,8 @@ const (
 const (
 	StoragePluginType string = "Storage"
 	CachePluginType          = "Cache"
-	BrokerPluginType          = "Broker"
+	BrokerPluginType         = "Broker"
+	ClientPluginType         = "Client"
 )
 
 type Generator interface {
@@ -50,24 +51,38 @@ type generator struct {
 func New(desc *descriptor.Descriptor) Generator {
 	var imports []descriptor.GoPackage
 	for _, pkgPath := range []string{
-		"context",
-		"github.com/lastbackend/engine",
-		"github.com/lastbackend/engine/logger",
-		"github.com/lastbackend/engine/plugin",
-		"github.com/lastbackend/engine/transport/grpc",
+		"context context",
+		"engine github.com/lastbackend/engine",
+		"logger github.com/lastbackend/engine/logger",
+		"plugin github.com/lastbackend/engine/plugin",
+		"server github.com/lastbackend/engine/server/grpc",
 	} {
-		pkg := descriptor.GoPackage{
-			Path: pkgPath,
-			Name: path.Base(pkgPath),
+		var pkg descriptor.GoPackage
+
+		match := strings.Split(pkgPath, " ")
+		if len(match) == 2 {
+			pkg = descriptor.GoPackage{
+				Path:  match[1],
+				Name:  path.Base(match[1]),
+				Alias: match[0],
+			}
+		} else {
+			pkg = descriptor.GoPackage{
+				Path: pkgPath,
+				Name: path.Base(pkgPath),
+			}
 		}
-		if err := desc.ReserveGoPackageAlias(pkg.Name, pkg.Path); err != nil {
-			for i := 0; ; i++ {
-				alias := fmt.Sprintf("%s_%d", pkg.Name, i)
-				if err := desc.ReserveGoPackageAlias(alias, pkg.Path); err != nil {
-					continue
+
+		if len(pkg.Alias) == 0 {
+			if err := desc.ReserveGoPackageAlias(pkg.Name, pkg.Path); err != nil {
+				for i := 0; ; i++ {
+					alias := fmt.Sprintf("%s_%d", pkg.Name, i)
+					if err := desc.ReserveGoPackageAlias(alias, pkg.Path); err != nil {
+						continue
+					}
+					pkg.Alias = alias
+					break
 				}
-				pkg.Alias = alias
-				break
 			}
 		}
 		imports = append(imports, pkg)
@@ -157,6 +172,21 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 							})
 						}
 						plugins[BrokerPluginType][name] = &Plugin{
+							Plugin: props.Plugin,
+							Prefix: props.Prefix,
+						}
+					}
+				}
+				if len(plgs.Client) > 0 {
+					plugins[ClientPluginType] = make(map[string]*Plugin, 0)
+					for name, props := range plgs.Client {
+						if _, ok := pluginImportsExists[props.Plugin]; !ok {
+							imports = append(imports, descriptor.GoPackage{
+								Path: fmt.Sprintf("%s/plugin/rpc/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
+								Name: path.Base(fmt.Sprintf("%s/plugin/rpc/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
+							})
+						}
+						plugins[ClientPluginType][name] = &Plugin{
 							Plugin: props.Plugin,
 							Prefix: props.Prefix,
 						}

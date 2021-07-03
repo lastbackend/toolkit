@@ -14,17 +14,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package server
-
-type HandlerOption func(*HandlerOptions)
-
-type HandlerOptions struct {
-	Internal bool
-	Metadata map[string]map[string]string
-}
-
-func EndpointMetadata(name string, md map[string]string) HandlerOption {
-	return func(o *HandlerOptions) {
-		o.Metadata[name] = md
-	}
-}
+package grpc

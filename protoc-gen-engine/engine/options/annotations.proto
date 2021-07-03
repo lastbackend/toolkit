@@ -21,10 +21,16 @@ message Broker {
   string prefix = 2;
 }
 
+message Client {
+  string plugin = 1;
+  string prefix = 2;
+}
+
 message Plugins {
   map<string, Storage> storage = 1;
   map<string, Cache> cache = 2;
   map<string, Broker> broker = 3;
+  map<string, Client> client = 4;
 }
 
 extend google.protobuf.ServiceOptions {
