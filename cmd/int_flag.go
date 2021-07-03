@@ -19,38 +19,26 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-
-	"fmt"
-	"strconv"
 )
 
 type IntFlag struct {
 	flag
 
-	Name        string   // name as it appears on command line
-	Shorthand   string   // one-letter abbreviated flag
-	Usage       string   // help message
-	Value       int      // value as set
-	Destination *int     // the return value is the address of a int variable that stores the value of the flag.
-	EnvVars     []string // environment values as set
-	Required    bool     // mark flag as required
+	Name        string // name as it appears on command line
+	Shorthand   string // one-letter abbreviated flag
+	Usage       string // help message
+	EnvVar      string // environment values as set
+	Value       int    // value as set
+	Destination *int   // the return value is the address of a int variable that stores the value of the flag.
+	Required    bool   // mark flag as required
 
 	hasBeenSet bool
 }
 
 func (f *IntFlag) apply(set *pflag.FlagSet) error {
-	if val, ok := flagFromEnv(f.EnvVars); ok {
-		if val != "" {
-			valInt, err := strconv.ParseInt(val, 0, 64)
-
-			if err != nil {
-				return fmt.Errorf("could not parse %q as int value for flag %s: %s", val, f.Name, err)
-			}
-
-			f.Value = int(valInt)
-			f.hasBeenSet = true
-		}
-	}
+	val, ok := getEnvAsInt(f.EnvVar)
+	f.Value = val
+	f.hasBeenSet = ok
 
 	if f.Destination == nil {
 		set.IntP(f.Name, f.Shorthand, f.Value, f.Usage)

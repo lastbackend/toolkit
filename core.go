@@ -17,12 +17,10 @@ limitations under the License.
 package engine
 
 import (
+	"context"
 	"github.com/lastbackend/engine/cmd"
 	"github.com/lastbackend/engine/logger"
-	"github.com/lastbackend/engine/service/server"
-	"github.com/lastbackend/engine/transport"
-
-	"context"
+	"github.com/lastbackend/engine/server"
 )
 
 type ServiceType uint8
@@ -41,13 +39,11 @@ type Service interface {
 	Name() string
 	Version() string
 	Meta() Meta
-	CLI() CLI
 	Init() error
-	Server() server.Server
 	Logger() logger.Logger
 	SetContext(ctx context.Context)
 	Register(i interface{}, props map[string]map[string]ServiceProps) error
-	Transport(t transport.Transport) error
+	Transport(t server.Server) error
 	Run() error
 }
 

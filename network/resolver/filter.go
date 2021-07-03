@@ -15,3 +15,49 @@ limitations under the License.
 */
 
 package resolver
+
+import (
+	"github.com/lastbackend/engine/network/resolver/route"
+)
+
+func isMatch(route route.Route, address string) bool {
+	match := func(a, b string) bool {
+		if a == "*" || b == "*" || a == b {
+			return true
+		}
+		return false
+	}
+	type matcher struct {
+		a string
+		b string
+	}
+	values := []matcher{
+		{address, route.Address},
+	}
+	for _, v := range values {
+		if !match(v.a, v.b) {
+			return false
+		}
+	}
+	return true
+}
+
+func Filter(routes []route.Route, opts LookupOptions) []route.Route {
+	address := opts.Address
+	routeMap := make(map[string][]route.Route, 0)
+
+	for _, r := range routes {
+		if isMatch(r, address) {
+			routeKey := r.Service
+			routeMap[routeKey] = append(routeMap[routeKey], r)
+		}
+	}
+
+	var results []route.Route
+
+	for _, r := range routeMap {
+		results = append(results, r...)
+	}
+
+	return results
+}

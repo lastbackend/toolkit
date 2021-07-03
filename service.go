@@ -17,15 +17,14 @@ limitations under the License.
 package engine
 
 import (
-	"context"
-	"fmt"
 	"github.com/lastbackend/engine/cmd"
 	"github.com/lastbackend/engine/logger"
 	"github.com/lastbackend/engine/plugin"
 	"github.com/lastbackend/engine/plugin/manager"
-	"github.com/lastbackend/engine/service/client"
-	"github.com/lastbackend/engine/service/server"
-	"github.com/lastbackend/engine/transport"
+	"github.com/lastbackend/engine/server"
+
+	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"reflect"
@@ -41,12 +40,10 @@ type service struct {
 
 	cli cmd.CLI
 
-	client client.Client
-	server server.Server
 	logger logger.Logger
 
-	pm         manager.Manager
-	transports []transport.Transport
+	pm      manager.Manager
+	servers []server.Server
 
 	signal bool
 }
@@ -57,10 +54,9 @@ func newService(name string) Service {
 	s.meta.Name = name
 	s.cli = cmd.New()
 	s.context = context.Background()
-	s.server = server.New()
 	s.logger = logger.DefaultLogger
 	s.pm = manager.NewManager()
-	s.transports = make([]transport.Transport, 0)
+	s.servers = make([]server.Server, 0)
 	return s
 }
 
@@ -87,13 +83,10 @@ func (s *service) Init() error {
 	s.cli.SetShortDescription(s.meta.ShorDescription)
 	s.cli.SetLongDescription(s.meta.LongDescription)
 
-	s.cli.AddFlags(s.server.Flags()...)
-	s.cli.AddCommands(s.server.Commands()...)
-
 	s.cli.AddFlags(s.pm.Flags()...)
 	s.cli.AddCommands(s.pm.Commands()...)
 
-	for _, t := range s.transports {
+	for _, t := range s.servers {
 		s.cli.AddFlags(t.Flags()...)
 	}
 
@@ -116,6 +109,8 @@ func (s *service) Register(i interface{}, props map[string]map[string]ServicePro
 		case "Storage":
 			fallthrough
 		case "Cache":
+			fallthrough
+		case "Client":
 			if err := s.pm.Register(valueField.Interface(), service.Func.(func(f plugin.RegisterFunc) plugin.CreatorFunc), service.Options.(plugin.Option)); err != nil {
 				return err
 			}
@@ -225,7 +220,7 @@ func (s *service) Register(i interface{}, props map[string]map[string]ServicePro
 	return nil
 }
 
-func (s *service) Transport(t transport.Transport) error {
+func (s *service) Transport(t server.Server) error {
 	valueIface := reflect.ValueOf(t)
 
 	// Check if the passed interface is a pointer
@@ -236,17 +231,9 @@ func (s *service) Transport(t transport.Transport) error {
 		return fmt.Errorf("the argument must not be nil")
 	}
 
-	s.transports = append(s.transports, t)
+	s.servers = append(s.servers, t)
 
 	return nil
-}
-
-func (s *service) Client() client.Client {
-	return s.client
-}
-
-func (s *service) Server() server.Server {
-	return s.server
 }
 
 func (s *service) Logger() logger.Logger {
@@ -263,14 +250,10 @@ func (s *service) Run() error {
 		return err
 	}
 
-	for _, t := range s.transports {
+	for _, t := range s.servers {
 		if err := t.Start(); err != nil {
 			return err
 		}
-	}
-
-	if err := s.server.Start(); err != nil {
-		return err
 	}
 
 	ch := make(chan os.Signal, 1)
@@ -286,7 +269,7 @@ func (s *service) Run() error {
 	case <-s.context.Done():
 	}
 
-	for _, t := range s.transports {
+	for _, t := range s.servers {
 		if err := t.Stop(); err != nil {
 			return err
 		}
@@ -294,7 +277,7 @@ func (s *service) Run() error {
 
 	s.pm.Stop()
 
-	return s.server.Stop()
+	return nil
 }
 
 var shutdownSignals = []os.Signal{

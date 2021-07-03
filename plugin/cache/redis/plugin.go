@@ -27,7 +27,7 @@ const (
 	defaultPrefix = "redis"
 )
 
-// The plugin implements a cache using Redis as a key/value storage
+// Register - registers the plugin implements a cache using Redis as a key/value storage
 func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
 	return func(o plugin.Option) interface{} {
 		p := newCache(o.Prefix)

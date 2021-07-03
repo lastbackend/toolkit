@@ -14,4 +14,46 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cache
+package local
+
+import (
+	"github.com/lastbackend/engine/network/resolver"
+	"github.com/lastbackend/engine/network/resolver/route"
+)
+
+type localResolver struct {
+	table   *table
+	options resolver.Options
+}
+
+func NewResolver(opts ...resolver.Option) resolver.Resolver {
+	options := resolver.DefaultOptions()
+
+	for _, o := range opts {
+		o(&options)
+	}
+
+	r := &localResolver{
+		options: options,
+		table:   newTable(),
+	}
+
+	return r
+}
+
+func (c *localResolver) Lookup(service string, opts ...resolver.LookupOption) ([]route.Route, error) {
+	q := resolver.NewLookup(opts...)
+	routes, err := c.table.Find(service)
+	if err != nil {
+		return nil, err
+	}
+	routes = resolver.Filter(routes, q)
+	if len(routes) == 0 {
+		return nil, route.ErrRouteNotFound
+	}
+	return routes, nil
+}
+
+func (c *localResolver) Table() resolver.Table {
+	return c.table
+}

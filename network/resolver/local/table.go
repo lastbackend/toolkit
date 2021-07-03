@@ -15,3 +15,114 @@ limitations under the License.
 */
 
 package local
+
+import (
+	rt "github.com/lastbackend/engine/network/resolver/route"
+
+	"sync"
+	"time"
+)
+
+type table struct {
+	sync.RWMutex
+	routes map[string]map[string]*resolverRoute
+}
+
+type resolverRoute struct {
+	route   rt.Route
+	updated time.Time
+}
+
+func newTable() *table {
+	return &table{
+		routes: make(map[string]map[string]*resolverRoute, 0),
+	}
+}
+
+func (t *table) Find(service string) ([]rt.Route, error) {
+	t.RLock()
+	defer t.RUnlock()
+
+	var routes []rt.Route
+
+	if len(service) > 0 {
+		routeMap, ok := t.routes[service]
+		if !ok {
+			return nil, rt.ErrRouteNotFound
+		}
+		for _, rm := range routeMap {
+			routes = append(routes, rm.route)
+		}
+		return routes, nil
+	}
+
+	for _, serviceRoutes := range t.routes {
+		for _, sr := range serviceRoutes {
+			routes = append(routes, sr.route)
+		}
+	}
+
+	return routes, nil
+}
+
+func (t *table) Create(r rt.Route) error {
+	service := r.Service
+	sum := r.Hash()
+
+	t.Lock()
+	defer t.Unlock()
+
+	if _, ok := t.routes[service]; !ok {
+		t.routes[service] = make(map[string]*resolverRoute)
+	}
+
+	if _, ok := t.routes[service][sum]; ok {
+		return rt.ErrDuplicateRoute
+	}
+
+	t.routes[service][sum] = &resolverRoute{r, time.Now()}
+
+	return nil
+}
+
+func (t *table) Delete(r rt.Route) error {
+	service := r.Service
+	sum := r.Hash()
+
+	t.Lock()
+	defer t.Unlock()
+
+	if _, ok := t.routes[service]; !ok {
+		return rt.ErrRouteNotFound
+	}
+
+	if _, ok := t.routes[service][sum]; !ok {
+		return rt.ErrRouteNotFound
+	}
+
+	delete(t.routes[service], sum)
+
+	if len(t.routes[service]) == 0 {
+		delete(t.routes, service)
+	}
+	return nil
+}
+
+func (t *table) Update(r rt.Route) error {
+	service := r.Service
+	sum := r.Hash()
+
+	t.Lock()
+	defer t.Unlock()
+
+	if _, ok := t.routes[service]; !ok {
+		t.routes[service] = make(map[string]*resolverRoute)
+	}
+
+	if _, ok := t.routes[service][sum]; !ok {
+		t.routes[service][sum] = &resolverRoute{r, time.Now()}
+		return nil
+	}
+	t.routes[service][sum] = &resolverRoute{r, time.Now()}
+	return nil
+}

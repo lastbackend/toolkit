@@ -15,3 +15,88 @@ limitations under the License.
 */
 
 package grpc
+
+import (
+	"github.com/lastbackend/engine/network/resolver"
+	"github.com/lastbackend/engine/network/resolver/local"
+	"github.com/lastbackend/engine/plugin/rpc/grpc/selector"
+	"github.com/lastbackend/engine/util/converter"
+
+	"context"
+	"math"
+	"time"
+)
+
+func exponentialBackoff(ctx context.Context, req Request, attempts int) (time.Duration, error) {
+	if attempts > 10 {
+		return 2 * time.Minute, nil
+	}
+	return time.Duration(math.Pow(float64(attempts), math.E)) * time.Millisecond * 100, nil
+}
+
+func retryNever(ctx context.Context, req Request, retryCount int, err error) (bool, error) {
+	return false, nil
+}
+
+type CallFunc func(ctx context.Context, addr string, req Request, rsp interface{}, opts CallOptions) error
+type CallMiddlewareFunc func(CallFunc) CallFunc
+type MiddlewareFunc func(Client) Client
+type LookupFunc func(context.Context, Request, CallOptions) ([]string, error)
+
+type Options struct {
+	Context context.Context
+
+	Addresses       []string
+	ContentType     string
+	Proxy           string
+	ResolverService string
+	MaxRecvMsgSize  int
+	MaxSendMsgSize  int
+
+	Selector selector.Selector
+	Resolver resolver.Resolver
+
+	Lookup      LookupFunc
+	Middlewares []MiddlewareFunc
+
+	Pool        PoolOptions
+	CallOptions CallOptions
+}
+
+type BackoffFunc func(ctx context.Context, req Request, attempts int) (time.Duration, error)
+type RetryFunc func(ctx context.Context, req Request, retryCount int, err error) (bool, error)
+
+type CallOptions struct {
+	AuthToken      bool
+	Endpoints      []string
+	Backoff        BackoffFunc
+	Retry          RetryFunc
+	Selector       selector.Selector
+	Resolver       resolver.Resolver
+	Retries        time.Duration
+	DialTimeout    time.Duration
+	RequestTimeout time.Duration
+	StreamTimeout  time.Duration
+	Middlewares    []CallMiddlewareFunc
+	Context        context.Context
+}
+
+func defaultOptions() Options {
+	slc, _ := selector.New(selector.RoundRobin)
+	return Options{
+		Context:     context.Background(),
+		ContentType: "application/protobuf",
+		Selector:    slc,
+		Resolver:    local.NewResolver(),
+		CallOptions: CallOptions{
+			Backoff:        exponentialBackoff,
+			Retry:          retryNever,
+			Retries:        defaultRetries,
+			RequestTimeout: defaultRequestTimeout,
+		},
+		Pool: PoolOptions{
+			Size: converter.ToIntPointer(defaultPoolSize),
+			Ttl:  converter.ToDurationPointer(defaultPoolTTL),
+		},
+	}
+}

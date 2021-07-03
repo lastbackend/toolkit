@@ -39,19 +39,24 @@ func (c *Cmd) Flags() *pflag.FlagSet {
 	return c.cmd.Flags()
 }
 
-func (c *Cmd) AddStringFlag(name string, shorthand string, value string, dest *string, envVars []string, required bool, usage string) {
+func (c *Cmd) AddStringFlag(name string, shorthand string, value string, dest *string, envVar string, required bool, usage string) {
 	c.flagsInit()
-	c.flags.AddStringFlag(name, shorthand, value, dest, envVars, required, usage)
+	c.flags.AddStringFlag(name, shorthand, value, dest, envVar, required, usage)
 }
 
-func (c *Cmd) AddIntFlag(name string, shorthand string, value int, dest *int, envVars []string, required bool, usage string) {
+func (c *Cmd) AddIntFlag(name string, shorthand string, value int, dest *int, envVar string, required bool, usage string) {
 	c.flagsInit()
-	c.flags.AddIntFlag(name, shorthand, value, dest, envVars, required, usage)
+	c.flags.AddIntFlag(name, shorthand, value, dest, envVar, required, usage)
 }
 
-func (c *Cmd) AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVars []string, required bool, usage string) {
+func (c *Cmd) AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVar string, required bool, usage string) {
 	c.flagsInit()
-	c.flags.AddBoolFlag(name, shorthand, value, dest, envVars, required, usage)
+	c.flags.AddBoolFlag(name, shorthand, value, dest, envVar, required, usage)
+}
+
+func (c *Cmd) AddStringSliceFlag(name string, shorthand string, value []string, dest *[]string, envVar string, required bool, usage string) {
+	c.flagsInit()
+	c.flags.AddStringSliceFlag(name, shorthand, value, dest, envVar, required, usage)
 }
 
 func (c *Cmd) apply(set CommandSet) error {

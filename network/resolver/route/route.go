@@ -15,3 +15,24 @@ limitations under the License.
 */
 
 package route
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"github.com/pkg/errors"
+)
+
+var (
+	ErrRouteNotFound  = errors.New("route not found")
+	ErrDuplicateRoute = errors.New("duplicate route")
+)
+
+type Route struct {
+	Service string
+	Address string
+}
+
+func (r *Route) Hash() string {
+	hash := sha256.Sum256([]byte(r.Service + r.Address))
+	return hex.EncodeToString(hash[:])
+}

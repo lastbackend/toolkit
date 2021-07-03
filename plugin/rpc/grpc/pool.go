@@ -24,6 +24,11 @@ import (
 	"google.golang.org/grpc/connectivity"
 )
 
+type PoolOptions struct {
+	Size *int
+	Ttl  *time.Duration
+}
+
 type pool struct {
 	sync.Mutex
 
@@ -35,14 +40,15 @@ type pool struct {
 }
 
 type streamsPool struct {
-	head *poolConn
-	busy *poolConn
+	head  *poolConn
+	busy  *poolConn
 	count int
-	idle int
+	idle  int
 }
 
 type poolConn struct {
 	*grpc.ClientConn
+
 	err  error
 	addr string
 
@@ -63,6 +69,17 @@ func newPool() *pool {
 		maxStreams: 1,
 		maxIdle:    0,
 		conns:      make(map[string]*streamsPool),
+	}
+}
+
+func (p *pool) Init(opts PoolOptions) {
+	p.Lock()
+	defer p.Unlock()
+	if opts.Size != nil {
+		p.size = *opts.Size
+	}
+	if opts.Ttl != nil {
+		p.ttl = int64(opts.Ttl.Seconds())
 	}
 }
 

@@ -157,7 +157,7 @@ func (g *grpcServer) Flags() []cmd.Flag {
 	return []cmd.Flag{
 		&cmd.StringFlag{
 			Name:        g.withPrefix("address"),
-			EnvVar:      []string{g.withEnvPrefix("ADDRESS")},
+			EnvVar:      g.withEnvPrefix("ADDRESS"),
 			Usage:       "Server address for listening",
 			Required:    false,
 			Value:       defaultAddress,
@@ -165,7 +165,7 @@ func (g *grpcServer) Flags() []cmd.Flag {
 		},
 		&cmd.StringFlag{
 			Name:        g.withPrefix("name"),
-			EnvVar:      []string{g.withEnvPrefix("NAME")},
+			EnvVar:      g.withEnvPrefix("NAME"),
 			Usage:       "Server name",
 			Required:    false,
 			Value:       defaultName,
@@ -173,21 +173,23 @@ func (g *grpcServer) Flags() []cmd.Flag {
 		},
 		&cmd.IntFlag{
 			Name:        g.withPrefix("max-recv-msg-size"),
-			EnvVars:     []string{g.withEnvPrefix("MAC-RECV-MSG-SIZE")},
+			EnvVar:      g.withEnvPrefix("MAX-RECV-MSG-SIZE"),
 			Usage:       "Sets the max message size in bytes the server can receive (default 16 MB)",
 			Required:    false,
+			Value:       defaultMaxRecvMsgSize,
 			Destination: &g.opts.MaxRecvMsgSize,
 		},
 		&cmd.IntFlag{
 			Name:        g.withPrefix("max-send-msg-size"),
-			EnvVars:     []string{g.withEnvPrefix("MAC-RECV-MSG-SIZE")},
+			EnvVar:      g.withEnvPrefix("MAX-SEND-MSG-SIZE"),
 			Usage:       "Sets the max message size in bytes the server can send (default 16 MB)",
 			Required:    false,
+			Value:       defaultMaxSendMsgSize,
 			Destination: &g.opts.MaxSendMsgSize,
 		},
 		&cmd.IntFlag{
 			Name:        g.withPrefix("max-conn-size"),
-			EnvVars:     []string{g.withEnvPrefix("MAX-CONN-SIZE")},
+			EnvVar:      g.withEnvPrefix("MAX-CONN-SIZE"),
 			Usage:       "Sets the max simultaneous connections for server (default unlimited)",
 			Required:    false,
 			Destination: &g.opts.MaxConnSize,

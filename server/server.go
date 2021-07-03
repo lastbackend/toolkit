@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package transport
+package server
 
 import (
 	"github.com/lastbackend/engine/cmd"
 )
 
-type Transport interface {
+type Server interface {
 	Start() error
 	Stop() error
 	Flags() []cmd.Flag

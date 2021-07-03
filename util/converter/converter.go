@@ -75,14 +75,6 @@ func Int64ToInt(i int64) int {
 	return StringToInt(strconv.FormatInt(i, 10))
 }
 
-func ToBoolPointer(v bool) *bool {
-	return &v
-}
-
-func ToStringPointer(v string) *string {
-	return &v
-}
-
 func DecodeBase64(s string) string {
 	buf, _ := base64.StdEncoding.DecodeString(s)
 	return string(buf)
@@ -136,4 +128,24 @@ func EnforcePtr(obj interface{}) (reflect.Value, error) {
 		return reflect.Value{}, fmt.Errorf("expected pointer, but got nil")
 	}
 	return v.Elem(), nil
+}
+
+func ToBoolPointer(v bool) *bool {
+	return &v
+}
+
+func ToStringPointer(v string) *string {
+	return &v
+}
+
+func ToIntPointer(v int) *int {
+	return &v
+}
+
+func ToInt64Pointer(v int64) *int64 {
+	return &v
+}
+
+func ToDurationPointer(v time.Duration) *time.Duration {
+	return &v
 }

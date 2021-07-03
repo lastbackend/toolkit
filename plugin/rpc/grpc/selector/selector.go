@@ -15,3 +15,37 @@ limitations under the License.
 */
 
 package selector
+
+import (
+	"github.com/pkg/errors"
+)
+
+type Type int
+
+const (
+	Random Type = iota
+	RoundRobin
+)
+
+var (
+	ErrSelectorNotDetected = errors.New("selector not detected")
+	ErrNotAvailable        = errors.New("not available")
+)
+
+type Selector interface {
+	Select([]string) (Next, error)
+}
+
+type Next func() string
+
+func New(t Type) (selector Selector, err error) {
+	switch t {
+	case Random:
+		selector = newRandomSelector()
+	case RoundRobin:
+		selector = newRRSelector()
+	default:
+		err = ErrSelectorNotDetected
+	}
+	return selector, err
+}

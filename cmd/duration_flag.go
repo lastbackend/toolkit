@@ -20,8 +20,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"fmt"
-	"strconv"
 	"time"
 )
 
@@ -33,24 +31,16 @@ type DurationFlag struct {
 	Usage       string         // help message
 	Value       time.Duration  // value as set
 	Destination *time.Duration // the return value is the address of a int variable that stores the value of the flag.
-	EnvVars     []string       // environment values as set
+	EnvVar      string         // environment values as set
 	Required    bool           // mark flag as required
 
 	hasBeenSet bool
 }
 
 func (f *DurationFlag) apply(set *pflag.FlagSet) error {
-	if val, ok := flagFromEnv(f.EnvVars); ok {
-		if val != "" {
-			valInt, err := strconv.ParseInt(val, 0, 64)
-			if err != nil {
-				return fmt.Errorf("could not parse %q as int64 value for flag %s: %s", val, f.Name, err)
-			}
-
-			f.Value = time.Duration(valInt) * time.Millisecond
-			f.hasBeenSet = true
-		}
-	}
+	val, ok := getEnvAsDuration(f.EnvVar)
+	f.Value = val
+	f.hasBeenSet = ok
 
 	if f.Destination == nil {
 		set.DurationP(f.Name, f.Shorthand, f.Value, f.Usage)

@@ -33,7 +33,7 @@ const (
 
 type Options struct {
 	clientOptions
-	MigrationsDir    *string
+	MigrationsDir *string
 }
 
 type postgresStorage struct {
@@ -61,35 +61,35 @@ func (s *postgresStorage) Flags() []cmd.Flag {
 	return []cmd.Flag{
 		&cmd.StringFlag{
 			Name:        s.withPrefix("connection"),
-			EnvVars:     []string{s.withEnvPrefix("CONNECTION")},
+			EnvVar:      s.withEnvPrefix("CONNECTION"),
 			Usage:       "PostgreSQL connection string",
 			Required:    true,
 			Destination: &s.opts.Connection,
 		},
 		&cmd.DurationFlag{
 			Name:        s.withPrefix("conn-max-lifetime"),
-			EnvVars:     []string{s.withEnvPrefix("CONN_MAX_LIFETIME")},
+			EnvVar:      s.withEnvPrefix("CONN_MAX_LIFETIME"),
 			Usage:       "Sets the maximum amount of time a connection may be reused.\nIf <= 0, connections are not closed due to a connection's age",
 			Required:    false,
 			Destination: s.opts.ConnMaxLifetime,
 		},
 		&cmd.DurationFlag{
 			Name:        s.withPrefix("conn-max-idle-time"),
-			EnvVars:     []string{s.withEnvPrefix("CONN_MAX_IDLE_TIME")},
+			EnvVar:      s.withEnvPrefix("CONN_MAX_IDLE_TIME"),
 			Usage:       "Sets the maximum amount of time a connection may be idle.\nIf <= 0, connections are not closed due to a connection's idle time",
 			Required:    false,
 			Destination: s.opts.ConnMaxIdleTime,
 		},
 		&cmd.IntFlag{
 			Name:        s.withPrefix("max-idle-conns"),
-			EnvVars:     []string{s.withEnvPrefix("MAX_IDLE_CONNS")},
+			EnvVar:      s.withEnvPrefix("MAX_IDLE_CONNS"),
 			Usage:       "Sets the maximum number of connections in the idle connection pool.\nIf <= 0, no idle connections are retained.\n(The default max idle connections is currently 2)",
 			Required:    false,
 			Destination: s.opts.MaxIdleConns,
 		},
 		&cmd.IntFlag{
 			Name:        s.withPrefix("max-open-conns"),
-			EnvVars:     []string{s.withEnvPrefix("MAX_OPEN_CONNS")},
+			EnvVar:      s.withEnvPrefix("MAX_OPEN_CONNS"),
 			Usage:       "Sets the maximum number of open connections to the database.\nIf <= 0, then there is no limit on the number of open connections.\n(default unlimited)",
 			Required:    false,
 			Destination: s.opts.MaxOpenConns,
@@ -157,7 +157,7 @@ func (s *postgresStorage) Commands() []cmd.Command {
 		},
 	}
 
-	migrateCmd.AddStringFlag(s.withPrefix("connection"), "", "", nil, []string{s.withEnvPrefix("CONNECTION")}, true, "PostgreSQL connection string")
+	migrateCmd.AddStringFlag(s.withPrefix("connection"), "", "", nil, s.withEnvPrefix("CONNECTION"), true, "PostgreSQL connection string")
 
 	return []cmd.Command{migrateCmd}
 }

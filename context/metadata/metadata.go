@@ -2,101 +2,93 @@ package metadata
 
 import (
 	"context"
-	"strings"
 )
 
-type metadataKey struct{}
+const emptyString = ""
 
-type Metadata map[string]string
+type MD map[string]string
+type mdKey struct{}
 
-func (md Metadata) Get(key string) (string, bool) {
-	val, ok := md[key]
-	if ok {
+func (m MD) Get(key string) (string, bool) {
+	if val, ok := m[key]; ok {
 		return val, ok
-	}
-	val, ok = md[strings.Title(key)]
-	return val, ok
-}
-
-func (md Metadata) Set(key, val string) {
-	md[key] = val
-}
-
-func (md Metadata) Delete(key string) {
-	delete(md, key)
-	delete(md, strings.Title(key))
-}
-
-func Copy(md Metadata) Metadata {
-	cmd := make(Metadata, len(md))
-	for k, v := range md {
-		cmd[k] = v
-	}
-	return cmd
-}
-
-func Delete(ctx context.Context, k string) context.Context {
-	return Set(ctx, k, "")
-}
-
-func Set(ctx context.Context, k, v string) context.Context {
-	md, ok := FromContext(ctx)
-	if !ok {
-		md = make(Metadata)
-	}
-	if v == "" {
-		delete(md, k)
 	} else {
-		md[k] = v
-	}
-	return context.WithValue(ctx, metadataKey{}, md)
-}
-
-func Get(ctx context.Context, key string) (string, bool) {
-	md, ok := FromContext(ctx)
-	if !ok {
-		return "", ok
-	}
-	val, ok := md[key]
-	if ok {
+		val, ok = m[key]
 		return val, ok
 	}
-	val, ok = md[strings.Title(key)]
-	return val, ok
 }
 
-func FromContext(ctx context.Context) (Metadata, bool) {
-	md, ok := ctx.Value(metadataKey{}).(Metadata)
+func (m MD) Set(key, val string) {
+	m[key] = val
+}
+
+func (m MD) Del(key string) {
+	delete(m, key)
+}
+
+func NewContext(ctx context.Context, md MD) context.Context {
+	return context.WithValue(ctx, mdKey{}, md)
+}
+
+func DelFromContext(ctx context.Context, k string) context.Context {
+	return SetToContext(ctx, k, emptyString)
+}
+
+func SetToContext(ctx context.Context, k, v string) context.Context {
+	md, ok := LoadFromContext(ctx)
 	if !ok {
+		md = make(MD, 0)
+	}
+	if len(v) != 0 {
+		md[k] = v
+	} else {
+		delete(md, k)
+	}
+	return context.WithValue(ctx, mdKey{}, md)
+}
+
+func FindInContext(ctx context.Context, key string) (string, bool) {
+	if md, ok := LoadFromContext(ctx); !ok {
+		return emptyString, ok
+	} else {
+		val, ok := md[key]
+		return val, ok
+	}
+}
+
+func LoadFromContext(ctx context.Context) (MD, bool) {
+	if md, ok := ctx.Value(mdKey{}).(MD); !ok {
 		return nil, ok
+	} else {
+		newMD := make(MD, len(md))
+		for k, v := range md {
+			newMD[k] = v
+		}
+		return newMD, ok
 	}
-	newMD := make(Metadata, len(md))
-	for k, v := range md {
-		newMD[strings.Title(k)] = v
-	}
-	return newMD, ok
 }
 
-func NewContext(ctx context.Context, md Metadata) context.Context {
-	return context.WithValue(ctx, metadataKey{}, md)
-}
-
-func MergeContext(ctx context.Context, patchMd Metadata, overwrite bool) context.Context {
+func MergeContext(ctx context.Context, metadata MD, overwrite bool) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	md, _ := ctx.Value(metadataKey{}).(Metadata)
-	cmd := make(Metadata, len(md))
-	for k, v := range md {
-		cmd[k] = v
+	md, ok := ctx.Value(mdKey{}).(MD)
+	if !ok {
+		return ctx
 	}
-	for k, v := range patchMd {
-		if _, ok := cmd[k]; ok && !overwrite {
-		} else if v != "" {
-			cmd[k] = v
+	cp := make(MD, len(md))
+	for k, v := range md {
+		cp[k] = v
+	}
+	for k, v := range metadata {
+		if _, ok := cp[k]; ok && !overwrite {
+			continue
+		}
+		if len(v) != 0 {
+			cp[k] = v
 		} else {
-			delete(cmd, k)
+			delete(cp, k)
 		}
 	}
-	return context.WithValue(ctx, metadataKey{}, cmd)
+	return context.WithValue(ctx, mdKey{}, cp)
 }

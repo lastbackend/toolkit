@@ -15,3 +15,22 @@ limitations under the License.
 */
 
 package grpc
+
+import (
+	"fmt"
+	"strings"
+)
+
+func methodToGRPC(service, method string) string {
+	if len(method) == 0 || method[0] == '/' {
+		return method
+	}
+	mParts := strings.Split(method, ".")
+	if len(mParts) != 2 {
+		return method
+	}
+	if len(service) == 0 {
+		return fmt.Sprintf("/%s/%s", mParts[0], mParts[1])
+	}
+	return fmt.Sprintf("/%s.%s/%s", service, mParts[0], mParts[1])
+}
