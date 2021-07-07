@@ -196,5 +196,16 @@ func (s *service) Logger() logger.Logger {
 	{{end}}
 	func ({{$svc.GetName | ToLower}}GrpcHandler) mustEmbedUnimplemented{{$svc.GetName}}Server() {}
 {{end}}
+
+
+{{range $svc := .Services}}
+// Client methods for {{$svc.GetName}} service
+const (
+{{range $m := $svc.Methods}}
+	{{$m.GetName}}Method = "/{{$svc.GetName | ToLower}}.{{$svc.GetName}}/{{$m.GetName}}"
+{{end}}
+)
+{{end}}
+
 `))
 )

@@ -35,9 +35,10 @@ type StringSliceFlag struct {
 }
 
 func (f *StringSliceFlag) apply(set *pflag.FlagSet) error {
-	val, ok := getEnvAsSlice(f.EnvVar, ";")
-	f.Value = val
-	f.hasBeenSet = ok
+	if val, ok := getEnvAsSlice(f.EnvVar, ";"); ok {
+		f.Value = val
+		f.hasBeenSet = ok
+	}
 
 	if f.Destination == nil {
 		set.StringSliceP(f.Name, f.Shorthand, f.Value, f.Usage)

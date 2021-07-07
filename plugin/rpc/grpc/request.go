@@ -16,21 +16,28 @@ limitations under the License.
 
 package grpc
 
-import (
-	"fmt"
-	"strings"
-)
+type request struct {
+	service string
+	method  string
+	body    interface{}
+}
 
-func methodToGRPC(service, method string) string {
-	if len(method) == 0 || method[0] == '/' {
-		return method
-	}
-	mParts := strings.Split(method, ".")
-	if len(mParts) != 2 {
-		return method
-	}
-	if len(service) == 0 {
-		return fmt.Sprintf("/%s/%s", mParts[0], mParts[1])
-	}
-	return fmt.Sprintf("/%s.%s/%s", service, mParts[0], mParts[1])
+func newRequest(method, service string, body interface{}) *request {
+	r := new(request)
+	r.service = method
+	r.method = service
+	r.body = body
+	return r
+}
+
+func (r *request) getService() string {
+	return r.service
+}
+
+func (r *request) getMethod() string {
+	return r.method
+}
+
+func (r *request) getBody() interface{} {
+	return r.body
 }

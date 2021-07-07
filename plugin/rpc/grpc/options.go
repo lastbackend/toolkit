@@ -27,21 +27,21 @@ import (
 	"time"
 )
 
-func exponentialBackoff(ctx context.Context, req Request, attempts int) (time.Duration, error) {
+func exponentialBackoff(ctx context.Context, req *request, attempts int) (time.Duration, error) {
 	if attempts > 10 {
 		return 2 * time.Minute, nil
 	}
 	return time.Duration(math.Pow(float64(attempts), math.E)) * time.Millisecond * 100, nil
 }
 
-func retryNever(ctx context.Context, req Request, retryCount int, err error) (bool, error) {
+func retryNever(ctx context.Context, req *request, retryCount int, err error) (bool, error) {
 	return false, nil
 }
 
-type CallFunc func(ctx context.Context, addr string, req Request, rsp interface{}, opts CallOptions) error
+type CallFunc func(ctx context.Context, addr string, req *request, rsp interface{}, opts CallOptions) error
 type CallMiddlewareFunc func(CallFunc) CallFunc
 type MiddlewareFunc func(Client) Client
-type LookupFunc func(context.Context, Request, CallOptions) ([]string, error)
+type LookupFunc func(context.Context, *request, CallOptions) ([]string, error)
 
 type Options struct {
 	Context context.Context
@@ -56,23 +56,19 @@ type Options struct {
 	Selector selector.Selector
 	Resolver resolver.Resolver
 
-	Lookup      LookupFunc
 	Middlewares []MiddlewareFunc
 
 	Pool        PoolOptions
 	CallOptions CallOptions
 }
 
-type BackoffFunc func(ctx context.Context, req Request, attempts int) (time.Duration, error)
-type RetryFunc func(ctx context.Context, req Request, retryCount int, err error) (bool, error)
+type BackoffFunc func(ctx context.Context, req *request, attempts int) (time.Duration, error)
+type RetryFunc func(ctx context.Context, req *request, retryCount int, err error) (bool, error)
 
 type CallOptions struct {
 	AuthToken      bool
-	Endpoints      []string
 	Backoff        BackoffFunc
 	Retry          RetryFunc
-	Selector       selector.Selector
-	Resolver       resolver.Resolver
 	Retries        time.Duration
 	DialTimeout    time.Duration
 	RequestTimeout time.Duration

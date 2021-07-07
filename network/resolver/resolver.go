@@ -36,7 +36,7 @@ type LookupOption func(*LookupOptions)
 
 type Resolver interface {
 	Table() Table
-	Lookup(service string, opts ...LookupOption) ([]route.Route, error)
+	Lookup(service string, opts ...LookupOption) (route.RouteList, error)
 }
 
 type Table interface {
