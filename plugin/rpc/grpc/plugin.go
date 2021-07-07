@@ -18,6 +18,7 @@ package grpc
 
 import (
 	"context"
+
 	"github.com/lastbackend/engine/plugin"
 )
 
@@ -35,20 +36,8 @@ func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
 	}
 }
 
-type Storage interface {
-	NewRequest(service, method string, req interface{}, reqOpts ...RequestOption) Request
-	Call(ctx context.Context, req Request, rsp interface{}, opts ...CallOption) error
-}
-
-type Request interface {
-	Service() string
-	Method() string
-	Endpoint() string
-	Body() interface{}
-	Stream() bool
-}
-
-type RequestOption interface {
+type Client interface {
+	Call(ctx context.Context, service, method string, req, rsp interface{}, opts ...CallOption) error
 }
 
 type CallOption func(*CallOptions)

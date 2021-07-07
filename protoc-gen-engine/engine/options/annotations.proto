@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package custom_options;
+package engine;
 
 option go_package = "github.com/lastbackend/engine/protoc-gen-engine/engine/options;annotations";
 

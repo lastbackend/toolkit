@@ -25,6 +25,7 @@ import (
 
 type table struct {
 	sync.RWMutex
+	x int
 	routes map[string]map[string]*resolverRoute
 }
 
@@ -40,10 +41,10 @@ func newTable() *table {
 }
 
 func (t *table) Find(service string) ([]rt.Route, error) {
+	var routes []rt.Route
+
 	t.RLock()
 	defer t.RUnlock()
-
-	var routes []rt.Route
 
 	if len(service) > 0 {
 		routeMap, ok := t.routes[service]
@@ -55,20 +56,18 @@ func (t *table) Find(service string) ([]rt.Route, error) {
 		}
 		return routes, nil
 	}
-
 	for _, serviceRoutes := range t.routes {
 		for _, sr := range serviceRoutes {
 			routes = append(routes, sr.route)
 		}
 	}
-
 	return routes, nil
 }
 
 func (t *table) Create(r rt.Route) error {
 	service := r.Service
 	sum := r.Hash()
-
+	t.x = 100
 	t.Lock()
 	defer t.Unlock()
 
@@ -86,6 +85,7 @@ func (t *table) Create(r rt.Route) error {
 }
 
 func (t *table) Delete(r rt.Route) error {
+
 	service := r.Service
 	sum := r.Hash()
 
@@ -109,6 +109,7 @@ func (t *table) Delete(r rt.Route) error {
 }
 
 func (t *table) Update(r rt.Route) error {
+
 	service := r.Service
 	sum := r.Hash()
 

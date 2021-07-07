@@ -17,8 +17,6 @@ limitations under the License.
 package grpc
 
 import (
-	"context"
-	"fmt"
 	"github.com/lastbackend/engine/context/metadata"
 	"github.com/lastbackend/engine/network/resolver"
 	"github.com/lastbackend/engine/network/resolver/local"
@@ -28,6 +26,10 @@ import (
 	"google.golang.org/grpc/codes"
 	grpc_md "google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+
+	"context"
+	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -38,7 +40,7 @@ const (
 	// The default number of times a request is tried
 	defaultRetries = 5 * time.Second
 	// The default request timeout
-	defaultRequestTimeout = 5 * time.Second
+	defaultRequestTimeout = 15 * time.Second
 	// The connection pool size
 	defaultPoolSize = 100
 	// The connection pool ttl
@@ -52,10 +54,6 @@ const (
 	// DefaultMaxSendMsgSize maximum message that client can send (16 MB).
 	defaultMaxSendMsgSize = 1024 * 1024 * 16
 )
-
-type Client interface {
-	Call(ctx context.Context, req Request, rsp interface{}, opts ...CallOption) error
-}
 
 type client struct {
 	prefix string
@@ -72,30 +70,34 @@ func newClient(prefix string) *client {
 }
 
 func (c *client) Init(opts Options) error {
-	switch c.opts.ResolverService {
+	switch opts.ResolverService {
 	case "local":
-		c.opts.Resolver = local.NewResolver()
-		for _, addr := range c.opts.Addresses {
-			match := strings.Split(addr, ":")
-			c.opts.Resolver.Table().Create(route.Route{
-				Service: match[0],
-				Address: match[1],
+		opts.Resolver = local.NewResolver()
+		for _, addr := range opts.Addresses {
+			re := regexp.MustCompile("([\\w]+):(.*)")
+			match := re.FindStringSubmatch(addr)
+			opts.Resolver.Table().Create(route.Route{
+				Service: match[1],
+				Address: match[2],
 			})
 		}
 	default:
 		return resolver.ErrResolverNotDetected
 	}
+	c.opts = opts
 	c.pool.Init(opts.Pool)
 	return nil
 }
 
-func (c *client) Call(ctx context.Context, req Request, rsp interface{}, opts ...CallOption) error {
-	if req == nil {
+func (c *client) Call(ctx context.Context, service, method string, body, resp interface{}, opts ...CallOption) error {
+	if body == nil {
 		return status.Error(codes.Internal, "request is nil")
 	}
-	if rsp == nil {
+	if resp == nil {
 		return status.Error(codes.Internal, "response is nil")
 	}
+
+	req := newRequest(service, method, body)
 
 	callOpts := c.opts.CallOptions
 	for _, opt := range opts {
@@ -105,12 +107,12 @@ func (c *client) Call(ctx context.Context, req Request, rsp interface{}, opts ..
 	ctx, cancel := context.WithTimeout(ctx, callOpts.RequestTimeout)
 	defer cancel()
 
-	routes, err := c.opts.Lookup(ctx, req, callOpts)
+	routes, err := c.opts.Resolver.Lookup(req.service)
 	if err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
 
-	next, err := callOpts.Selector.Select(routes)
+	next, err := c.opts.Selector.Select(routes.Addresses())
 	if err != nil {
 		return err
 	}
@@ -130,7 +132,7 @@ func (c *client) Call(ctx context.Context, req Request, rsp interface{}, opts ..
 		case <-ctx.Done():
 			return status.Error(codes.Canceled, ctx.Err().Error())
 		default:
-			err := invokeFunc(ctx, next(), req, rsp, callOpts)
+			err := invokeFunc(ctx, next(), req, resp, callOpts)
 			if err != nil {
 				d := b.Duration()
 				if d.Seconds() >= callOpts.Retries.Seconds() {
@@ -150,7 +152,7 @@ func (c *client) Close() error {
 	return nil
 }
 
-func (c *client) invoke(ctx context.Context, addr string, req Request, rsp interface{}, opts CallOptions) error {
+func (c *client) invoke(ctx context.Context, addr string, req *request, rsp interface{}, opts CallOptions) error {
 
 	var header = make(map[string]string, 0)
 	if md, ok := metadata.LoadFromContext(ctx); ok {
@@ -160,7 +162,7 @@ func (c *client) invoke(ctx context.Context, addr string, req Request, rsp inter
 		}
 	}
 
-	header["x-service-name"] = req.Service()
+	header["x-service-name"] = req.getService()
 
 	md := grpc_md.New(header)
 	ctx = grpc_md.NewOutgoingContext(ctx, md)
@@ -183,9 +185,7 @@ func (c *client) invoke(ctx context.Context, addr string, req Request, rsp inter
 	ch := make(chan error, 1)
 	go func() {
 		grpcCallOptions := make([]grpc.CallOption, 0)
-		ctx, cancel := context.WithTimeout(ctx, opts.DialTimeout)
-		defer cancel()
-		ch <- conn.Invoke(ctx, methodToGRPC(req.Service(), req.Endpoint()), req.Body(), rsp, grpcCallOptions...)
+		ch <- conn.Invoke(ctx, req.getMethod(), req.getBody(), rsp, grpcCallOptions...)
 	}()
 
 	select {

@@ -36,3 +36,13 @@ func (r *Route) Hash() string {
 	hash := sha256.Sum256([]byte(r.Service + r.Address))
 	return hex.EncodeToString(hash[:])
 }
+
+type RouteList []Route
+
+func (r *RouteList) Addresses() []string {
+	list := make([]string, 0)
+	for _, item := range *r {
+		list = append(list, item.Address)
+	}
+	return list
+}
