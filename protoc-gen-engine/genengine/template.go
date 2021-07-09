@@ -179,7 +179,11 @@ func (s *service) Logger() logger.Logger {
 	// Server API for Api service
 	type {{$svc.GetName}}Handler interface {
 	{{range $m := $svc.Methods}}
-		{{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}) (*{{$m.ResponseType.GoName}}, error)
+		{{if $m.GetServerStreaming}}
+			{{$m.GetName}}(stream {{$svc.GetName}}_{{$m.GetName}}Server) error
+		{{else}}
+			{{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}) (*{{$m.ResponseType.GoName}}, error)
+		{{end}}
 	{{end}}
 	}
 {{end}}
@@ -190,9 +194,15 @@ func (s *service) Logger() logger.Logger {
 	}
 
 	{{range $m := $svc.Methods}}
-		func (h *{{$svc.GetName | ToLower}}GrpcHandler) {{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}) (*{{$m.ResponseType.GoName}}, error) {
-			return  h.{{$svc.GetName}}Handler.{{$m.GetName}}(ctx, in)
-		}
+		{{if $m.GetServerStreaming}}
+			func (h *{{$svc.GetName | ToLower}}GrpcHandler) {{$m.GetName}}(stream {{$svc.GetName}}_{{$m.GetName}}Server) error {
+				return h.{{$svc.GetName}}Handler.{{$m.GetName}}(stream)
+			}
+		{{else}}
+			func (h *{{$svc.GetName | ToLower}}GrpcHandler) {{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}) (*{{$m.ResponseType.GoName}}, error) {
+				return h.{{$svc.GetName}}Handler.{{$m.GetName}}(ctx, in)
+			}
+		{{end}}
 	{{end}}
 	func ({{$svc.GetName | ToLower}}GrpcHandler) mustEmbedUnimplemented{{$svc.GetName}}Server() {}
 {{end}}
@@ -202,7 +212,7 @@ func (s *service) Logger() logger.Logger {
 // Client methods for {{$svc.GetName}} service
 const (
 {{range $m := $svc.Methods}}
-	{{$m.GetName}}Method = "/{{$svc.GetName | ToLower}}.{{$svc.GetName}}/{{$m.GetName}}"
+	{{$svc.GetName}}_{{$m.GetName}}Method = "/{{$svc.GetName | ToLower}}.{{$svc.GetName}}/{{$m.GetName}}"
 {{end}}
 )
 {{end}}
