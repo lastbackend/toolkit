@@ -63,7 +63,7 @@ func (g *grpcServer) Register(sd *grpc.ServiceDesc, ss interface{}) error {
 }
 
 func (g *grpcServer) Start() error {
-	g.configure()
+	g.init()
 
 	g.RLock()
 	if g.started {
@@ -204,7 +204,7 @@ func newServer(prefix string) *grpcServer {
 		exit:   make(chan chan error),
 	}
 
-	srv.configure()
+	srv.init()
 
 	return srv
 }
@@ -214,7 +214,7 @@ func (g *grpcServer) defaultHandler(srv interface{}, stream grpc.ServerStream) e
 	return nil
 }
 
-func (g *grpcServer) configure() {
+func (g *grpcServer) init() {
 	g.Lock()
 	defer g.Unlock()
 

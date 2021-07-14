@@ -178,12 +178,14 @@ func (s *service) Logger() logger.Logger {
 {{range $svc := .Services}}
 	// Server API for Api service
 	type {{$svc.GetName}}Handler interface {
-	{{range $m := $svc.Methods}}
-		{{if $m.GetServerStreaming}}
-			{{$m.GetName}}(stream {{$svc.GetName}}_{{$m.GetName}}Server) error
-		{{else}}
+		{{range $m := $svc.Methods}}
+    {{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
 			{{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}) (*{{$m.ResponseType.GoName}}, error)
-		{{end}}
+    {{else}}{{if not $m.GetClientStreaming}}
+			{{$m.GetName}}(req *{{$m.RequestType.GoName}}, stream {{$svc.GetName}}_{{$m.GetName}}Server) error
+    {{else}}
+			{{$m.GetName}}(stream {{$svc.GetName}}_{{$m.GetName}}Server) error
+    {{end}}{{end}}
 	{{end}}
 	}
 {{end}}
@@ -194,19 +196,22 @@ func (s *service) Logger() logger.Logger {
 	}
 
 	{{range $m := $svc.Methods}}
-		{{if $m.GetServerStreaming}}
+    {{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
+  		func (h *{{$svc.GetName | ToLower}}GrpcHandler) {{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}) (*{{$m.ResponseType.GoName}}, error) {
+				return h.{{$svc.GetName}}Handler.{{$m.GetName}}(ctx, in)				
+			}
+    {{else}}{{if not $m.GetClientStreaming}}
+			func (h *{{$svc.GetName | ToLower}}GrpcHandler) {{$m.GetName}}(req *{{$m.RequestType.GoName}}, stream {{$svc.GetName}}_{{$m.GetName}}Server) error {
+				return h.{{$svc.GetName}}Handler.{{$m.GetName}}(req, stream)
+			}
+    {{else}}
 			func (h *{{$svc.GetName | ToLower}}GrpcHandler) {{$m.GetName}}(stream {{$svc.GetName}}_{{$m.GetName}}Server) error {
 				return h.{{$svc.GetName}}Handler.{{$m.GetName}}(stream)
 			}
-		{{else}}
-			func (h *{{$svc.GetName | ToLower}}GrpcHandler) {{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}) (*{{$m.ResponseType.GoName}}, error) {
-				return h.{{$svc.GetName}}Handler.{{$m.GetName}}(ctx, in)
-			}
-		{{end}}
+    {{end}}{{end}}
 	{{end}}
 	func ({{$svc.GetName | ToLower}}GrpcHandler) mustEmbedUnimplemented{{$svc.GetName}}Server() {}
 {{end}}
-
 
 {{range $svc := .Services}}
 // Client methods for {{$svc.GetName}} service

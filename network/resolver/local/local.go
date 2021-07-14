@@ -17,7 +17,6 @@ limitations under the License.
 package local
 
 import (
-	"fmt"
 	"github.com/lastbackend/engine/network/resolver"
 	"github.com/lastbackend/engine/network/resolver/route"
 )
@@ -41,12 +40,10 @@ func NewResolver(opts ...resolver.Option) resolver.Resolver {
 
 func (c *localResolver) Lookup(service string, opts ...resolver.LookupOption) (route.RouteList, error) {
 	q := resolver.NewLookup(opts...)
-	fmt.Println("11 >>>>", service)
 	routes, err := c.table.Find(service)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("22 >>>>", routes)
 	routes = resolver.Filter(routes, q)
 	if len(routes) == 0 {
 		return nil, route.ErrRouteNotFound

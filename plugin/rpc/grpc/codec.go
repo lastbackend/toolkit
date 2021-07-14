@@ -16,37 +16,20 @@ limitations under the License.
 
 package grpc
 
-type request struct {
-	service string
-	method  string
-	headers map[string]string
-	body    interface{}
+import (
+	"google.golang.org/protobuf/proto"
+)
+
+type protoCodec struct{}
+
+func (protoCodec) Marshal(v interface{}) ([]byte, error) {
+	return proto.Marshal(v.(proto.Message))
 }
 
-func newRequest(method, service string, body interface{}, headers map[string]string) *request {
-	r := new(request)
-	r.service = method
-	r.method = service
-	r.body = body
-	if headers == nil {
-		headers = make(map[string]string, 0)
-	}
-	r.headers = headers
-	return r
+func (protoCodec) Unmarshal(data []byte, v interface{}) error {
+	return proto.Unmarshal(data, v.(proto.Message))
 }
 
-func (r *request) Service() string {
-	return r.service
-}
-
-func (r *request) Method() string {
-	return r.method
-}
-
-func (r *request) Body() interface{} {
-	return r.body
-}
-
-func (r *request) Headers() map[string]string {
-	return r.headers
+func (protoCodec) Name() string {
+	return "proto"
 }

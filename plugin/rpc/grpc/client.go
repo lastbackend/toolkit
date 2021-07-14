@@ -24,6 +24,7 @@ import (
 	"github.com/lastbackend/engine/util/backoff"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/encoding"
 	grpc_md "google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
@@ -33,6 +34,10 @@ import (
 	"strings"
 	"time"
 )
+
+func init() {
+	encoding.RegisterCodec(protoCodec{})
+}
 
 const (
 	// The default resolver service for search service hosts
@@ -97,8 +102,6 @@ func (c *client) Call(ctx context.Context, service, method string, body, resp in
 		return status.Error(codes.Internal, "response is nil")
 	}
 
-	req := newRequest(service, method, body)
-
 	callOpts := c.opts.CallOptions
 	for _, opt := range opts {
 		opt(&callOpts)
@@ -107,6 +110,17 @@ func (c *client) Call(ctx context.Context, service, method string, body, resp in
 	ctx, cancel := context.WithTimeout(ctx, callOpts.RequestTimeout)
 	defer cancel()
 
+	var headers = make(map[string]string, 0)
+	if md, ok := metadata.LoadFromContext(ctx); ok {
+		headers = make(map[string]string, len(md))
+		for k, v := range md {
+			headers[strings.ToLower(k)] = v
+		}
+	}
+
+	headers["x-service-name"] = service
+
+	req := newRequest(service, method, body, headers)
 	routes, err := c.opts.Resolver.Lookup(req.service)
 	if err != nil {
 		return status.Error(codes.Internal, err.Error())
@@ -148,23 +162,70 @@ func (c *client) Call(ctx context.Context, service, method string, body, resp in
 
 }
 
+func (c *client) Stream(ctx context.Context, service, method string, body interface{}, opts ...CallOption) (Stream, error) {
+	if body == nil {
+		return nil, status.Error(codes.Internal, "request is nil")
+	}
+
+	callOpts := c.opts.CallOptions
+	for _, opt := range opts {
+		opt(&callOpts)
+	}
+
+	streamFunc := c.stream
+
+	var headers = make(map[string]string, 0)
+	if md, ok := metadata.LoadFromContext(ctx); ok {
+		headers = make(map[string]string, len(md))
+		for k, v := range md {
+			headers[strings.ToLower(k)] = v
+		}
+	}
+
+	headers["x-service-name"] = service
+
+	req := newRequest(service, method, body, headers)
+	routes, err := c.opts.Resolver.Lookup(req.service)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	next, err := c.opts.Selector.Select(routes.Addresses())
+	if err != nil {
+		return nil, err
+	}
+
+	b := &backoff.Backoff{
+		Max: callOpts.Retries,
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, status.Error(codes.Canceled, ctx.Err().Error())
+		default:
+			s, err := streamFunc(ctx, next(), req, callOpts)
+			if err != nil {
+				d := b.Duration()
+				if d.Seconds() >= callOpts.Retries.Seconds() {
+					return nil, status.Error(codes.Internal, err.Error())
+				}
+				time.Sleep(d)
+				continue
+			}
+			b.Reset()
+			return s, nil
+		}
+	}
+}
+
 func (c *client) Close() error {
 	return nil
 }
 
 func (c *client) invoke(ctx context.Context, addr string, req *request, rsp interface{}, opts CallOptions) error {
 
-	var header = make(map[string]string, 0)
-	if md, ok := metadata.LoadFromContext(ctx); ok {
-		header = make(map[string]string, len(md))
-		for k, v := range md {
-			header[strings.ToLower(k)] = v
-		}
-	}
-
-	header["x-service-name"] = req.getService()
-
-	md := grpc_md.New(header)
+	md := grpc_md.New(req.headers)
 	ctx = grpc_md.NewOutgoingContext(ctx, md)
 
 	grpcDialOptions := []grpc.DialOption{
@@ -185,7 +246,7 @@ func (c *client) invoke(ctx context.Context, addr string, req *request, rsp inte
 	ch := make(chan error, 1)
 	go func() {
 		grpcCallOptions := make([]grpc.CallOption, 0)
-		ch <- conn.Invoke(ctx, req.getMethod(), req.getBody(), rsp, grpcCallOptions...)
+		ch <- conn.Invoke(ctx, req.Method(), req.Body(), rsp, grpcCallOptions...)
 	}()
 
 	select {
@@ -196,6 +257,66 @@ func (c *client) invoke(ctx context.Context, addr string, req *request, rsp inte
 	}
 
 	return gErr
+}
+
+func (c *client) stream(ctx context.Context, addr string, req *request, opts CallOptions) (Stream, error) {
+
+	md := grpc_md.New(req.Headers())
+	ctx = grpc_md.NewOutgoingContext(ctx, md)
+
+	grpcDialOptions := []grpc.DialOption{
+		grpc.WithInsecure(), // TODO: set tls if need from auth server
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(c.opts.MaxRecvMsgSize),
+			grpc.MaxCallSendMsgSize(c.opts.MaxSendMsgSize),
+		),
+	}
+
+	cc, err := c.pool.getConn(addr, grpcDialOptions...)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	desc := &grpc.StreamDesc{
+		StreamName:    req.Method(),
+		ClientStreams: true,
+		ServerStreams: true,
+	}
+
+	grpcCallOptions := make([]grpc.CallOption, 0)
+
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
+
+	st, err := cc.NewStream(ctx, desc, req.Method(), grpcCallOptions...)
+	if err != nil {
+		cancel()
+		c.pool.release(addr, cc, err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	s := &stream{
+		ClientStream: st,
+		context:      ctx,
+		request:      req,
+		conn:         cc,
+		close: func(err error) {
+			if err != nil {
+				cancel()
+			}
+			c.pool.release(addr, cc, err)
+		},
+	}
+
+	if err := st.SendMsg(req.body); err != nil {
+		return nil, err
+	}
+
+	if err := st.CloseSend(); err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }
 
 func (c *client) withPrefix(name string) string {

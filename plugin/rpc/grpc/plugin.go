@@ -38,6 +38,15 @@ func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
 
 type Client interface {
 	Call(ctx context.Context, service, method string, req, rsp interface{}, opts ...CallOption) error
+	Stream(ctx context.Context, service, method string, body interface{}, opts ...CallOption) (Stream, error)
 }
 
 type CallOption func(*CallOptions)
+
+type Stream interface {
+	Context() context.Context
+	Headers() map[string]string
+	SendMsg(m interface{}) error
+	RecvMsg(m interface{}) error
+	CloseSend() error
+}
