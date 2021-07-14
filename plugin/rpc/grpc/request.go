@@ -19,25 +19,34 @@ package grpc
 type request struct {
 	service string
 	method  string
+	headers map[string]string
 	body    interface{}
 }
 
-func newRequest(method, service string, body interface{}) *request {
+func newRequest(method, service string, body interface{}, headers map[string]string) *request {
 	r := new(request)
 	r.service = method
 	r.method = service
 	r.body = body
+	if headers == nil {
+		headers = make(map[string]string, 0)
+	}
+	r.headers = headers
 	return r
 }
 
-func (r *request) getService() string {
+func (r *request) Service() string {
 	return r.service
 }
 
-func (r *request) getMethod() string {
+func (r *request) Method() string {
 	return r.method
 }
 
-func (r *request) getBody() interface{} {
+func (r *request) Body() interface{} {
 	return r.body
+}
+
+func (r *request) Headers() map[string]string {
+	return r.headers
 }

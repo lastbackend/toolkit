@@ -15,3 +15,21 @@ limitations under the License.
 */
 
 package grpc
+
+import (
+	"google.golang.org/protobuf/proto"
+)
+
+type protoCodec struct{}
+
+func (protoCodec) Marshal(v interface{}) ([]byte, error) {
+	return proto.Marshal(v.(proto.Message))
+}
+
+func (protoCodec) Unmarshal(data []byte, v interface{}) error {
+	return proto.Unmarshal(data, v.(proto.Message))
+}
+
+func (protoCodec) Name() string {
+	return "proto"
+}

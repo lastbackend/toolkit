@@ -15,3 +15,43 @@ limitations under the License.
 */
 
 package grpc
+
+import (
+	"google.golang.org/grpc"
+
+	"context"
+	"sync"
+)
+
+type stream struct {
+	sync.RWMutex
+	context context.Context
+
+	grpc.ClientStream
+
+	closed   bool
+	err      error
+	request  *request
+	conn     *poolConn
+	close    func(err error)
+}
+
+func (s *stream) Context() context.Context {
+	return s.context
+}
+
+func (s *stream) Headers() map[string]string {
+	return s.request.headers
+}
+
+func (s *stream) SendMsg(msg interface{}) error {
+	return s.ClientStream.SendMsg(msg)
+}
+
+func (s *stream) RecvMsg(msg interface{}) (err error) {
+	return s.ClientStream.RecvMsg(msg)
+}
+
+func (s *stream) CloseSend() error {
+	return s.ClientStream.CloseSend()
+}
