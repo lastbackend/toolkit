@@ -118,11 +118,9 @@ var props = map[string]map[string]engine.ServiceProps{
 }
 
 type Service interface {
-	Register(interface{}) error
 	Logger() logger.Logger
 	Meta() engine.Meta
-	Init() error
-	Run() error
+	Run(i interface{}) error
 }
 
 func NewService(name string) Service {

@@ -43,7 +43,7 @@ type zapLogger struct {
 	opts   Options
 }
 
-func newZapLogger(opts Options) Logger {
+func newZapLogger(opts Options) *zapLogger {
 	cores := make([]zapcore.Core, 0)
 	combinedCore := zapcore.NewTee(cores...)
 	l := &zapLogger{

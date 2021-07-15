@@ -76,27 +76,6 @@ func (s *service) CLI() CLI {
 	return s.cli
 }
 
-func (s *service) Init() error {
-	s.cli.SetName(s.meta.Name)
-	s.cli.SetEnvPrefix(s.meta.EnvPrefix)
-	s.cli.SetVersion(s.meta.Version)
-	s.cli.SetShortDescription(s.meta.ShorDescription)
-	s.cli.SetLongDescription(s.meta.LongDescription)
-
-	s.cli.AddFlags(s.pm.Flags()...)
-	s.cli.AddCommands(s.pm.Commands()...)
-
-	for _, t := range s.servers {
-		s.cli.AddFlags(t.Flags()...)
-	}
-
-	if err := s.cli.Execute(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (s *service) Register(i interface{}, props map[string]map[string]ServiceProps) error {
 
 	initField := func(tech string, service ServiceProps, valueField reflect.Value) error {
@@ -246,6 +225,10 @@ func (s *service) SetContext(ctx context.Context) {
 
 func (s *service) Run() error {
 
+	if err := s.init(); err != nil {
+		return err
+	}
+
 	if err := s.pm.Start(); err != nil {
 		return err
 	}
@@ -276,6 +259,28 @@ func (s *service) Run() error {
 	}
 
 	s.pm.Stop()
+
+	return nil
+}
+
+func (s *service) init() error {
+
+	s.cli.SetName(s.meta.Name)
+	s.cli.SetEnvPrefix(s.meta.EnvPrefix)
+	s.cli.SetVersion(s.meta.Version)
+	s.cli.SetShortDescription(s.meta.ShorDescription)
+	s.cli.SetLongDescription(s.meta.LongDescription)
+
+	s.cli.AddFlags(s.pm.Flags()...)
+	s.cli.AddCommands(s.pm.Commands()...)
+
+	for _, t := range s.servers {
+		s.cli.AddFlags(t.Flags()...)
+	}
+
+	if err := s.cli.Execute(); err != nil {
+		return err
+	}
 
 	return nil
 }
