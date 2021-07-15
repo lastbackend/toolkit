@@ -17,6 +17,7 @@ limitations under the License.
 package cmd
 
 import (
+	"github.com/lastbackend/engine/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -133,6 +134,9 @@ func (c *cli) Execute() error {
 		}
 
 		if debug {
+			logger.DefaultLogger.Init(logger.Options{
+				Level: logger.DebugLevel,
+			})
 			printFlags(cmd.Flags())
 		}
 

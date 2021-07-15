@@ -39,7 +39,6 @@ type Service interface {
 	Name() string
 	Version() string
 	Meta() Meta
-	Init() error
 	Logger() logger.Logger
 	SetContext(ctx context.Context)
 	Register(i interface{}, props map[string]map[string]ServiceProps) error
