@@ -131,8 +131,22 @@ type service struct {
 	base engine.Service
 }
 
-func (s *service) Register(i interface{}) error {
+func (s *service) Meta() engine.Meta {
+	return s.base.Meta()
+}
 
+func (s *service) Run(i interface{}) error {
+  if err := s.register(i); err != nil {
+		return err
+	}
+	return s.base.Run()
+}
+
+func (s *service) Logger() logger.Logger {
+	return s.base.Logger()
+}
+
+func (s *service) register(i interface{}) error {
 	if err := s.base.Register(i, props); err != nil {
 		return err
 	}
@@ -153,24 +167,8 @@ func (s *service) Register(i interface{}) error {
   	return err
   }
 {{end}}
-
+	
 	return nil
-}
-
-func (s *service) Meta() engine.Meta {
-	return s.base.Meta()
-}
-
-func (s *service) Run() error {
-	return s.base.Run()
-}
-
-func (s *service) Init() error {
-	return s.base.Init()
-}
-
-func (s *service) Logger() logger.Logger {
-	return s.base.Logger()
 }
 
 {{range $svc := .Services}}
