@@ -34,6 +34,7 @@ type tplOptions struct {
 type Plugin struct {
 	Prefix string
 	Plugin string
+	Pkg    string
 }
 
 type contentParams struct {
@@ -101,7 +102,7 @@ var _ server.Server
 		"ToCapitalize": strings.Title,
 	}
 
-	contentTemplate = template.Must(template.New("content").Funcs(funcMap).Parse(`
+	_ = template.Must(contentTemplate.New("plugins-content").Parse(`
 var props = map[string]map[string]engine.ServiceProps{
 {{range $type, $plugins := .Plugins}}
 	"{{$type}}": {
@@ -117,6 +118,32 @@ var props = map[string]map[string]engine.ServiceProps{
 {{end}}
 }
 
+{{if .Plugins}}
+type Core struct {
+{{range $type, $plugins := .Plugins}}
+	{{ $length := len $plugins }} {{ if eq $length 1 }}
+		{{range $name, $plugin := $plugins}}
+			{{$type | ToCapitalize}} {{$plugin.Pkg}}
+		{{end}}
+  {{else}}
+		{{$type}} *{{$type}}
+	{{end}}
+{{end}}
+}
+
+{{range $type, $plugins := .Plugins}}
+	{{ $length := len $plugins }} {{ if ne $length 1 }}
+	type {{$type}} struct {
+		{{range $name, $plugin := $plugins}}
+			{{$name | ToCapitalize}} {{$plugin.Pkg}}
+		{{end}}
+	}
+	{{end}}
+{{end}}
+{{end}}
+`))
+
+	_ = template.Must(contentTemplate.New("services-content").Parse(`
 type Service interface {
 	Logger() logger.Logger
 	Meta() engine.Meta
@@ -170,7 +197,9 @@ func (s *service) register(i interface{}) error {
 	
 	return nil
 }
+`))
 
+	_ = template.Must(contentTemplate.New("server-content").Parse(`
 {{range $svc := .Services}}
 	// Server API for Api service
 	type {{$svc.GetName}}Handler interface {
@@ -208,15 +237,23 @@ func (s *service) register(i interface{}) error {
 	{{end}}
 	func ({{$svc.GetName | ToLower}}GrpcHandler) mustEmbedUnimplemented{{$svc.GetName}}Server() {}
 {{end}}
+`))
 
+	_ = template.Must(contentTemplate.New("client-content").Parse(`
 {{range $svc := .Services}}
-// Client methods for {{$svc.GetName}} service
-const (
-{{range $m := $svc.Methods}}
-	{{$svc.GetName}}_{{$m.GetName}}Method = "/{{$svc.GetName | ToLower}}.{{$svc.GetName}}/{{$m.GetName}}"
+	// Client methods for {{$svc.GetName}} service
+	const (
+		{{range $m := $svc.Methods}}
+			{{$svc.GetName}}_{{$m.GetName}}Method = "/{{$svc.GetName | ToLower}}.{{$svc.GetName}}/{{$m.GetName}}"
+		{{end}}
+	)
 {{end}}
-)
-{{end}}
+`))
 
+	contentTemplate = template.Must(template.New("content").Funcs(funcMap).Parse(`
+{{template "plugins-content" .}}
+{{template "services-content" .}}
+{{template "server-content" .}}
+{{template "client-content" .}}
 `))
 )

@@ -144,6 +144,7 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 						plugins[StoragePluginType][name] = &Plugin{
 							Plugin: props.Plugin,
 							Prefix: props.Prefix,
+							Pkg: fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), StoragePluginType),
 						}
 					}
 				}
@@ -159,6 +160,7 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 						plugins[CachePluginType][name] = &Plugin{
 							Plugin: props.Plugin,
 							Prefix: props.Prefix,
+							Pkg: fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), CachePluginType),
 						}
 					}
 				}
@@ -174,6 +176,7 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 						plugins[BrokerPluginType][name] = &Plugin{
 							Plugin: props.Plugin,
 							Prefix: props.Prefix,
+							Pkg: fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), BrokerPluginType),
 						}
 					}
 				}
@@ -189,6 +192,7 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 						plugins[ClientPluginType][name] = &Plugin{
 							Plugin: props.Plugin,
 							Prefix: props.Prefix,
+							Pkg: fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), ClientPluginType),
 						}
 					}
 				}
