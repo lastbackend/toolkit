@@ -20,6 +20,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type Codec interface {
+	Marshal(v interface{}) ([]byte, error)
+	Unmarshal(data []byte, v interface{}) error
+	Name() string
+}
+
 type protoCodec struct{}
 
 func (protoCodec) Marshal(v interface{}) ([]byte, error) {

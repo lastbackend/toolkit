@@ -21,6 +21,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	LocalResolver = "local"
+)
+
 var (
 	ErrResolverNotDetected = errors.New("resolver not detected")
 	ErrNotAvailable        = errors.New("not available")

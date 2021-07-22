@@ -49,6 +49,11 @@ func (c *Cmd) AddIntFlag(name string, shorthand string, value int, dest *int, en
 	c.flags.AddIntFlag(name, shorthand, value, dest, envVar, required, usage)
 }
 
+func (c *Cmd) AddInt32Flag(name string, shorthand string, value int32, dest *int32, envVar string, required bool, usage string) {
+	c.flagsInit()
+	c.flags.AddInt32Flag(name, shorthand, value, dest, envVar, required, usage)
+}
+
 func (c *Cmd) AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVar string, required bool, usage string) {
 	c.flagsInit()
 	c.flags.AddBoolFlag(name, shorthand, value, dest, envVar, required, usage)

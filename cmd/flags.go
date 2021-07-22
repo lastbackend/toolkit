@@ -49,6 +49,17 @@ func (f *Flags) AddIntFlag(name string, shorthand string, value int, dest *int, 
 	})
 }
 
+func (f *Flags) AddInt32Flag(name string, shorthand string, value int32, dest *int32, envVar string, required bool, usage string) {
+	*f = append(*f, &Int32Flag{
+		Name:        name,
+		Shorthand:   shorthand,
+		Value:       value,
+		Usage:       usage,
+		EnvVar:      envVar,
+		Destination: dest,
+	})
+}
+
 func (f *Flags) AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVar string, required bool, usage string) {
 	*f = append(*f, &BoolFlag{
 		Name:        name,
@@ -92,6 +103,14 @@ func getEnvAsInt(name string) (int, bool) {
 	valueStr, ok := getEnv(name)
 	if value, err := strconv.Atoi(valueStr); err == nil {
 		return value, ok
+	}
+	return 0, false
+}
+
+func getEnvAsInt32(name string) (int32, bool) {
+	valueStr, ok := getEnv(name)
+	if value, err := strconv.ParseInt(valueStr, 10, 32); err == nil {
+		return int32(value), ok
 	}
 	return 0, false
 }
