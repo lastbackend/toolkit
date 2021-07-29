@@ -17,8 +17,6 @@ limitations under the License.
 package grpc
 
 import (
-	"github.com/lastbackend/engine/network/resolver"
-	"github.com/lastbackend/engine/network/resolver/local"
 	"github.com/lastbackend/engine/plugin/rpc/grpc/selector"
 	"github.com/lastbackend/engine/util/converter"
 
@@ -42,9 +40,8 @@ type LookupFunc func(context.Context, *request, CallOptions) ([]string, error)
 type Options struct {
 	Context context.Context
 
-	Addresses       []string
-	ContentType     string
-	ResolverService string
+	Addresses   []string
+	ContentType string
 
 	// Grpc DialOptions
 	WriteBufferSize       *int
@@ -57,7 +54,6 @@ type Options struct {
 	UserAgent             *string
 
 	Selector selector.Selector
-	Resolver resolver.Resolver
 
 	Pool        PoolOptions
 	CallOptions CallOptions
@@ -84,7 +80,6 @@ func defaultOptions() Options {
 		Context:     context.Background(),
 		ContentType: "application/protobuf",
 		Selector:    slc,
-		Resolver:    local.NewResolver(),
 		CallOptions: CallOptions{
 			Backoff:        exponentialBackoff,
 			Retries:        defaultRetries,

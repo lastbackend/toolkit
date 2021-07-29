@@ -53,14 +53,6 @@ func (s *rpcClient) Flags() []cmd.Flag {
 			Required:    true,
 			Destination: &s.opts.Addresses,
 		},
-		&cmd.StringFlag{
-			Name:        s.withPrefix("resolver"),
-			EnvVar:      s.withEnvPrefix("RESOLVER"),
-			Usage:       "Set resolver service (default: local)",
-			Required:    false,
-			Value:       defaultResolverService,
-			Destination: &s.opts.ResolverService,
-		},
 		&cmd.IntFlag{
 			Name:        s.withPrefix("pool-size"),
 			EnvVar:      s.withEnvPrefix("POOL_SIZE"),

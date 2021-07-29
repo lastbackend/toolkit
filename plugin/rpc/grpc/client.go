@@ -19,8 +19,6 @@ package grpc
 import (
 	"github.com/lastbackend/engine/context/metadata"
 	"github.com/lastbackend/engine/network/resolver"
-	"github.com/lastbackend/engine/network/resolver/local"
-	"github.com/lastbackend/engine/network/resolver/route"
 	"github.com/lastbackend/engine/util/backoff"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -30,7 +28,6 @@ import (
 
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -75,20 +72,6 @@ func newClient(prefix string) *client {
 }
 
 func (c *client) Init(opts Options) error {
-	switch opts.ResolverService {
-	case resolver.LocalResolver:
-		opts.Resolver = local.NewResolver()
-		for _, addr := range opts.Addresses {
-			re := regexp.MustCompile("([\\w]+):(.*)")
-			match := re.FindStringSubmatch(addr)
-			opts.Resolver.Table().Create(route.Route{
-				Service: match[1],
-				Address: match[2],
-			})
-		}
-	default:
-		return resolver.ErrResolverNotDetected
-	}
 	c.opts = opts
 	c.pool.Init(opts.Pool)
 	return nil
@@ -112,7 +95,8 @@ func (c *client) Call(ctx context.Context, service, method string, body, resp in
 
 	headers := c.makeHeaders(ctx, service, callOpts)
 	req := newRequest(service, method, body, headers)
-	routes, err := c.opts.Resolver.Lookup(req.service)
+
+	routes, err := resolver.DefaultResolver.Lookup(req.service)
 	if err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
@@ -163,7 +147,8 @@ func (c *client) Stream(ctx context.Context, service, method string, body interf
 
 	headers := c.makeHeaders(ctx, service, callOpts)
 	req := newRequest(service, method, body, headers)
-	routes, err := c.opts.Resolver.Lookup(req.service)
+
+	routes, err := resolver.DefaultResolver.Lookup(req.service)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

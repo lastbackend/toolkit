@@ -52,9 +52,10 @@ func newService(name string) Service {
 	s := new(service)
 	s.meta = new(meta)
 	s.meta.Name = name
-	s.cli = cmd.New()
+
 	s.context = context.Background()
 	s.logger = logger.DefaultLogger
+	s.cli = cmd.New()
 	s.pm = manager.NewManager()
 	s.servers = make([]server.Server, 0)
 	return s

@@ -21,7 +21,7 @@ import (
 	"github.com/lastbackend/engine/network/resolver/route"
 )
 
-type localResolver struct {
+type Resolver struct {
 	table   *table
 	options resolver.Options
 }
@@ -31,14 +31,14 @@ func NewResolver(opts ...resolver.Option) resolver.Resolver {
 	for _, o := range opts {
 		o(&options)
 	}
-	r := &localResolver{
+	r := &Resolver{
 		options: options,
 		table:   newTable(),
 	}
 	return r
 }
 
-func (c *localResolver) Lookup(service string, opts ...resolver.LookupOption) (route.RouteList, error) {
+func (c *Resolver) Lookup(service string, opts ...resolver.LookupOption) (route.RouteList, error) {
 	q := resolver.NewLookup(opts...)
 	routes, err := c.table.Find(service)
 	if err != nil {
@@ -51,6 +51,6 @@ func (c *localResolver) Lookup(service string, opts ...resolver.LookupOption) (r
 	return routes, nil
 }
 
-func (c *localResolver) Table() resolver.Table {
+func (c *Resolver) Table() resolver.Table {
 	return c.table
 }

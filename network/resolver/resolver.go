@@ -22,7 +22,12 @@ import (
 )
 
 const (
-	LocalResolver = "local"
+	LocalResolver  = "local"
+	ConsulResolver = "consul"
+)
+
+var (
+	DefaultResolver Resolver
 )
 
 var (
@@ -33,7 +38,8 @@ var (
 type Option func(*Options)
 
 type Options struct {
-	Cache bool
+	Cache    bool
+	Endpoint string
 }
 
 type LookupOption func(*LookupOptions)
