@@ -44,8 +44,7 @@ type grpcServer struct {
 	opts Options
 
 	srv        *grpc.Server
-	isRunnning bool
-	registered bool
+	isRunning  bool
 
 	exit chan chan error
 }
@@ -67,7 +66,7 @@ func (g *grpcServer) Start() error {
 	g.init()
 
 	g.RLock()
-	if g.isRunnning {
+	if g.isRunning {
 		g.RUnlock()
 		return nil
 	}
@@ -138,7 +137,7 @@ func (g *grpcServer) Start() error {
 	}()
 
 	g.Lock()
-	g.isRunnning = true
+	g.isRunning = true
 	g.Unlock()
 
 	return nil
@@ -146,7 +145,7 @@ func (g *grpcServer) Start() error {
 
 func (g *grpcServer) Stop() error {
 	g.RLock()
-	if !g.isRunnning {
+	if !g.isRunning {
 		g.RUnlock()
 		return nil
 	}
@@ -159,7 +158,7 @@ func (g *grpcServer) Stop() error {
 	select {
 	case err = <-ch:
 		g.Lock()
-		g.isRunnning = false
+		g.isRunning = false
 		g.Unlock()
 	}
 

@@ -17,8 +17,9 @@ limitations under the License.
 package genengine
 
 import (
-	"bytes"
 	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
+
+	"bytes"
 	"strings"
 	"text/template"
 )
@@ -27,6 +28,7 @@ type tplOptions struct {
 	*descriptor.File
 	Imports          []descriptor.GoPackage
 	Plugins          map[string]map[string]*Plugin
+	Routes           []*Route
 	ProtocVersion    string
 	GeneratorVersion string
 }
@@ -35,6 +37,12 @@ type Plugin struct {
 	Prefix string
 	Plugin string
 	Pkg    string
+}
+
+type Route struct {
+	Name string
+	Path   string
+	Method string
 }
 
 type contentParams struct {

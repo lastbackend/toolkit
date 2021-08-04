@@ -24,7 +24,7 @@ import (
 
 type Server interface {
 	Name() string
-	Register(path string, handler http.Handler) error
+	Register(method, path string, handler http.HandlerFunc) error
 	Start() error
 	Stop() error
 	Flags() []cmd.Flag

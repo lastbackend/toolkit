@@ -14,28 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package api
 
-import (
-	"github.com/lastbackend/engine/protoc-gen-engine/generator"
+type Route struct {
+	Name   string
+	Path   string
+	Method string
+}
 
-	"flag"
-	"fmt"
-	"os"
-)
-
-func main() {
-	showVersion := flag.Bool("version", false, "print the version and exit")
-
-	flag.Parse()
-
-	if *showVersion {
-		fmt.Printf("protoc-gen-engine %v\n", generator.DefaultVersion)
-		os.Exit(0)
-	}
-
-	g := generator.Init(generator.DebugEnv("ENGINE_DEBUG"))
-	if err := g.Run(); err != nil {
-		os.Exit(1)
+func NewRoute(name, path, method string) *Route {
+	return &Route{
+		Name:   name,
+		Path:   path,
+		Method: method,
 	}
 }

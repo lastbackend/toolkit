@@ -37,8 +37,6 @@ func init() {
 }
 
 const (
-	// The default resolver service for search service hosts
-	defaultResolverService = "local"
 	// The default number of times a request is tried
 	defaultRetries = 5 * time.Second
 	// The default request timeout

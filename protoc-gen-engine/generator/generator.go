@@ -19,6 +19,7 @@ package generator
 import (
 	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
 	"github.com/lastbackend/engine/protoc-gen-engine/genengine"
+	"github.com/lastbackend/engine/protoc-gen-engine/genscripts"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/types/pluginpb"
 
@@ -65,10 +66,25 @@ func (g *Generator) Run() error {
 	protogen.Options{
 		ParamFunc: g.flags.Set,
 	}.Run(func(gen *protogen.Plugin) error {
+
 		gen.SupportedFeatures = uint64(pluginpb.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL)
 
+		// Generate system scripts
+		generatorScripts := genscripts.New()
+		scriptFiles, err := generatorScripts.Generate()
+		if err != nil {
+			return err
+		}
+		for _, f := range scriptFiles {
+			genFile := gen.NewGeneratedFile(f.GetName(), protogen.GoImportPath(f.GoPkg.Path))
+			if _, err := genFile.Write([]byte(f.GetContent())); err != nil {
+				return err
+			}
+		}
+
+		// Generate engine files
 		desc := descriptor.NewDescriptor()
-		generator := genengine.New(desc)
+		generatorEngine := genengine.New(desc)
 
 		if err := applyFlags(desc); err != nil {
 			return err
@@ -86,11 +102,11 @@ func (g *Generator) Run() error {
 			g.targets = append(g.targets, f)
 		}
 
-		files, err := generator.Generate(g.targets)
+		engineFiles, err := generatorEngine.Generate(g.targets)
 		if err != nil {
 			return err
 		}
-		for _, f := range files {
+		for _, f := range engineFiles {
 			genFile := gen.NewGeneratedFile(f.GetName(), protogen.GoImportPath(f.GoPkg.Path))
 			if _, err := genFile.Write([]byte(f.GetContent())); err != nil {
 				return err

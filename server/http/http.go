@@ -41,8 +41,7 @@ type httpServer struct {
 
 	srv *http.ServeMux
 
-	isRunnning bool
-	registered bool
+	isRunning bool
 
 	exit chan chan error
 }
@@ -72,7 +71,7 @@ func (h *httpServer) Start() error {
 	h.init()
 
 	h.RLock()
-	if h.isRunnning {
+	if h.isRunning {
 		h.RUnlock()
 		return nil
 	}
@@ -114,7 +113,7 @@ func (h *httpServer) Start() error {
 	}()
 
 	h.Lock()
-	h.isRunnning = true
+	h.isRunning = true
 	h.Unlock()
 
 	return nil
@@ -122,7 +121,7 @@ func (h *httpServer) Start() error {
 
 func (h *httpServer) Stop() error {
 	h.RLock()
-	if !h.isRunnning {
+	if !h.isRunning {
 		h.RUnlock()
 		return nil
 	}
@@ -135,7 +134,7 @@ func (h *httpServer) Stop() error {
 	select {
 	case err = <-ch:
 		h.Lock()
-		h.isRunnning = false
+		h.isRunning = false
 		h.Unlock()
 	}
 

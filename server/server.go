@@ -25,3 +25,22 @@ type Server interface {
 	Stop() error
 	Flags() []cmd.Flag
 }
+
+func NewServer() Server {
+	return &server{}
+}
+
+type server struct {
+}
+
+func (s *server) Start() error {
+	return nil
+}
+
+func (s *server) Stop() error {
+	return nil
+}
+
+func (s *server) Flags() []cmd.Flag {
+	return nil
+}

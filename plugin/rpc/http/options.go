@@ -14,28 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package http
 
 import (
-	"github.com/lastbackend/engine/protoc-gen-engine/generator"
-
-	"flag"
-	"fmt"
-	"os"
+	"context"
 )
 
-func main() {
-	showVersion := flag.Bool("version", false, "print the version and exit")
+type Options struct {
+	Context context.Context
 
-	flag.Parse()
+	Endpoint string
+}
 
-	if *showVersion {
-		fmt.Printf("protoc-gen-engine %v\n", generator.DefaultVersion)
-		os.Exit(0)
-	}
-
-	g := generator.Init(generator.DebugEnv("ENGINE_DEBUG"))
-	if err := g.Run(); err != nil {
-		os.Exit(1)
-	}
+func defaultOptions() Options {
+	return Options{}
 }

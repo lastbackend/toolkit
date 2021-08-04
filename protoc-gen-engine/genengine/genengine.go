@@ -19,6 +19,7 @@ package genengine
 import (
 	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
 	engine_annotattions "github.com/lastbackend/engine/protoc-gen-engine/engine/options"
+	google_api_annotations "google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/pluginpb"
 
@@ -200,6 +201,10 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 		}
 
 		for _, m := range svc.Methods {
+			if m.Options != nil && proto.HasExtension(m.Options, google_api_annotations.E_Http) {
+
+			}
+
 			pkg := m.RequestType.File.GoPkg
 			if pkg == file.GoPkg || pkgExists[pkg.Path] {
 				continue
