@@ -33,7 +33,6 @@ var (
 )
 
 type Generator struct {
-	flags   flag.FlagSet
 	targets []*descriptor.File
 
 	out io.Writer
@@ -43,7 +42,10 @@ type Generator struct {
 	// TODO: Implement use name
 	name string
 	// TODO: Implement debug logs
-	debug bool
+	debug          bool
+
+	skipDockerfile bool
+	skipHelm       bool
 }
 
 func Init(opts ...Option) *Generator {
@@ -64,31 +66,15 @@ func Init(opts ...Option) *Generator {
 
 func (g *Generator) Run() error {
 	protogen.Options{
-		ParamFunc: g.flags.Set,
+		ParamFunc: flag.CommandLine.Set,
 	}.Run(func(gen *protogen.Plugin) error {
 
 		gen.SupportedFeatures = uint64(pluginpb.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL)
 
-		// Generate system scripts
-		generatorScripts := genscripts.New()
-		scriptFiles, err := generatorScripts.Generate()
-		if err != nil {
-			return err
-		}
-		for _, f := range scriptFiles {
-			genFile := gen.NewGeneratedFile(f.GetName(), protogen.GoImportPath(f.GoPkg.Path))
-			if _, err := genFile.Write([]byte(f.GetContent())); err != nil {
-				return err
-			}
-		}
+		desc := descriptor.NewDescriptor()
 
 		// Generate engine files
-		desc := descriptor.NewDescriptor()
 		generatorEngine := genengine.New(desc)
-
-		if err := applyFlags(desc); err != nil {
-			return err
-		}
 
 		if err := desc.LoadFromPlugin(gen); err != nil {
 			return err
@@ -113,11 +99,23 @@ func (g *Generator) Run() error {
 			}
 		}
 
+		// Generate scripts scripts
+		generatorScripts := genscripts.New()
+
+		if !(*skipDockerfile) {
+			scriptFiles, err := generatorScripts.GenerateDockerfile()
+			if err != nil {
+				return err
+			}
+			for _, f := range scriptFiles {
+				genFile := gen.NewGeneratedFile(f.GetName(), protogen.GoImportPath(f.GoPkg.Path))
+				if _, err := genFile.Write([]byte(f.GetContent())); err != nil {
+					return err
+				}
+			}
+		}
+
 		return nil
 	})
-	return nil
-}
-
-func applyFlags(desc *descriptor.Descriptor) error {
 	return nil
 }

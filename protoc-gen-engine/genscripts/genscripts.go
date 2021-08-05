@@ -23,7 +23,7 @@ import (
 )
 
 type Generator interface {
-	Generate() ([]*descriptor.ResponseFile, error)
+	GenerateDockerfile() ([]*descriptor.ResponseFile, error)
 }
 
 type generator struct {
@@ -33,7 +33,7 @@ func New() Generator {
 	return &generator{}
 }
 
-func (g *generator) Generate() ([]*descriptor.ResponseFile, error) {
+func (g *generator) GenerateDockerfile() ([]*descriptor.ResponseFile, error) {
 
 	var files []*descriptor.ResponseFile
 	dockerfileContent, err := applyDockerfileTemplate(tplDockerfileOptions{})

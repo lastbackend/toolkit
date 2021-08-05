@@ -14,31 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package generator
 
-import (
-	"flag"
-	"fmt"
-	"github.com/lastbackend/engine/protoc-gen-engine/generator"
+import "flag"
 
-	"os"
+var (
+	skipDockerfile = flag.Bool("skip-dockerfile", false, "sets the skip dockerfile creation")
+	skipHelm       = flag.Bool("skip-helm", false, "sets the skip helm creation")
 )
 
-func main() {
-	showVersion := flag.Bool("version", false, "print the version and exit")
-
+func ParseFlag() {
 	flag.Parse()
-	generator.ParseFlag()
-
-	if *showVersion {
-		fmt.Printf("protoc-gen-engine %v\n", generator.DefaultVersion)
-		os.Exit(0)
-	}
-
-	g := generator.Init(
-		generator.DebugEnv("ENGINE_DEBUG"),
-	)
-	if err := g.Run(); err != nil {
-		os.Exit(1)
-	}
 }
