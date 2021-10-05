@@ -154,10 +154,12 @@ func (c *cli) Execute() error {
 			for _, addr := range addresses {
 				re := regexp.MustCompile("([\\w]+):(.*)")
 				match := re.FindStringSubmatch(addr)
-				resolver.DefaultResolver.Table().Create(route.Route{
-					Service: match[1],
-					Address: match[2],
-				})
+				if len(match) > 0 {
+					resolver.DefaultResolver.Table().Create(route.Route{
+						Service: match[1],
+						Address: match[2],
+					})
+				}
 			}
 			resolver.DefaultResolver = local.NewResolver()
 		case resolver.ConsulResolver:
