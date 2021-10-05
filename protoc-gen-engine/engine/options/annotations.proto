@@ -4,7 +4,6 @@ package engine;
 
 option go_package = "github.com/lastbackend/engine/protoc-gen-engine/engine/options;annotations";
 
-import "google/api/http.proto";
 import "google/protobuf/descriptor.proto";
 
 message Cache {
