@@ -19,6 +19,7 @@ package generator
 import (
 	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
 	"github.com/lastbackend/engine/protoc-gen-engine/genengine"
+	"github.com/lastbackend/engine/protoc-gen-engine/genscripts"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/types/pluginpb"
 
@@ -32,7 +33,6 @@ var (
 )
 
 type Generator struct {
-	flags   flag.FlagSet
 	targets []*descriptor.File
 
 	out io.Writer
@@ -42,7 +42,10 @@ type Generator struct {
 	// TODO: Implement use name
 	name string
 	// TODO: Implement debug logs
-	debug bool
+	debug          bool
+
+	skipDockerfile bool
+	skipHelm       bool
 }
 
 func Init(opts ...Option) *Generator {
@@ -63,16 +66,15 @@ func Init(opts ...Option) *Generator {
 
 func (g *Generator) Run() error {
 	protogen.Options{
-		ParamFunc: g.flags.Set,
+		ParamFunc: flag.CommandLine.Set,
 	}.Run(func(gen *protogen.Plugin) error {
+
 		gen.SupportedFeatures = uint64(pluginpb.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL)
 
 		desc := descriptor.NewDescriptor()
-		generator := genengine.New(desc)
 
-		if err := applyFlags(desc); err != nil {
-			return err
-		}
+		// Generate engine files
+		generatorEngine := genengine.New(desc)
 
 		if err := desc.LoadFromPlugin(gen); err != nil {
 			return err
@@ -86,22 +88,34 @@ func (g *Generator) Run() error {
 			g.targets = append(g.targets, f)
 		}
 
-		files, err := generator.Generate(g.targets)
+		engineFiles, err := generatorEngine.Generate(g.targets)
 		if err != nil {
 			return err
 		}
-		for _, f := range files {
+		for _, f := range engineFiles {
 			genFile := gen.NewGeneratedFile(f.GetName(), protogen.GoImportPath(f.GoPkg.Path))
 			if _, err := genFile.Write([]byte(f.GetContent())); err != nil {
 				return err
 			}
 		}
 
+		// Generate scripts scripts
+		generatorScripts := genscripts.New()
+
+		if !(*skipDockerfile) {
+			scriptFiles, err := generatorScripts.GenerateDockerfile()
+			if err != nil {
+				return err
+			}
+			for _, f := range scriptFiles {
+				genFile := gen.NewGeneratedFile(f.GetName(), protogen.GoImportPath(f.GoPkg.Path))
+				if _, err := genFile.Write([]byte(f.GetContent())); err != nil {
+					return err
+				}
+			}
+		}
+
 		return nil
 	})
-	return nil
-}
-
-func applyFlags(desc *descriptor.Descriptor) error {
 	return nil
 }

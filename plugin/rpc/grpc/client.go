@@ -19,8 +19,6 @@ package grpc
 import (
 	"github.com/lastbackend/engine/context/metadata"
 	"github.com/lastbackend/engine/network/resolver"
-	"github.com/lastbackend/engine/network/resolver/local"
-	"github.com/lastbackend/engine/network/resolver/route"
 	"github.com/lastbackend/engine/util/backoff"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -30,7 +28,6 @@ import (
 
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -40,8 +37,6 @@ func init() {
 }
 
 const (
-	// The default resolver service for search service hosts
-	defaultResolverService = "local"
 	// The default number of times a request is tried
 	defaultRetries = 5 * time.Second
 	// The default request timeout
@@ -75,20 +70,6 @@ func newClient(prefix string) *client {
 }
 
 func (c *client) Init(opts Options) error {
-	switch opts.ResolverService {
-	case "local":
-		opts.Resolver = local.NewResolver()
-		for _, addr := range opts.Addresses {
-			re := regexp.MustCompile("([\\w]+):(.*)")
-			match := re.FindStringSubmatch(addr)
-			opts.Resolver.Table().Create(route.Route{
-				Service: match[1],
-				Address: match[2],
-			})
-		}
-	default:
-		return resolver.ErrResolverNotDetected
-	}
 	c.opts = opts
 	c.pool.Init(opts.Pool)
 	return nil
@@ -110,18 +91,10 @@ func (c *client) Call(ctx context.Context, service, method string, body, resp in
 	ctx, cancel := context.WithTimeout(ctx, callOpts.RequestTimeout)
 	defer cancel()
 
-	var headers = make(map[string]string, 0)
-	if md, ok := metadata.LoadFromContext(ctx); ok {
-		headers = make(map[string]string, len(md))
-		for k, v := range md {
-			headers[strings.ToLower(k)] = v
-		}
-	}
-
-	headers["x-service-name"] = service
-
+	headers := c.makeHeaders(ctx, service, callOpts)
 	req := newRequest(service, method, body, headers)
-	routes, err := c.opts.Resolver.Lookup(req.service)
+
+	routes, err := resolver.DefaultResolver.Lookup(req.service)
 	if err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
@@ -132,10 +105,6 @@ func (c *client) Call(ctx context.Context, service, method string, body, resp in
 	}
 
 	invokeFunc := c.invoke
-
-	for index := len(callOpts.Middlewares); index > 0; index-- {
-		invokeFunc = callOpts.Middlewares[index-1](invokeFunc)
-	}
 
 	b := &backoff.Backoff{
 		Max: callOpts.Retries,
@@ -174,18 +143,10 @@ func (c *client) Stream(ctx context.Context, service, method string, body interf
 
 	streamFunc := c.stream
 
-	var headers = make(map[string]string, 0)
-	if md, ok := metadata.LoadFromContext(ctx); ok {
-		headers = make(map[string]string, len(md))
-		for k, v := range md {
-			headers[strings.ToLower(k)] = v
-		}
-	}
-
-	headers["x-service-name"] = service
-
+	headers := c.makeHeaders(ctx, service, callOpts)
 	req := newRequest(service, method, body, headers)
-	routes, err := c.opts.Resolver.Lookup(req.service)
+
+	routes, err := resolver.DefaultResolver.Lookup(req.service)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -228,16 +189,8 @@ func (c *client) invoke(ctx context.Context, addr string, req *request, rsp inte
 	md := grpc_md.New(req.headers)
 	ctx = grpc_md.NewOutgoingContext(ctx, md)
 
-	grpcDialOptions := []grpc.DialOption{
-		grpc.WithInsecure(), // TODO: set tls if need from auth server
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(c.opts.MaxRecvMsgSize),
-			grpc.MaxCallSendMsgSize(c.opts.MaxSendMsgSize),
-		),
-	}
-
 	var gErr error
-	conn, err := c.pool.getConn(addr, grpcDialOptions...)
+	conn, err := c.pool.getConn(addr, c.makeGrpcDialOptions()...)
 	if err != nil {
 		return status.Error(codes.Internal, fmt.Sprintf("Failed sending request: %v", err))
 	}
@@ -245,8 +198,7 @@ func (c *client) invoke(ctx context.Context, addr string, req *request, rsp inte
 
 	ch := make(chan error, 1)
 	go func() {
-		grpcCallOptions := make([]grpc.CallOption, 0)
-		ch <- conn.Invoke(ctx, req.Method(), req.Body(), rsp, grpcCallOptions...)
+		ch <- conn.Invoke(ctx, req.Method(), req.Body(), rsp, c.makeGrpcCallOptions(opts)...)
 	}()
 
 	select {
@@ -264,15 +216,7 @@ func (c *client) stream(ctx context.Context, addr string, req *request, opts Cal
 	md := grpc_md.New(req.Headers())
 	ctx = grpc_md.NewOutgoingContext(ctx, md)
 
-	grpcDialOptions := []grpc.DialOption{
-		grpc.WithInsecure(), // TODO: set tls if need from auth server
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(c.opts.MaxRecvMsgSize),
-			grpc.MaxCallSendMsgSize(c.opts.MaxSendMsgSize),
-		),
-	}
-
-	cc, err := c.pool.getConn(addr, grpcDialOptions...)
+	cc, err := c.pool.getConn(addr, c.makeGrpcDialOptions()...)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -283,12 +227,10 @@ func (c *client) stream(ctx context.Context, addr string, req *request, opts Cal
 		ServerStreams: true,
 	}
 
-	grpcCallOptions := make([]grpc.CallOption, 0)
-
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
 
-	st, err := cc.NewStream(ctx, desc, req.Method(), grpcCallOptions...)
+	st, err := cc.NewStream(ctx, desc, req.Method(), c.makeGrpcCallOptions(opts)...)
 	if err != nil {
 		cancel()
 		c.pool.release(addr, cc, err)
@@ -325,4 +267,84 @@ func (c *client) withPrefix(name string) string {
 
 func (c *client) withEnvPrefix(name string) string {
 	return strings.ToUpper(fmt.Sprintf("%s_%s", c.prefix, name))
+}
+
+func (c *client) makeGrpcCallOptions(opts CallOptions) []grpc.CallOption {
+	grpcCallOptions := make([]grpc.CallOption, 0)
+
+	if opts.MaxCallRecvMsgSize > 0 {
+		grpcCallOptions = append(grpcCallOptions, grpc.MaxCallRecvMsgSize(opts.MaxCallRecvMsgSize))
+	}
+	if opts.MaxCallSendMsgSize > 0 {
+		grpcCallOptions = append(grpcCallOptions, grpc.MaxCallSendMsgSize(opts.MaxCallSendMsgSize))
+	}
+	if opts.MaxRetryRPCBufferSize > 0 {
+		grpcCallOptions = append(grpcCallOptions, grpc.MaxRetryRPCBufferSize(opts.MaxRetryRPCBufferSize))
+	}
+	if opts.CallContentSubtype != "" {
+		grpcCallOptions = append(grpcCallOptions, grpc.CallContentSubtype(opts.CallContentSubtype))
+	}
+
+	return grpcCallOptions
+}
+
+func (c *client) makeGrpcDialOptions() []grpc.DialOption {
+	grpcDialOptions := make([]grpc.DialOption, 0)
+
+	// TODO: implement auths
+	grpcDialOptions = append(grpcDialOptions, grpc.WithInsecure())
+
+	if c.opts.MaxRecvMsgSize != nil || c.opts.MaxSendMsgSize != nil {
+		var defaultCallOpts = make([]grpc.CallOption, 0)
+		if c.opts.MaxRecvMsgSize != nil {
+			defaultCallOpts = append(defaultCallOpts, grpc.MaxCallRecvMsgSize(*c.opts.MaxRecvMsgSize))
+		}
+		if c.opts.MaxSendMsgSize != nil {
+			defaultCallOpts = append(defaultCallOpts, grpc.MaxCallSendMsgSize(*c.opts.MaxSendMsgSize))
+		}
+		grpcDialOptions = append(grpcDialOptions, grpc.WithDefaultCallOptions(defaultCallOpts...))
+	}
+	if c.opts.WriteBufferSize != nil {
+		grpcDialOptions = append(grpcDialOptions, grpc.WithWriteBufferSize(*c.opts.WriteBufferSize))
+	}
+	if c.opts.ReadBufferSize != nil {
+		grpcDialOptions = append(grpcDialOptions, grpc.WithReadBufferSize(*c.opts.ReadBufferSize))
+	}
+	if c.opts.InitialWindowSize != nil {
+		grpcDialOptions = append(grpcDialOptions, grpc.WithInitialWindowSize(*c.opts.InitialWindowSize))
+	}
+	if c.opts.InitialConnWindowSize != nil {
+		grpcDialOptions = append(grpcDialOptions, grpc.WithInitialConnWindowSize(*c.opts.InitialConnWindowSize))
+	}
+	if c.opts.UserAgent != nil {
+		grpcDialOptions = append(grpcDialOptions, grpc.WithUserAgent(*c.opts.UserAgent))
+	}
+	if c.opts.MaxHeaderListSize != nil {
+		grpcDialOptions = append(grpcDialOptions, grpc.WithMaxHeaderListSize(uint32(*c.opts.MaxHeaderListSize)))
+	}
+
+	return grpcDialOptions
+}
+
+func (c *client) makeHeaders(ctx context.Context, service string, opts CallOptions) map[string]string {
+	var headers = make(map[string]string, 0)
+
+	if md, ok := metadata.LoadFromContext(ctx); ok {
+		for k, v := range md {
+			headers[strings.ToLower(k)] = v
+		}
+	}
+	if opts.Headers != nil {
+		for k, v := range opts.Headers {
+			headers[strings.ToLower(k)] = v
+		}
+	}
+
+	if _, ok := headers["content-type"]; !ok {
+		headers["content-type"] = c.opts.ContentType
+	}
+
+	headers["x-service-name"] = service
+
+	return headers
 }

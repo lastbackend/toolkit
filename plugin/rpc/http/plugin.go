@@ -14,31 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package http
 
 import (
-	"flag"
-	"fmt"
-	"github.com/lastbackend/engine/protoc-gen-engine/generator"
-
-	"os"
+	"github.com/lastbackend/engine/plugin"
 )
 
-func main() {
-	showVersion := flag.Bool("version", false, "print the version and exit")
+const (
+	PluginName    = "grpc"
+	defaultPrefix = "grpc"
+)
 
-	flag.Parse()
-	generator.ParseFlag()
-
-	if *showVersion {
-		fmt.Printf("protoc-gen-engine %v\n", generator.DefaultVersion)
-		os.Exit(0)
+// Register - registers the plugin implements rpc client using http as a transport
+func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
+	return func(o plugin.Option) interface{} {
+		p := newRpc(o.Prefix)
+		f(p)
+		return p.getClient()
 	}
+}
 
-	g := generator.Init(
-		generator.DebugEnv("ENGINE_DEBUG"),
-	)
-	if err := g.Run(); err != nil {
-		os.Exit(1)
-	}
+type Client interface {
 }

@@ -17,8 +17,6 @@ limitations under the License.
 package grpc
 
 import (
-	"github.com/lastbackend/engine/network/resolver"
-	"github.com/lastbackend/engine/network/resolver/local"
 	"github.com/lastbackend/engine/plugin/rpc/grpc/selector"
 	"github.com/lastbackend/engine/util/converter"
 
@@ -34,10 +32,6 @@ func exponentialBackoff(ctx context.Context, req *request, attempts int) (time.D
 	return time.Duration(math.Pow(float64(attempts), math.E)) * time.Millisecond * 100, nil
 }
 
-func retryNever(ctx context.Context, req *request, retryCount int, err error) (bool, error) {
-	return false, nil
-}
-
 type CallFunc func(ctx context.Context, addr string, req *request, rsp interface{}, opts CallOptions) error
 type CallMiddlewareFunc func(CallFunc) CallFunc
 type MiddlewareFunc func(Client) Client
@@ -46,17 +40,20 @@ type LookupFunc func(context.Context, *request, CallOptions) ([]string, error)
 type Options struct {
 	Context context.Context
 
-	Addresses       []string
-	ContentType     string
-	Proxy           string
-	ResolverService string
-	MaxRecvMsgSize  int
-	MaxSendMsgSize  int
+	Addresses   []string
+	ContentType string
+
+	// Grpc DialOptions
+	WriteBufferSize       *int
+	ReadBufferSize        *int
+	InitialWindowSize     *int32
+	InitialConnWindowSize *int32
+	MaxHeaderListSize     *int32
+	MaxRecvMsgSize        *int
+	MaxSendMsgSize        *int
+	UserAgent             *string
 
 	Selector selector.Selector
-	Resolver resolver.Resolver
-
-	Middlewares []MiddlewareFunc
 
 	Pool        PoolOptions
 	CallOptions CallOptions
@@ -66,15 +63,15 @@ type BackoffFunc func(ctx context.Context, req *request, attempts int) (time.Dur
 type RetryFunc func(ctx context.Context, req *request, retryCount int, err error) (bool, error)
 
 type CallOptions struct {
-	AuthToken      bool
-	Backoff        BackoffFunc
-	Retry          RetryFunc
-	Retries        time.Duration
-	DialTimeout    time.Duration
-	RequestTimeout time.Duration
-	StreamTimeout  time.Duration
-	Middlewares    []CallMiddlewareFunc
-	Context        context.Context
+	Backoff               BackoffFunc
+	Retries               time.Duration
+	RequestTimeout        time.Duration
+	Context               context.Context
+	Headers               map[string]string
+	MaxCallSendMsgSize    int
+	MaxCallRecvMsgSize    int
+	MaxRetryRPCBufferSize int
+	CallContentSubtype    string
 }
 
 func defaultOptions() Options {
@@ -83,10 +80,8 @@ func defaultOptions() Options {
 		Context:     context.Background(),
 		ContentType: "application/protobuf",
 		Selector:    slc,
-		Resolver:    local.NewResolver(),
 		CallOptions: CallOptions{
 			Backoff:        exponentialBackoff,
-			Retry:          retryNever,
 			Retries:        defaultRetries,
 			RequestTimeout: defaultRequestTimeout,
 		},
@@ -94,5 +89,29 @@ func defaultOptions() Options {
 			Size: converter.ToIntPointer(defaultPoolSize),
 			Ttl:  converter.ToDurationPointer(defaultPoolTTL),
 		},
+	}
+}
+
+func Headers(h map[string]string) CallOption {
+	return func(o *CallOptions) {
+		o.Headers = h
+	}
+}
+
+func MaxCallSendMsgSize(bytes int) CallOption {
+	return func(o *CallOptions) {
+		o.MaxCallSendMsgSize = bytes
+	}
+}
+
+func MaxCallRecvMsgSize(bytes int) CallOption {
+	return func(o *CallOptions) {
+		o.MaxCallRecvMsgSize = bytes
+	}
+}
+
+func RequestTimeout(timeout time.Duration) CallOption {
+	return func(o *CallOptions) {
+		o.RequestTimeout = timeout
 	}
 }

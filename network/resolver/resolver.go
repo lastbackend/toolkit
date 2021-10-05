@@ -21,6 +21,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	LocalResolver  = "local"
+	ConsulResolver = "consul"
+)
+
+var (
+	DefaultResolver Resolver
+)
+
 var (
 	ErrResolverNotDetected = errors.New("resolver not detected")
 	ErrNotAvailable        = errors.New("not available")
@@ -29,7 +38,8 @@ var (
 type Option func(*Options)
 
 type Options struct {
-	Cache bool
+	Cache    bool
+	Endpoint string
 }
 
 type LookupOption func(*LookupOptions)

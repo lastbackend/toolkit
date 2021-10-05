@@ -14,31 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package consul
 
-import (
-	"flag"
-	"fmt"
-	"github.com/lastbackend/engine/protoc-gen-engine/generator"
+import "github.com/lastbackend/engine/network/resolver"
 
-	"os"
-)
-
-func main() {
-	showVersion := flag.Bool("version", false, "print the version and exit")
-
-	flag.Parse()
-	generator.ParseFlag()
-
-	if *showVersion {
-		fmt.Printf("protoc-gen-engine %v\n", generator.DefaultVersion)
-		os.Exit(0)
+func WithEndpoint(endpoint string) resolver.Option {
+	return func(o *resolver.Options) {
+		o.Endpoint = endpoint
 	}
-
-	g := generator.Init(
-		generator.DebugEnv("ENGINE_DEBUG"),
-	)
-	if err := g.Run(); err != nil {
-		os.Exit(1)
+}
+func WithCache(cache bool) resolver.Option {
+	return func(o *resolver.Options) {
+		o.Cache = cache
 	}
 }

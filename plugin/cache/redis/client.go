@@ -17,12 +17,12 @@ limitations under the License.
 package redis
 
 import (
-	"context"
-	"crypto/tls"
 	"github.com/go-redis/cache/v8"
 	"github.com/go-redis/redis/v8"
 	"strings"
 
+	"context"
+	"crypto/tls"
 	"fmt"
 	"time"
 )

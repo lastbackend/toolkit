@@ -18,8 +18,13 @@ package cmd
 
 import (
 	"github.com/lastbackend/engine/logger"
+	"github.com/lastbackend/engine/network/resolver"
+	"github.com/lastbackend/engine/network/resolver/consul"
+	"github.com/lastbackend/engine/network/resolver/local"
+	"github.com/lastbackend/engine/network/resolver/route"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"regexp"
 
 	"fmt"
 	"os"
@@ -67,6 +72,9 @@ func New(opts ...Option) CLI {
 	c := new(cli)
 	c.opts = options
 
+	// Set default services
+	resolver.DefaultResolver = local.NewResolver()
+
 	return c
 }
 
@@ -110,8 +118,11 @@ func (c *cli) Execute() error {
 	c.rootCmd.SetGlobalNormalizationFunc(wordSepNormalizeFunc)
 	c.rootCmd.InitDefaultHelpFlag()
 	c.rootCmd.SetHelpCommand(&cobra.Command{Use: "no-help", Hidden: true})
-	c.rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
 	c.rootCmd.AddCommand(c.versionCommand())
+
+	c.rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
+	c.rootCmd.Flags().StringP("resolver", "", resolver.LocalResolver, "Sets the value for initial resolver (default: local)")
+	c.rootCmd.Flags().StringP("resolver-endpoint", "", resolver.LocalResolver, "Sets the value for initial resolver endpoint")
 
 	if len(c.opts.Name) > 0 {
 		c.rootCmd.Use = c.opts.Name
@@ -126,14 +137,42 @@ func (c *cli) Execute() error {
 		c.rootCmd.Version = c.opts.Version
 	}
 
-	c.rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
-
-		debug, err := cmd.Flags().GetBool("debug")
+	c.rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		resolverFlag, err := cmd.Flags().GetString("resolver")
 		if err != nil {
 			return err
 		}
 
-		if debug {
+		resolverEndpointFlag, err := cmd.Flags().GetString("resolver-endpoint")
+		if err != nil {
+			return err
+		}
+
+		switch resolverFlag {
+		case resolver.LocalResolver:
+			addresses := strings.Split(resolverEndpointFlag, ",")
+			for _, addr := range addresses {
+				re := regexp.MustCompile("([\\w]+):(.*)")
+				match := re.FindStringSubmatch(addr)
+				resolver.DefaultResolver.Table().Create(route.Route{
+					Service: match[1],
+					Address: match[2],
+				})
+			}
+			resolver.DefaultResolver = local.NewResolver()
+		case resolver.ConsulResolver:
+			resolver.DefaultResolver = consul.NewResolver(consul.WithEndpoint(resolverEndpointFlag))
+		}
+		return nil
+	}
+
+	c.rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
+		debugFlag, err := cmd.Flags().GetBool("debug")
+		if err != nil {
+			return err
+		}
+
+		if debugFlag {
 			logger.DefaultLogger.Init(logger.Options{
 				Level: logger.DebugLevel,
 			})

@@ -19,6 +19,7 @@ package grpc
 import (
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/lastbackend/engine/cmd"
+	"github.com/lastbackend/engine/logger"
 	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -43,8 +44,7 @@ type grpcServer struct {
 	opts Options
 
 	srv        *grpc.Server
-	started    bool
-	registered bool
+	isRunning  bool
 
 	exit chan chan error
 }
@@ -66,7 +66,7 @@ func (g *grpcServer) Start() error {
 	g.init()
 
 	g.RLock()
-	if g.started {
+	if g.isRunning {
 		g.RUnlock()
 		return nil
 	}
@@ -90,7 +90,9 @@ func (g *grpcServer) Start() error {
 		listener = netutil.LimitListener(listener, g.opts.MaxConnSize)
 	}
 
-	fmt.Println(fmt.Sprintf("server [grpc] Listening on %s", listener.Addr().String()))
+	if logger.V(logger.InfoLevel, logger.DefaultLogger) {
+		logger.Infof("server [grpc] Listening on %s", listener.Addr().String())
+	}
 
 	g.Lock()
 	g.opts.Address = listener.Addr().String()
@@ -113,19 +115,29 @@ func (g *grpcServer) Start() error {
 
 			go webGRPCServer.ListenAndServe()
 
-			fmt.Println(fmt.Sprintf("server [gRPC-Web] Listening on %s", gRPCWebAddr))
+			if logger.V(logger.InfoLevel, logger.DefaultLogger) {
+				logger.Infof("server [gRPC-Web] Listening on %s", gRPCWebAddr)
+			}
 		}
 
 	}
 
 	go func() {
 		if err := g.srv.Serve(listener); err != nil {
-			fmt.Println(fmt.Sprintf("gRPC server start error: %v", err))
+			if logger.V(logger.InfoLevel, logger.DefaultLogger) {
+				logger.Errorf("server [grpc] start error: %v", err)
+			}
 		}
 	}()
 
+	go func() {
+		ch := <-g.exit
+		ch <- listener.Close()
+		g.srv.Stop()
+	}()
+
 	g.Lock()
-	g.started = true
+	g.isRunning = true
 	g.Unlock()
 
 	return nil
@@ -133,7 +145,7 @@ func (g *grpcServer) Start() error {
 
 func (g *grpcServer) Stop() error {
 	g.RLock()
-	if !g.started {
+	if !g.isRunning {
 		g.RUnlock()
 		return nil
 	}
@@ -146,7 +158,7 @@ func (g *grpcServer) Stop() error {
 	select {
 	case err = <-ch:
 		g.Lock()
-		g.started = false
+		g.isRunning = false
 		g.Unlock()
 	}
 
