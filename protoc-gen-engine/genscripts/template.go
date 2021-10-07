@@ -71,8 +71,8 @@ ENV GOROOT /usr/local/go
 ENV GO111MODULE on
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
-ADD . $GOPATH/src/ gitlab.com/dummy/dummy
-WORKDIR $GOPATH/src/gitlab.com/dummy/dummy
+ADD . $GOPATH/src/ github.com/dummy/dummy
+WORKDIR $GOPATH/src/github.com/dummy/dummy
 
 RUN make build && make install
 RUN apk del --purge .build-deps
