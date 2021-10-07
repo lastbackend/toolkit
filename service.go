@@ -22,6 +22,7 @@ import (
 	"github.com/lastbackend/engine/plugin"
 	"github.com/lastbackend/engine/plugin/manager"
 	"github.com/lastbackend/engine/server"
+	"github.com/pkg/errors"
 
 	"context"
 	"fmt"
@@ -95,6 +96,7 @@ func (s *service) Register(i interface{}, props map[string]map[string]ServicePro
 				return err
 			}
 		case "Broker":
+			return errors.New("broker not implemented")
 		}
 
 		return nil
@@ -108,6 +110,20 @@ func (s *service) Register(i interface{}, props map[string]map[string]ServicePro
 	}
 	if valueIface.IsNil() {
 		return fmt.Errorf("the argument must not be nil")
+	}
+
+	// if exists Service property
+	serviceValue := valueIface.Elem().FieldByName("Service")
+	if serviceValue.CanSet() {
+		// Check if the passed interface is a pointer
+		if serviceValue.Type().Kind() != reflect.Ptr {
+			return fmt.Errorf("the argument must be a pointer")
+		}
+		if serviceValue.IsNil() {
+			return fmt.Errorf("the argument must not be nil")
+		}
+
+		valueIface = serviceValue
 	}
 
 	for tech, fields := range props {

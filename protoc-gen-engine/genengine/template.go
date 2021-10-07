@@ -127,27 +127,27 @@ var props = map[string]map[string]engine.ServiceProps{
 }
 
 {{if .Plugins}}
-type Core struct {
-{{range $type, $plugins := .Plugins}}
-	{{ $length := len $plugins }} {{ if eq $length 1 }}
-		{{range $name, $plugin := $plugins}}
-			{{$type | ToCapitalize}} {{$plugin.Pkg}}
-		{{end}}
-  {{else}}
-		{{$type}} *{{$type}}
-	{{end}}
-{{end}}
-}
-
-{{range $type, $plugins := .Plugins}}
-	{{ $length := len $plugins }} {{ if ne $length 1 }}
-	type {{$type}} struct {
-		{{range $name, $plugin := $plugins}}
-			{{$name | ToCapitalize}} {{$plugin.Pkg}}
+	type Services struct {
+		{{range $type, $plugins := .Plugins}}
+			{{$type}} *{{$type}} 
 		{{end}}
 	}
+	
+	{{range $type, $plugins := .Plugins}}
+		{{ $length := len $plugins }} {{ if eq $length 1 }}
+			type {{$type}} struct {
+				{{range $name, $plugin := $plugins}} 
+					{{$plugin.Pkg}}
+				{{end}}
+			}
+		{{else}}
+			type {{$type}} struct {
+				{{range $name, $plugin := $plugins}}
+					{{$name | ToCapitalize}} {{$plugin.Pkg}}
+				{{end}}
+			} 
+		{{end}}
 	{{end}}
-{{end}}
 {{end}}
 `))
 

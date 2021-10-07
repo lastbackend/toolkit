@@ -150,6 +150,7 @@ func (c *cli) Execute() error {
 
 		switch resolverFlag {
 		case resolver.LocalResolver:
+			resolver.DefaultResolver = local.NewResolver()
 			addresses := strings.Split(resolverEndpointFlag, ",")
 			for _, addr := range addresses {
 				re := regexp.MustCompile("([\\w]+):(.*)")
@@ -161,7 +162,6 @@ func (c *cli) Execute() error {
 					})
 				}
 			}
-			resolver.DefaultResolver = local.NewResolver()
 		case resolver.ConsulResolver:
 			resolver.DefaultResolver = consul.NewResolver(consul.WithEndpoint(resolverEndpointFlag))
 		}
