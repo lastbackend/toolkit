@@ -111,7 +111,7 @@ func (c *client) open(opts clientOptions) error {
 	if opts.ConnMaxIdleTime != nil {
 		conn.SetConnMaxIdleTime(*opts.ConnMaxIdleTime)
 	}
-
+	
 	c.connection = opts.Connection
 	c.c = conn
 
@@ -292,43 +292,43 @@ type clientTx struct {
 	c *sql.Tx
 }
 
-func (c clientTx) Commit() error {
+func (c *clientTx) Commit() error {
+	return c.c.Commit()
+}
+
+func (c *clientTx) Rollback() error {
 	return c.c.Rollback()
 }
 
-func (c clientTx) Rollback() error {
-	return c.c.Rollback()
-}
-
-func (c clientTx) PrepareContext(ctx context.Context, sqlStatement string) (*sql.Stmt, error) {
+func (c *clientTx) PrepareContext(ctx context.Context, sqlStatement string) (*sql.Stmt, error) {
 	return c.c.PrepareContext(ctx, sqlStatement)
 }
 
-func (c clientTx) Prepare(sqlStatement string) (*sql.Stmt, error) {
+func (c *clientTx) Prepare(sqlStatement string) (*sql.Stmt, error) {
 	return c.c.Prepare(sqlStatement)
 }
 
-func (c clientTx) Exec(sqlStatement string, args ...interface{}) (sql.Result, error) {
+func (c *clientTx) Exec(sqlStatement string, args ...interface{}) (sql.Result, error) {
 	return c.c.Exec(sqlStatement, args...)
 }
 
-func (c clientTx) ExecContext(ctx context.Context, sqlStatement string, args ...interface{}) (sql.Result, error) {
+func (c *clientTx) ExecContext(ctx context.Context, sqlStatement string, args ...interface{}) (sql.Result, error) {
 	return c.c.ExecContext(ctx, sqlStatement, args...)
 }
 
-func (c clientTx) QueryContext(ctx context.Context, sqlStatement string, args ...interface{}) (*sql.Rows, error) {
+func (c *clientTx) QueryContext(ctx context.Context, sqlStatement string, args ...interface{}) (*sql.Rows, error) {
 	return c.c.QueryContext(ctx, sqlStatement, args...)
 }
 
-func (c clientTx) Query(sqlStatement string, args ...interface{}) (*sql.Rows, error) {
+func (c *clientTx) Query(sqlStatement string, args ...interface{}) (*sql.Rows, error) {
 	return c.c.Query(sqlStatement, args...)
 }
 
-func (c clientTx) QueryRowContext(ctx context.Context, sqlStatement string, args ...interface{}) *sql.Row {
+func (c *clientTx) QueryRowContext(ctx context.Context, sqlStatement string, args ...interface{}) *sql.Row {
 	return c.c.QueryRowContext(ctx, sqlStatement, args...)
 }
 
-func (c clientTx) QueryRow(sqlStatement string, args ...interface{}) *sql.Row {
+func (c *clientTx) QueryRow(sqlStatement string, args ...interface{}) *sql.Row {
 	return c.c.QueryRow(sqlStatement, args...)
 }
 

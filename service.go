@@ -140,13 +140,14 @@ func (s *service) Register(i interface{}, props map[string]map[string]ServicePro
 		}
 
 		techValueField := valueIface.Elem().FieldByName(tech)
-
+fmt.Println("1 ::", tech, techValueField.Type(), techValueField.Kind() == reflect.Ptr)
+fmt.Println("1.1 ::", techValueField.IsNil(), techValueField.IsZero())
 		if techValueField.Kind() == reflect.Ptr && techValueField.IsNil() {
-
+			fmt.Println("2 ::")
 			if len(fields) != 1 {
 				return fmt.Errorf("interface `%s` does not inplement custom options structure", techValueField.Type())
 			}
-
+			fmt.Println("2.1 ::")
 			vField := techValueField
 
 			// Get first element from map
@@ -160,10 +161,11 @@ func (s *service) Register(i interface{}, props map[string]map[string]ServicePro
 			continue
 		}
 
+		fmt.Println("3 ::")
 		if techValueField.Kind() == reflect.Struct {
-
+			fmt.Println("4 ::")
 			if techValueField.NumField() == 1 {
-
+				fmt.Println("5 ::")
 				elemValueFiled := techValueField.Field(0)
 				if elemValueFiled.Kind() == reflect.Interface {
 					if techValueField.Kind() != reflect.Ptr {
@@ -189,7 +191,36 @@ func (s *service) Register(i interface{}, props map[string]map[string]ServicePro
 			}
 		}
 
+		if techValueField.Kind() == reflect.Ptr && !techValueField.IsNil() {
+			fmt.Println("6 ::")
+
+			elemValueFiled := techValueField.Elem().Field(0)
+			if elemValueFiled.Kind() == reflect.Interface {
+				if techValueField.Kind() != reflect.Ptr {
+					return fmt.Errorf("using unaddressable value %s", techValueField.Type().Field(0).Name)
+				}
+				elemValueFiled = techValueField
+			}
+			if elemValueFiled.Kind() == reflect.Struct {
+				if techValueField.Kind() != reflect.Ptr {
+					return fmt.Errorf("using unaddressable value %s", techValueField.Type().Field(0).Name)
+				}
+			}
+
+			// Get first element from map
+			keys := reflect.ValueOf(fields).MapKeys()
+			serviceProp := fields[keys[0].String()]
+			fmt.Println("7 ::")
+			if err := initField(tech, serviceProp, elemValueFiled); err != nil {
+				return fmt.Errorf("can not init %s argument: %v", elemValueFiled.Type(), err)
+			}
+			fmt.Println("8 ::")
+			continue
+		}
+
+		fmt.Println("7 ::")
 		for srv, serviceProp := range fields {
+			fmt.Println("8 ::")
 			srvField := valueIface.Elem().FieldByName(tech).FieldByName(srv)
 
 			if srvField.Kind() != reflect.Interface {

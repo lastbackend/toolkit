@@ -62,7 +62,7 @@ func (s *postgresStorage) Flags() []cmd.Flag {
 		&cmd.StringFlag{
 			Name:        s.withPrefix("connection"),
 			EnvVar:      s.withEnvPrefix("CONNECTION"),
-			Usage:       "PostgreSQL connection string",
+			Usage:       "PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>)",
 			Required:    true,
 			Destination: &s.opts.Connection,
 		},
@@ -104,15 +104,15 @@ func (s *postgresStorage) Commands() []cmd.Command {
 		ShortDesc: "Database migrations",
 		Run: func(cmd cmd.Command, args []string) error {
 
+			if len(args) == 0 {
+				return fmt.Errorf( "argument \"source path\" is not set, programmer error, please correct")
+			}
+
 			c := newClient()
 
 			connection, err := cmd.Flags().GetString(s.withPrefix("connection"))
 			if err != nil {
 				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct", s.withPrefix("connection"))
-			}
-
-			if len(args) == 0 {
-				return errors.Wrapf(err, "argument \"source path\" is not set, programmer error, please correct")
 			}
 
 			if err := c.open(clientOptions{Connection: connection}); err != nil {
@@ -157,7 +157,7 @@ func (s *postgresStorage) Commands() []cmd.Command {
 		},
 	}
 
-	migrateCmd.AddStringFlag(s.withPrefix("connection"), "", "", nil, s.withEnvPrefix("CONNECTION"), true, "PostgreSQL connection string")
+	migrateCmd.AddStringFlag(s.withPrefix("connection"), "", "", nil, s.withEnvPrefix("CONNECTION"), true, "PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>)")
 
 	return []cmd.Command{migrateCmd}
 }

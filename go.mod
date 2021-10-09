@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/armon/go-metrics v0.3.8 // indirect
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
+	github.com/go-pg/pg/v10 v10.10.6 // indirect
 	github.com/go-redis/cache/v8 v8.4.1
 	github.com/go-redis/redis/v8 v8.10.0
 	github.com/golang-migrate/migrate/v4 v4.14.1
