@@ -23,7 +23,7 @@ import (
 )
 
 type rpcClient struct {
-	client *client
+	client *grpcClient
 
 	prefix string
 	opts   Options
@@ -130,10 +130,6 @@ func (s *rpcClient) Flags() []cmd.Flag {
 	}
 }
 
-func (s *rpcClient) Commands() []cmd.Command {
-	return make([]cmd.Command, 0)
-}
-
 func (s *rpcClient) Start() error {
 	return s.client.Init(s.opts)
 }
@@ -142,7 +138,7 @@ func (s *rpcClient) Stop() error {
 	return s.client.Close()
 }
 
-func (s *rpcClient) getClient() *client {
+func (s *rpcClient) getClient() *grpcClient {
 	return s.client
 }
 

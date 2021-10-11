@@ -21,18 +21,25 @@ message Broker {
   string prefix = 2;
 }
 
-message Client {
-  string plugin = 1;
-  string prefix = 2;
-}
-
 message Plugins {
   map<string, Storage> storage = 1;
   map<string, Cache> cache = 2;
   map<string, Broker> broker = 3;
-  map<string, Client> client = 4;
 }
 
 extend google.protobuf.ServiceOptions {
   Plugins plugins = 50001;
+}
+
+message Client {
+  string service = 1;
+  string package = 2;
+}
+
+message Clients {
+  repeated Client client = 1;
+}
+
+extend google.protobuf.ServiceOptions {
+  Clients clients = 50002;
 }

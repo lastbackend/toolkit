@@ -17,9 +17,9 @@ limitations under the License.
 package grpc
 
 import (
-	"context"
+	"github.com/lastbackend/engine/client"
 
-	"github.com/lastbackend/engine/plugin"
+	"context"
 )
 
 const (
@@ -27,9 +27,9 @@ const (
 	defaultPrefix = "grpc"
 )
 
-// Register - registers the plugin implements rpc client using gRPC as a transport
-func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
-	return func(o plugin.Option) interface{} {
+// Register - client the plugin implements rpc client using gRPC as a transport
+func Register(f client.RegisterFunc) client.CreatorFunc {
+	return func(o client.Option) interface{} {
 		p := newRpc(o.Prefix)
 		f(p)
 		return p.getClient()

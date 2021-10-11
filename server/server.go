@@ -18,6 +18,7 @@ package server
 
 import (
 	"github.com/lastbackend/engine/cmd"
+	"github.com/lastbackend/engine/server/grpc"
 )
 
 type Server interface {
@@ -26,21 +27,7 @@ type Server interface {
 	Flags() []cmd.Flag
 }
 
-func NewServer() Server {
-	return &server{}
-}
 
-type server struct {
-}
-
-func (s *server) Start() error {
-	return nil
-}
-
-func (s *server) Stop() error {
-	return nil
-}
-
-func (s *server) Flags() []cmd.Flag {
-	return nil
+func NewGrpcServer() grpc.Server {
+	return grpc.NewServer("server-grpc")
 }

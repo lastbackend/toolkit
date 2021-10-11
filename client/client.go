@@ -14,25 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package http
+package client
 
 import (
-	"github.com/lastbackend/engine/plugin"
+	"github.com/lastbackend/engine/cmd"
 )
 
-const (
-	PluginName    = "grpc"
-	defaultPrefix = "grpc"
-)
-
-// Register - registers the plugin implements rpc client using http as a transport
-func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
-	return func(o plugin.Option) interface{} {
-		p := newRpc(o.Prefix)
-		f(p)
-		return p.getClient()
-	}
+type Option struct {
+	Prefix string
 }
 
+type CreatorFunc func(o Option) interface{}
+type RegisterFunc func(Client)
+
 type Client interface {
+	Name() string
+	Flags() []cmd.Flag
+	Start() error
+	Stop() error
 }

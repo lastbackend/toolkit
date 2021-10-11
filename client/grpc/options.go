@@ -17,7 +17,7 @@ limitations under the License.
 package grpc
 
 import (
-	"github.com/lastbackend/engine/plugin/rpc/grpc/selector"
+	"github.com/lastbackend/engine/client/grpc/selector"
 	"github.com/lastbackend/engine/util/converter"
 
 	"context"

@@ -55,27 +55,27 @@ const (
 	defaultMaxSendMsgSize = 1024 * 1024 * 16
 )
 
-type client struct {
+type grpcClient struct {
 	prefix string
 	opts   Options
 	pool   *pool
 }
 
-func newClient(prefix string) *client {
-	return &client{
+func newClient(prefix string) *grpcClient {
+	return &grpcClient{
 		opts:   defaultOptions(),
 		prefix: prefix,
 		pool:   newPool(),
 	}
 }
 
-func (c *client) Init(opts Options) error {
+func (c *grpcClient) Init(opts Options) error {
 	c.opts = opts
 	c.pool.Init(opts.Pool)
 	return nil
 }
 
-func (c *client) Call(ctx context.Context, service, method string, body, resp interface{}, opts ...CallOption) error {
+func (c *grpcClient) Call(ctx context.Context, service, method string, body, resp interface{}, opts ...CallOption) error {
 	if body == nil {
 		return status.Error(codes.Internal, "request is nil")
 	}
@@ -131,7 +131,7 @@ func (c *client) Call(ctx context.Context, service, method string, body, resp in
 
 }
 
-func (c *client) Stream(ctx context.Context, service, method string, body interface{}, opts ...CallOption) (Stream, error) {
+func (c *grpcClient) Stream(ctx context.Context, service, method string, body interface{}, opts ...CallOption) (Stream, error) {
 	if body == nil {
 		return nil, status.Error(codes.Internal, "request is nil")
 	}
@@ -180,11 +180,11 @@ func (c *client) Stream(ctx context.Context, service, method string, body interf
 	}
 }
 
-func (c *client) Close() error {
+func (c *grpcClient) Close() error {
 	return nil
 }
 
-func (c *client) invoke(ctx context.Context, addr string, req *request, rsp interface{}, opts CallOptions) error {
+func (c *grpcClient) invoke(ctx context.Context, addr string, req *request, rsp interface{}, opts CallOptions) error {
 
 	md := grpc_md.New(req.headers)
 	ctx = grpc_md.NewOutgoingContext(ctx, md)
@@ -211,7 +211,7 @@ func (c *client) invoke(ctx context.Context, addr string, req *request, rsp inte
 	return gErr
 }
 
-func (c *client) stream(ctx context.Context, addr string, req *request, opts CallOptions) (Stream, error) {
+func (c *grpcClient) stream(ctx context.Context, addr string, req *request, opts CallOptions) (Stream, error) {
 
 	md := grpc_md.New(req.Headers())
 	ctx = grpc_md.NewOutgoingContext(ctx, md)
@@ -261,15 +261,15 @@ func (c *client) stream(ctx context.Context, addr string, req *request, opts Cal
 	return s, nil
 }
 
-func (c *client) withPrefix(name string) string {
+func (c *grpcClient) withPrefix(name string) string {
 	return fmt.Sprintf("%s-%s", c.prefix, name)
 }
 
-func (c *client) withEnvPrefix(name string) string {
+func (c *grpcClient) withEnvPrefix(name string) string {
 	return strings.ToUpper(fmt.Sprintf("%s_%s", c.prefix, name))
 }
 
-func (c *client) makeGrpcCallOptions(opts CallOptions) []grpc.CallOption {
+func (c *grpcClient) makeGrpcCallOptions(opts CallOptions) []grpc.CallOption {
 	grpcCallOptions := make([]grpc.CallOption, 0)
 
 	if opts.MaxCallRecvMsgSize > 0 {
@@ -288,7 +288,7 @@ func (c *client) makeGrpcCallOptions(opts CallOptions) []grpc.CallOption {
 	return grpcCallOptions
 }
 
-func (c *client) makeGrpcDialOptions() []grpc.DialOption {
+func (c *grpcClient) makeGrpcDialOptions() []grpc.DialOption {
 	grpcDialOptions := make([]grpc.DialOption, 0)
 
 	// TODO: implement auths
@@ -326,7 +326,7 @@ func (c *client) makeGrpcDialOptions() []grpc.DialOption {
 	return grpcDialOptions
 }
 
-func (c *client) makeHeaders(ctx context.Context, service string, opts CallOptions) map[string]string {
+func (c *grpcClient) makeHeaders(ctx context.Context, service string, opts CallOptions) map[string]string {
 	var headers = make(map[string]string, 0)
 
 	if md, ok := metadata.LoadFromContext(ctx); ok {

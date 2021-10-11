@@ -18,6 +18,7 @@ package engine
 
 import (
 	"context"
+	"github.com/lastbackend/engine/client"
 	"github.com/lastbackend/engine/cmd"
 	"github.com/lastbackend/engine/logger"
 	"github.com/lastbackend/engine/server"
@@ -39,10 +40,12 @@ type Service interface {
 	Name() string
 	Version() string
 	Meta() Meta
+	CLI() CLI
 	Logger() logger.Logger
 	SetContext(ctx context.Context)
 	Register(i interface{}, props map[string]map[string]ServiceProps) error
-	Transport(t server.Server) error
+	Client(i interface{}, f func(f client.RegisterFunc) client.CreatorFunc, o client.Option) error
+	Server(t server.Server) error
 	Run() error
 }
 

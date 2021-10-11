@@ -37,7 +37,6 @@ const (
 	StoragePluginType string = "Storage"
 	CachePluginType          = "Cache"
 	BrokerPluginType         = "Broker"
-	ClientPluginType         = "Client"
 )
 
 type Generator interface {
@@ -56,7 +55,8 @@ func New(desc *descriptor.Descriptor) Generator {
 		"engine github.com/lastbackend/engine",
 		"logger github.com/lastbackend/engine/logger",
 		"plugin github.com/lastbackend/engine/plugin",
-		"server github.com/lastbackend/engine/server/grpc",
+		"server github.com/lastbackend/engine/server",
+		"client github.com/lastbackend/engine/client",
 	} {
 		var pkg descriptor.GoPackage
 
@@ -178,22 +178,6 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 							Plugin: props.Plugin,
 							Prefix: props.Prefix,
 							Pkg: fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), BrokerPluginType),
-						}
-					}
-				}
-				if len(plgs.Client) > 0 {
-					plugins[ClientPluginType] = make(map[string]*Plugin, 0)
-					for name, props := range plgs.Client {
-						if _, ok := pluginImportsExists[props.Plugin]; !ok {
-							imports = append(imports, descriptor.GoPackage{
-								Path: fmt.Sprintf("%s/plugin/rpc/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
-								Name: path.Base(fmt.Sprintf("%s/plugin/rpc/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
-							})
-						}
-						plugins[ClientPluginType][name] = &Plugin{
-							Plugin: props.Plugin,
-							Prefix: props.Prefix,
-							Pkg: fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), ClientPluginType),
 						}
 					}
 				}
