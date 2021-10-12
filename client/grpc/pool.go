@@ -17,6 +17,7 @@ limitations under the License.
 package grpc
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -83,7 +84,7 @@ func (p *pool) Init(opts PoolOptions) {
 	}
 }
 
-func (p *pool) getConn(addr string, opts ...grpc.DialOption) (*poolConn, error) {
+func (p *pool) getConn(ctx context.Context, addr string, opts ...grpc.DialOption) (*poolConn, error) {
 	now := time.Now().Unix()
 	p.Lock()
 	sp, ok := p.conns[addr]
@@ -150,7 +151,7 @@ func (p *pool) getConn(addr string, opts ...grpc.DialOption) (*poolConn, error) 
 
 	p.Unlock()
 
-	cc, err := grpc.Dial(addr, opts...)
+	cc, err := grpc.DialContext(ctx, addr, opts...)
 	if err != nil {
 		return nil, err
 	}

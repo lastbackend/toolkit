@@ -46,13 +46,6 @@ func (s *rpcClient) Name() string {
 
 func (s *rpcClient) Flags() []cmd.Flag {
 	return []cmd.Flag{
-		&cmd.StringSliceFlag{
-			Name:        s.withPrefix("endpoints"),
-			EnvVar:      s.withEnvPrefix("ENDPOINTS"),
-			Usage:       "Set gRPC addresses (Ex: <service>:<endpoint>)",
-			Required:    true,
-			Destination: &s.opts.Addresses,
-		},
 		&cmd.IntFlag{
 			Name:        s.withPrefix("pool-size"),
 			EnvVar:      s.withEnvPrefix("POOL_SIZE"),

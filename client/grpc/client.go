@@ -40,15 +40,11 @@ const (
 	// The default number of times a request is tried
 	defaultRetries = 5 * time.Second
 	// The default request timeout
-	defaultRequestTimeout = 15 * time.Second
+	defaultRequestTimeout = 30 * time.Second
 	// The connection pool size
 	defaultPoolSize = 100
 	// The connection pool ttl
 	defaultPoolTTL = time.Minute
-	// DefaultPoolMaxStreams maximum streams on a connection (20)
-	defaultPoolMaxStreams = 20
-	// DefaultPoolMaxIdle maximum idle conns of a pool (50)
-	defaultPoolMaxIdle = 50
 	// DefaultMaxRecvMsgSize maximum message that client can receive (16 MB).
 	defaultMaxRecvMsgSize = 1024 * 1024 * 16
 	// DefaultMaxSendMsgSize maximum message that client can send (16 MB).
@@ -132,9 +128,6 @@ func (c *grpcClient) Call(ctx context.Context, service, method string, body, res
 }
 
 func (c *grpcClient) Stream(ctx context.Context, service, method string, body interface{}, opts ...CallOption) (Stream, error) {
-	if body == nil {
-		return nil, status.Error(codes.Internal, "request is nil")
-	}
 
 	callOpts := c.opts.CallOptions
 	for _, opt := range opts {
@@ -190,7 +183,7 @@ func (c *grpcClient) invoke(ctx context.Context, addr string, req *request, rsp 
 	ctx = grpc_md.NewOutgoingContext(ctx, md)
 
 	var gErr error
-	conn, err := c.pool.getConn(addr, c.makeGrpcDialOptions()...)
+	conn, err := c.pool.getConn(ctx, addr, c.makeGrpcDialOptions()...)
 	if err != nil {
 		return status.Error(codes.Internal, fmt.Sprintf("Failed sending request: %v", err))
 	}
@@ -215,9 +208,11 @@ func (c *grpcClient) stream(ctx context.Context, addr string, req *request, opts
 
 	md := grpc_md.New(req.Headers())
 	ctx = grpc_md.NewOutgoingContext(ctx, md)
+	ctx, cancel := context.WithCancel(ctx)
 
-	cc, err := c.pool.getConn(addr, c.makeGrpcDialOptions()...)
+	cc, err := c.pool.getConn(ctx, addr, c.makeGrpcDialOptions()...)
 	if err != nil {
+		cancel()
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -226,9 +221,6 @@ func (c *grpcClient) stream(ctx context.Context, addr string, req *request, opts
 		ClientStreams: true,
 		ServerStreams: true,
 	}
-
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithCancel(ctx)
 
 	st, err := cc.NewStream(ctx, desc, req.Method(), c.makeGrpcCallOptions(opts)...)
 	if err != nil {
@@ -251,10 +243,6 @@ func (c *grpcClient) stream(ctx context.Context, addr string, req *request, opts
 	}
 
 	if err := st.SendMsg(req.body); err != nil {
-		return nil, err
-	}
-
-	if err := st.CloseSend(); err != nil {
 		return nil, err
 	}
 

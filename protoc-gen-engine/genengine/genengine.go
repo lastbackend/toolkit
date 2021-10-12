@@ -19,7 +19,6 @@ package genengine
 import (
 	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
 	engine_annotattions "github.com/lastbackend/engine/protoc-gen-engine/engine/options"
-	google_api_annotations "google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/pluginpb"
 
@@ -122,13 +121,17 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 
 	var imports []descriptor.GoPackage
 	var pluginImportsExists map[string]bool
+	var clientImportsExists map[string]bool
 	for _, pkg := range g.baseImports {
 		pkgExists[pkg.Path] = true
 		imports = append(imports, pkg)
 	}
 
 	plugins := make(map[string]map[string]*Plugin, 0)
+	clients := make(map[string]*Client, 0)
+
 	for _, svc := range file.Services {
+
 		if svc.Options != nil && proto.HasExtension(svc.Options, engine_annotattions.E_Plugins) {
 			ePlugins := proto.GetExtension(svc.Options, engine_annotattions.E_Plugins)
 			if ePlugins != nil {
@@ -145,7 +148,7 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 						plugins[StoragePluginType][name] = &Plugin{
 							Plugin: props.Plugin,
 							Prefix: props.Prefix,
-							Pkg: fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), StoragePluginType),
+							Pkg:    fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), StoragePluginType),
 						}
 					}
 				}
@@ -161,7 +164,7 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 						plugins[CachePluginType][name] = &Plugin{
 							Plugin: props.Plugin,
 							Prefix: props.Prefix,
-							Pkg: fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), CachePluginType),
+							Pkg:    fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), CachePluginType),
 						}
 					}
 				}
@@ -177,30 +180,37 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 						plugins[BrokerPluginType][name] = &Plugin{
 							Plugin: props.Plugin,
 							Prefix: props.Prefix,
-							Pkg: fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), BrokerPluginType),
+							Pkg:    fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), BrokerPluginType),
 						}
 					}
 				}
 			}
 		}
 
-		for _, m := range svc.Methods {
-			if m.Options != nil && proto.HasExtension(m.Options, google_api_annotations.E_Http) {
-
+		if svc.Options != nil && proto.HasExtension(svc.Options, engine_annotattions.E_Clients) {
+			eClients := proto.GetExtension(svc.Options, engine_annotattions.E_Clients)
+			if eClients != nil {
+				clnts := eClients.(*engine_annotattions.Clients)
+				for _, value := range clnts.Client {
+					if _, ok := clientImportsExists[value.Service]; !ok {
+						imports = append(imports, descriptor.GoPackage{
+							Alias: strings.ToLower(value.Service),
+							Path:  value.Package,
+						})
+					}
+					clients[value.Service] = &Client{
+						Service: value.Service,
+						Pkg:     value.Package,
+					}
+				}
 			}
-
-			pkg := m.RequestType.File.GoPkg
-			if pkg == file.GoPkg || pkgExists[pkg.Path] {
-				continue
-			}
-			pkgExists[pkg.Path] = true
-			imports = append(imports, pkg)
 		}
 	}
 
 	to := tplOptions{
 		File:    file,
 		Imports: imports,
+		Clients: clients,
 		Plugins: plugins,
 	}
 

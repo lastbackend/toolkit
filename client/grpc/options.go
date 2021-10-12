@@ -40,7 +40,6 @@ type LookupFunc func(context.Context, *request, CallOptions) ([]string, error)
 type Options struct {
 	Context context.Context
 
-	Addresses   []string
 	ContentType string
 
 	// Grpc DialOptions

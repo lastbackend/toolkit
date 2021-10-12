@@ -28,7 +28,7 @@ type tplOptions struct {
 	*descriptor.File
 	Imports          []descriptor.GoPackage
 	Plugins          map[string]map[string]*Plugin
-	Routes           []*Route
+	Clients          map[string]*Client
 	ProtocVersion    string
 	GeneratorVersion string
 }
@@ -39,14 +39,14 @@ type Plugin struct {
 	Pkg    string
 }
 
-type Route struct {
-	Name   string
-	Path   string
-	Method string
+type Client struct {
+	Service string
+	Pkg     string
 }
 
 type contentParams struct {
 	Plugins  map[string]map[string]*Plugin
+	Clients  map[string]*Client
 	Services []*descriptor.Service
 }
 
@@ -71,6 +71,7 @@ func applyTemplate(to tplOptions) (string, error) {
 
 	tp := contentParams{
 		Plugins:  to.Plugins,
+		Clients:  to.Clients,
 		Services: targetServices,
 	}
 
@@ -136,6 +137,7 @@ var props = map[string]map[string]engine.ServiceProps{
 
 	type RPC struct {
 		Grpc grpc.Client
+		{{range $key, $value := .Clients}}{{$value.Service | ToCapitalize}} {{$key}}.{{$value.Service | ToCapitalize}}RpcClient{{end}}
 	}
 
 	{{range $type, $plugins := .Plugins}}
@@ -237,15 +239,18 @@ func (s *service) register(i interface{}) error {
 
 	// Register clients
 	{{range $svc := .Services}}
-		// Install grpc client
-		type {{$svc.GetName}}GrpcRpcClient struct {
-			{{$svc.GetName}}Client
-		}
-	
-		if err := s.base.Client(s.layer.RPC.Grpc, grpc.Register, client.Option{Prefix: "client-grpc"}); err != nil {
-			return err
-		}
-		//s.layer.RPC.Auth = NewAuthRpcClient("auth", s.layer.RPC.Grpc)
+	// Install grpc client
+	type {{$svc.GetName}}GrpcRpcClient struct {
+		{{$svc.GetName}}Client
+	}
+	{{end}}
+
+	if err := s.base.Client(s.layer.RPC.Grpc, grpc.Register, client.Option{Prefix: "client-grpc"}); err != nil {
+		return err
+	}
+
+	{{range $key, $value := .Clients}}
+		s.layer.RPC.{{$value.Service | ToCapitalize}} = {{$value.Service | ToLower}}.New{{$value.Service | ToCapitalize}}RpcClient("{{$value.Service | ToLower}}", s.layer.RPC.Grpc)
 	{{end}}
 
 	return nil
@@ -302,14 +307,16 @@ func (s *service) register(i interface{}) error {
 	// Client gRPC API for {{$svc.GetName}} service
 	type {{$svc.GetName}}RpcClient interface {
 		{{range $m := $svc.Methods}}
-    {{if and (not $m.GetClientStreaming) (not $m.GetClientStreaming)}}
-			{{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) (*{{$m.ResponseType.GoName}}, error)
-    {{else}}{{if not $m.GetClientStreaming}}
-			{{$m.GetName}}(req *{{$m.RequestType.GoName}}, stream {{$svc.GetName}}_{{$m.GetName}}Client) error
-    {{else}}
-			{{$m.GetName}}(stream {{$svc.GetName}}_{{$m.GetName}}Client) error
-    {{end}}{{end}}
-	{{end}}
+			{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
+				{{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) (*{{$m.ResponseType.GoName}}, error)
+			{{else}}
+				{{if not $m.GetClientStreaming}}
+					{{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) ({{$svc.GetName}}_{{$m.GetName}}Service, error)
+				{{else}}
+					{{$m.GetName}}(ctx context.Context, opts ...grpc.CallOption) ({{$svc.GetName}}_{{$m.GetName}}Service, error)
+				{{end}}
+			{{end}}
+		{{end}}
 	}
 {{end}}
 
@@ -320,24 +327,78 @@ func (s *service) register(i interface{}) error {
 	}
 
 	{{range $m := $svc.Methods}}
-    {{if and (not $m.GetClientStreaming) (not $m.GetClientStreaming)}}
-  		func (c *{{$svc.GetName | ToLower}}GrpcRpcClient) {{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) (*{{$m.ResponseType.GoName}}, error) {
+		{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
+			func (c *{{$svc.GetName | ToLower}}GrpcRpcClient) {{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) (*{{$m.ResponseType.GoName}}, error) {
 				resp := new({{$m.ResponseType.GoName}})
 				if err := c.cli.Call(ctx, c.service, {{$svc.GetName}}_{{$m.GetName}}Method, in, resp, opts...); err != nil {
 					return nil, err
 				}
 				return resp, nil
 			}
-    {{else}}{{if not $m.GetClientStreaming}}
-			func (c *{{$svc.GetName | ToLower}}GrpcRpcClient) {{$m.GetName}}(req *{{$m.RequestType.GoName}}, stream {{$svc.GetName}}_{{$m.GetName}}Client) error {
-				return c.{{$svc.GetName}}RpcClient.{{$m.GetName}}(req, stream)
+		{{else}}
+			{{if not $m.GetClientStreaming}}
+				func (c *{{$svc.GetName | ToLower}}GrpcRpcClient) {{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) ({{$svc.GetName}}_{{$m.GetName}}Service, error) {
+					stream, err := c.cli.Stream(ctx, c.service, {{$svc.GetName}}_{{$m.GetName}}Method, in, opts...)
+					if err != nil {
+						return nil, err
+					}
+					if err := stream.SendMsg(in); err != nil {
+						return nil, err
+					}
+					return &{{$svc.GetName | ToLower}}{{$m.GetName}}Service{stream}, nil
+				}
+			{{else}}
+				func (c *{{$svc.GetName | ToLower}}GrpcRpcClient) {{$m.GetName}}(ctx context.Context,  opts ...grpc.CallOption) ({{$svc.GetName}}_{{$m.GetName}}Service, error) {
+					stream, err := c.cli.Stream(ctx, c.service, {{$svc.GetName}}_{{$m.GetName}}Method, nil, opts...)
+					if err != nil {
+						return nil, err
+					}
+					return &{{$svc.GetName | ToLower}}{{$m.GetName}}Service{stream}, nil
+				}
+			{{end}}
+
+			type {{$svc.GetName}}_{{$m.GetName}}Service interface {
+				SendMsg(interface{}) error
+				RecvMsg(interface{}) error
+				Close() error
+				Recv() (*{{$m.ResponseType.GoName}}, error)
+				{{if $m.GetClientStreaming}}Send(*{{$m.RequestType.GoName}}) error{{end}}
 			}
-    {{else}}
-			func (c *{{$svc.GetName | ToLower}}GrpcRpcClient) {{$m.GetName}}(stream {{$svc.GetName}}_{{$m.GetName}}Client) error {
-				return c.{{$svc.GetName}}RpcClient.{{$m.GetName}}(stream)
+
+			type {{$svc.GetName | ToLower}}{{$m.GetName}}Service struct {
+				stream grpc.Stream
 			}
-    {{end}}{{end}}
+
+			func (x *{{$svc.GetName | ToLower}}{{$m.GetName}}Service) Close() error {
+				return x.stream.CloseSend()
+			}
+
+			func (x *{{$svc.GetName | ToLower}}{{$m.GetName}}Service) SendMsg(m interface{}) error {
+				return x.stream.SendMsg(m)
+			}
+
+			func (x *{{$svc.GetName | ToLower}}{{$m.GetName}}Service) RecvMsg(m interface{}) error {
+				return x.stream.RecvMsg(m)
+			}
+
+			func (x *{{$svc.GetName | ToLower}}{{$m.GetName}}Service) Recv() (*{{$m.ResponseType.GoName}}, error) {
+				m := new({{$m.ResponseType.GoName}})
+				err := x.stream.RecvMsg(m)
+				if err != nil {
+					return nil, err
+				}
+				return m, nil
+			}
+
+			{{if $m.GetClientStreaming}}
+			func (x *{{$svc.GetName | ToLower}}{{$m.GetName}}Service) Send(m *{{$m.RequestType.GoName}}) error {
+				return x.stream.SendMsg(m)
+			}
+			{{end}}
+
+		{{end}}
 	{{end}}
+
 	func ({{$svc.GetName | ToLower}}GrpcRpcClient) mustEmbedUnimplemented{{$svc.GetName}}Client() {}
 {{end}}
 
