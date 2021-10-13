@@ -19,12 +19,12 @@ package postgres_pg
 import (
 	"github.com/go-pg/pg/v10"
 	"github.com/lastbackend/engine/plugin"
-	"io"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 
 	"context"
+	"io"
 )
 
 const (

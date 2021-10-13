@@ -17,15 +17,15 @@ limitations under the License.
 package postgres
 
 import (
-	"database/sql"
-	"encoding/json"
+	"github.com/jmoiron/sqlx"
 	"github.com/lastbackend/engine/plugin"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 
 	"context"
+	"database/sql"
+	"encoding/json"
 )
 
 const (

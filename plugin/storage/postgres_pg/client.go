@@ -239,51 +239,51 @@ func (c *client) Param(param string) interface{} {
 }
 
 func (c *client) Exec(query interface{}, params ...interface{}) (res pg.Result, err error) {
-	return c.c.Exec(query, params)
+	return c.c.Exec(query, params...)
 }
 
 func (c *client) ExecContext(ctx context.Context, query interface{}, params ...interface{}) (pg.Result, error) {
-	return c.c.ExecContext(ctx, query, params)
+	return c.c.ExecContext(ctx, query, params...)
 }
 
 func (c *client) ExecOne(query interface{}, params ...interface{}) (pg.Result, error) {
-	return c.c.ExecOne(query, params)
+	return c.c.ExecOne(query, params...)
 }
 
 func (c *client) ExecOneContext(ctx context.Context, query interface{}, params ...interface{}) (pg.Result, error) {
-	return c.c.ExecOneContext(ctx, query, params)
+	return c.c.ExecOneContext(ctx, query, params...)
 }
 
 func (c *client) Query(model, query interface{}, params ...interface{}) (res pg.Result, err error) {
-	return c.c.Query(model, query, params)
+	return c.c.Query(model, query, params...)
 }
 
 func (c *client) QueryContext(ctx context.Context, model, query interface{}, params ...interface{}) (pg.Result, error) {
-	return c.c.QueryContext(ctx, model, query, params)
+	return c.c.QueryContext(ctx, model, query, params...)
 }
 
 func (c *client) QueryOne(model, query interface{}, params ...interface{}) (pg.Result, error) {
-	return c.c.QueryOne(model, query, params)
+	return c.c.QueryOne(model, query, params...)
 }
 
 func (c *client) QueryOneContext(ctx context.Context, model, query interface{}, params ...interface{}) (pg.Result, error) {
-	return c.c.QueryOneContext(ctx, model, query, params)
+	return c.c.QueryOneContext(ctx, model, query, params...)
 }
 
 func (c *client) CopyFrom(r io.Reader, query interface{}, params ...interface{}) (res pg.Result, err error) {
-	return c.c.CopyFrom(r, query, params)
+	return c.c.CopyFrom(r, query, params...)
 }
 
 func (c *client) CopyTo(w io.Writer, query interface{}, params ...interface{}) (res pg.Result, err error) {
-	return c.c.CopyTo(w, query, params)
+	return c.c.CopyTo(w, query, params...)
 }
 
 func (c *client) Model(model ...interface{}) *pg.Query {
-	return c.c.Model(model)
+	return c.c.Model(model...)
 }
 
 func (c *client) ModelContext(ctx context.Context, model ...interface{}) *pg.Query {
-	return c.c.ModelContext(ctx, model)
+	return c.c.ModelContext(ctx, model...)
 }
 
 func (c *client) Prepare(q string) (*pg.Stmt, error) {
@@ -293,7 +293,6 @@ func (c *client) Prepare(q string) (*pg.Stmt, error) {
 func (c *client) Close() error {
 	return c.c.Close()
 }
-
 
 // ====================================================================================
 // Transaction client // ==============================================================
@@ -333,49 +332,49 @@ func (c *clientTx) Prepare(q string) (*pg.Stmt, error) {
 }
 
 func (c *clientTx) Exec(query interface{}, params ...interface{}) (pg.Result, error) {
-	return c.c.Exec(query, params)
+	return c.c.Exec(query, params...)
 }
 
 func (c *clientTx) ExecContext(ctx context.Context, query interface{}, params ...interface{}) (pg.Result, error) {
-	return c.c.ExecContext(ctx, query, params)
+	return c.c.ExecContext(ctx, query, params...)
 }
 
 func (c *clientTx) ExecOne(query interface{}, params ...interface{}) (pg.Result, error) {
-	return c.c.ExecOne(query, params)
+	return c.c.ExecOne(query, params...)
 }
 
 func (c *clientTx) ExecOneContext(ctx context.Context, query interface{}, params ...interface{}) (pg.Result, error) {
-	return c.c.ExecOneContext(ctx, query, params)
+	return c.c.ExecOneContext(ctx, query, params...)
 }
 
 func (c *clientTx) Query(model interface{}, query interface{}, params ...interface{}) (pg.Result, error) {
-	return c.c.Query(model, query, params)
+	return c.c.Query(model, query, params...)
 }
 
 func (c *clientTx) QueryContext(ctx context.Context, model interface{}, query interface{}, params ...interface{}, ) (pg.Result, error) {
-	return c.c.QueryContext(ctx, model, query, params)
+	return c.c.QueryContext(ctx, model, query, params...)
 }
 
 func (c *clientTx) QueryOne(model interface{}, query interface{}, params ...interface{}) (pg.Result, error) {
-	return c.c.QueryOne(model, query, params)
+	return c.c.QueryOne(model, query, params...)
 }
 
 func (c *clientTx) QueryOneContext(ctx context.Context, model interface{}, query interface{}, params ...interface{}, ) (pg.Result, error) {
-	return c.c.QueryOneContext(ctx, model, query, params)
+	return c.c.QueryOneContext(ctx, model, query, params...)
 }
 
 func (c *clientTx) Model(model ...interface{}) *pg.Query {
-	return c.c.Model(model)
+	return c.c.Model(model...)
 }
 
 func (c *clientTx) ModelContext(ctx context.Context, model ...interface{}) *pg.Query {
-	return c.c.ModelContext(ctx, model)
+	return c.c.ModelContext(ctx, model...)
 }
 
 func (c *clientTx) CopyFrom(r io.Reader, query interface{}, params ...interface{}) (res pg.Result, err error) {
-	return c.c.CopyFrom(r, query, params)
+	return c.c.CopyFrom(r, query, params...)
 }
 
 func (c *clientTx) CopyTo(w io.Writer, query interface{}, params ...interface{}) (res pg.Result, err error) {
-	return c.c.CopyTo(w, query, params)
+	return c.c.CopyTo(w, query, params...)
 }
