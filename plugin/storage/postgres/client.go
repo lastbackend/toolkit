@@ -111,7 +111,7 @@ func (c *client) open(opts clientOptions) error {
 	if opts.ConnMaxIdleTime != nil {
 		conn.SetConnMaxIdleTime(*opts.ConnMaxIdleTime)
 	}
-	
+
 	c.connection = opts.Connection
 	c.c = conn
 
@@ -279,10 +279,6 @@ func (c *client) Preparex(sqlStatement string) (*sqlx.Stmt, error) {
 
 func (c *client) PrepareNamed(sqlStatement string) (*sqlx.NamedStmt, error) {
 	return c.c.PrepareNamed(sqlStatement)
-}
-
-func (c *client) Close() error {
-	return c.c.Close()
 }
 
 // ====================================================================================

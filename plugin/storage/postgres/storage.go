@@ -153,7 +153,7 @@ func (s *postgresStorage) Commands() []cmd.Command {
 				return err
 			}
 
-			return c.Close()
+			return c.c.Close()
 		},
 	}
 
@@ -188,7 +188,7 @@ func (s *postgresStorage) Start() error {
 }
 
 func (s *postgresStorage) Stop() error {
-	return s.client.Close()
+	return s.client.c.Close()
 }
 
 func (s *postgresStorage) getClient() *client {
