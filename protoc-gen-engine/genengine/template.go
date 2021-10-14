@@ -263,7 +263,7 @@ func (s *service) register(i interface{}) error {
 	type {{$svc.GetName}}RpcServer interface {
 		{{range $m := $svc.Methods}}
     {{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
-			{{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}) (*{{$m.ResponseType.GoName}}, error)
+			{{$m.GetName}}(ctx context.Context, req *{{$m.RequestType.GoName}}) (*{{$m.ResponseType.GoName}}, error)
     {{else}}{{if not $m.GetClientStreaming}}
 			{{$m.GetName}}(req *{{$m.RequestType.GoName}}, stream {{$svc.GetName}}_{{$m.GetName}}Server) error
     {{else}}
@@ -280,8 +280,8 @@ func (s *service) register(i interface{}) error {
 
 	{{range $m := $svc.Methods}}
     {{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
-  		func (h *{{$svc.GetName | ToLower}}GrpcRpcServer) {{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}) (*{{$m.ResponseType.GoName}}, error) {
-				return h.{{$svc.GetName}}RpcServer.{{$m.GetName}}(ctx, in)				
+  		func (h *{{$svc.GetName | ToLower}}GrpcRpcServer) {{$m.GetName}}(ctx context.Context, req *{{$m.RequestType.GoName}}) (*{{$m.ResponseType.GoName}}, error) {
+				return h.{{$svc.GetName}}RpcServer.{{$m.GetName}}(ctx, req)				
 			}
     {{else}}{{if not $m.GetClientStreaming}}
 			func (h *{{$svc.GetName | ToLower}}GrpcRpcServer) {{$m.GetName}}(req *{{$m.RequestType.GoName}}, stream {{$svc.GetName}}_{{$m.GetName}}Server) error {
@@ -308,10 +308,10 @@ func (s *service) register(i interface{}) error {
 	type {{$svc.GetName}}RpcClient interface {
 		{{range $m := $svc.Methods}}
 			{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
-				{{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) (*{{$m.ResponseType.GoName}}, error)
+				{{$m.GetName}}(ctx context.Context, req *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) (*{{$m.ResponseType.GoName}}, error)
 			{{else}}
 				{{if not $m.GetClientStreaming}}
-					{{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) ({{$svc.GetName}}_{{$m.GetName}}Service, error)
+					{{$m.GetName}}(ctx context.Context, req *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) ({{$svc.GetName}}_{{$m.GetName}}Service, error)
 				{{else}}
 					{{$m.GetName}}(ctx context.Context, opts ...grpc.CallOption) ({{$svc.GetName}}_{{$m.GetName}}Service, error)
 				{{end}}
@@ -328,21 +328,21 @@ func (s *service) register(i interface{}) error {
 
 	{{range $m := $svc.Methods}}
 		{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
-			func (c *{{$svc.GetName | ToLower}}GrpcRpcClient) {{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) (*{{$m.ResponseType.GoName}}, error) {
+			func (c *{{$svc.GetName | ToLower}}GrpcRpcClient) {{$m.GetName}}(ctx context.Context, req *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) (*{{$m.ResponseType.GoName}}, error) {
 				resp := new({{$m.ResponseType.GoName}})
-				if err := c.cli.Call(ctx, c.service, {{$svc.GetName}}_{{$m.GetName}}Method, in, resp, opts...); err != nil {
+				if err := c.cli.Call(ctx, c.service, {{$svc.GetName}}_{{$m.GetName}}Method, req, resp, opts...); err != nil {
 					return nil, err
 				}
 				return resp, nil
 			}
 		{{else}}
 			{{if not $m.GetClientStreaming}}
-				func (c *{{$svc.GetName | ToLower}}GrpcRpcClient) {{$m.GetName}}(ctx context.Context, in *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) ({{$svc.GetName}}_{{$m.GetName}}Service, error) {
-					stream, err := c.cli.Stream(ctx, c.service, {{$svc.GetName}}_{{$m.GetName}}Method, in, opts...)
+				func (c *{{$svc.GetName | ToLower}}GrpcRpcClient) {{$m.GetName}}(ctx context.Context, req *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) ({{$svc.GetName}}_{{$m.GetName}}Service, error) {
+					stream, err := c.cli.Stream(ctx, c.service, {{$svc.GetName}}_{{$m.GetName}}Method, req, opts...)
 					if err != nil {
 						return nil, err
 					}
-					if err := stream.SendMsg(in); err != nil {
+					if err := stream.SendMsg(req); err != nil {
 						return nil, err
 					}
 					return &{{$svc.GetName | ToLower}}{{$m.GetName}}Service{stream}, nil
