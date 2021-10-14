@@ -17,7 +17,9 @@ limitations under the License.
 package postgres_pg
 
 import (
+	"encoding/json"
 	"github.com/go-pg/pg/v10"
+	"github.com/go-pg/pg/v10/orm"
 	"github.com/lastbackend/engine/plugin"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -41,10 +43,38 @@ func Register(f plugin.RegisterFunc) plugin.CreatorFunc {
 	}
 }
 
+// DB is a common interface for pg.DB and pg.Tx types.
+type DB interface {
+	Model(model ...interface{}) *pg.Query
+	ModelContext(c context.Context, model ...interface{}) *pg.Query
+
+	Exec(query interface{}, params ...interface{}) (pg.Result, error)
+	ExecContext(c context.Context, query interface{}, params ...interface{}) (pg.Result, error)
+	ExecOne(query interface{}, params ...interface{}) (pg.Result, error)
+	ExecOneContext(c context.Context, query interface{}, params ...interface{}) (pg.Result, error)
+	Query(model, query interface{}, params ...interface{}) (pg.Result, error)
+	QueryContext(c context.Context, model, query interface{}, params ...interface{}) (pg.Result, error)
+	QueryOne(model, query interface{}, params ...interface{}) (pg.Result, error)
+	QueryOneContext(c context.Context, model, query interface{}, params ...interface{}) (pg.Result, error)
+
+	CopyFrom(r io.Reader, query interface{}, params ...interface{}) (pg.Result, error)
+	CopyTo(w io.Writer, query interface{}, params ...interface{}) (pg.Result, error)
+
+	Context() context.Context
+	Formatter() orm.QueryFormatter
+}
+
 type Storage interface {
 	Begin() (ClientTx, error)
 	BeginContext(ctx context.Context) (ClientTx, error)
-	Param(param string) interface{}
+	RunInTransaction(ctx context.Context, fn func(ClientTx) error) error
+
+	Subscribe(ctx context.Context, channel string, listener chan string) error
+	Publish(ctx context.Context, channel string, data json.RawMessage) (pg.Result, error)
+
+	Model(model ...interface{}) *pg.Query
+	ModelContext(ctx context.Context, model ...interface{}) *pg.Query
+
 	Exec(query interface{}, params ...interface{}) (res pg.Result, err error)
 	ExecContext(ctx context.Context, query interface{}, params ...interface{}) (pg.Result, error)
 	ExecOne(query interface{}, params ...interface{}) (pg.Result, error)
@@ -55,9 +85,10 @@ type Storage interface {
 	QueryOneContext(ctx context.Context, model, query interface{}, params ...interface{}) (pg.Result, error)
 	CopyFrom(r io.Reader, query interface{}, params ...interface{}) (res pg.Result, err error)
 	CopyTo(w io.Writer, query interface{}, params ...interface{}) (res pg.Result, err error)
-	Model(model ...interface{}) *pg.Query
-	ModelContext(ctx context.Context, model ...interface{}) *pg.Query
 	Prepare(q string) (*pg.Stmt, error)
+
+	Context() context.Context
+	Formatter() orm.QueryFormatter
 }
 
 type ClientTx interface {
@@ -66,6 +97,10 @@ type ClientTx interface {
 	Rollback() error
 	RollbackContext(ctx context.Context) error
 	RunInTransaction(ctx context.Context, fn func(ClientTx) error) error
+
+	Model(model ...interface{}) *pg.Query
+	ModelContext(c context.Context, model ...interface{}) *pg.Query
+
 	Stmt(stmt *pg.Stmt) *pg.Stmt
 	Prepare(q string) (*pg.Stmt, error)
 	Exec(query interface{}, params ...interface{}) (pg.Result, error)
@@ -76,8 +111,10 @@ type ClientTx interface {
 	QueryContext(c context.Context, model interface{}, query interface{}, params ...interface{}, ) (pg.Result, error)
 	QueryOne(model interface{}, query interface{}, params ...interface{}) (pg.Result, error)
 	QueryOneContext(c context.Context, model interface{}, query interface{}, params ...interface{}, ) (pg.Result, error)
-	Model(model ...interface{}) *pg.Query
-	ModelContext(c context.Context, model ...interface{}) *pg.Query
+
 	CopyFrom(r io.Reader, query interface{}, params ...interface{}) (res pg.Result, err error)
 	CopyTo(w io.Writer, query interface{}, params ...interface{}) (res pg.Result, err error)
+
+	Context() context.Context
+	Formatter() orm.QueryFormatter
 }

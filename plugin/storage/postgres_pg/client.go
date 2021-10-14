@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-pg/pg/v10"
+	"github.com/go-pg/pg/v10/orm"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"io"
@@ -156,6 +157,9 @@ func (c *client) open(opts clientOptions) error {
 	return nil
 }
 
+// ====================================================================================
+// Client =============================================================================
+// ====================================================================================
 func (c *client) Begin() (ClientTx, error) {
 	tx, err := c.c.Begin()
 	if err != nil {
@@ -170,6 +174,12 @@ func (c *client) BeginContext(ctx context.Context) (ClientTx, error) {
 		return nil, err
 	}
 	return &clientTx{c: tx}, nil
+}
+
+func (c *client) RunInTransaction(ctx context.Context, fn func(ClientTx) error) error {
+	return c.c.RunInTransaction(ctx, func(tx *pg.Tx) error {
+		return fn(&clientTx{c: tx})
+	})
 }
 
 func (c *client) Subscribe(ctx context.Context, channel string, listener chan string) error {
@@ -234,8 +244,12 @@ func (c *client) Publish(ctx context.Context, channel string, data json.RawMessa
 	return c.c.ExecContext(ctx, sqlStatement, channel, string(payload))
 }
 
-func (c *client) Param(param string) interface{} {
-	return c.c.Param(param)
+func (c *client) Model(model ...interface{}) *pg.Query {
+	return c.c.Model(model...)
+}
+
+func (c *client) ModelContext(ctx context.Context, model ...interface{}) *pg.Query {
+	return c.c.ModelContext(ctx, model...)
 }
 
 func (c *client) Exec(query interface{}, params ...interface{}) (res pg.Result, err error) {
@@ -278,24 +292,20 @@ func (c *client) CopyTo(w io.Writer, query interface{}, params ...interface{}) (
 	return c.c.CopyTo(w, query, params...)
 }
 
-func (c *client) Model(model ...interface{}) *pg.Query {
-	return c.c.Model(model...)
-}
-
-func (c *client) ModelContext(ctx context.Context, model ...interface{}) *pg.Query {
-	return c.c.ModelContext(ctx, model...)
-}
-
 func (c *client) Prepare(q string) (*pg.Stmt, error) {
 	return c.c.Prepare(q)
 }
 
-func (c *client) Close() error {
-	return c.c.Close()
+func (c *client) Context() context.Context {
+	return c.c.Context()
+}
+
+func (c *client) Formatter() orm.QueryFormatter {
+	return c.c.Formatter()
 }
 
 // ====================================================================================
-// Transaction client // ==============================================================
+// Transaction client =================================================================
 // ====================================================================================
 type clientTx struct {
 	c *pg.Tx
@@ -321,6 +331,14 @@ func (c *clientTx) RunInTransaction(ctx context.Context, fn func(ClientTx) error
 	return c.c.RunInTransaction(ctx, func(tx *pg.Tx) error {
 		return fn(&clientTx{c: tx})
 	})
+}
+
+func (c *clientTx) Model(model ...interface{}) *pg.Query {
+	return c.c.Model(model...)
+}
+
+func (c *clientTx) ModelContext(ctx context.Context, model ...interface{}) *pg.Query {
+	return c.c.ModelContext(ctx, model...)
 }
 
 func (c *clientTx) Stmt(stmt *pg.Stmt) *pg.Stmt {
@@ -363,18 +381,18 @@ func (c *clientTx) QueryOneContext(ctx context.Context, model interface{}, query
 	return c.c.QueryOneContext(ctx, model, query, params...)
 }
 
-func (c *clientTx) Model(model ...interface{}) *pg.Query {
-	return c.c.Model(model...)
-}
-
-func (c *clientTx) ModelContext(ctx context.Context, model ...interface{}) *pg.Query {
-	return c.c.ModelContext(ctx, model...)
-}
-
 func (c *clientTx) CopyFrom(r io.Reader, query interface{}, params ...interface{}) (res pg.Result, err error) {
 	return c.c.CopyFrom(r, query, params...)
 }
 
 func (c *clientTx) CopyTo(w io.Writer, query interface{}, params ...interface{}) (res pg.Result, err error) {
 	return c.c.CopyTo(w, query, params...)
+}
+
+func (c *clientTx) Context() context.Context {
+	return c.c.Context()
+}
+
+func (c *clientTx) Formatter() orm.QueryFormatter {
+	return c.c.Formatter()
 }
