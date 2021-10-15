@@ -38,9 +38,9 @@ func init() {
 
 const (
 	// The default number of times a request is tried
-	defaultRetries = 5 * time.Second
+	defaultRetries = 0 * time.Second
 	// The default request timeout
-	defaultRequestTimeout = 30 * time.Second
+	defaultRequestTimeout = 15 * time.Second
 	// The connection pool size
 	defaultPoolSize = 100
 	// The connection pool ttl
@@ -243,6 +243,10 @@ func (c *grpcClient) stream(ctx context.Context, addr string, req *request, opts
 	}
 
 	if err := st.SendMsg(req.body); err != nil {
+		return nil, err
+	}
+
+	if err := st.CloseSend(); err != nil {
 		return nil, err
 	}
 
