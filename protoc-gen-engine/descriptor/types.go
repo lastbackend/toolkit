@@ -145,5 +145,6 @@ func (m *Method) FullyName() string {
 
 type ResponseFile struct {
 	*pluginpb.CodeGeneratorResponse_File
-	GoPkg GoPackage
+	GoPkg   GoPackage
+	Rewrite bool
 }

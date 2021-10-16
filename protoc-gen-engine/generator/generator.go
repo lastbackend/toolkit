@@ -102,12 +102,12 @@ func (g *Generator) Run() error {
 		// Generate scripts scripts
 		generatorScripts := genscripts.New()
 
-		if !(*skipDockerfile) {
-			scriptFiles, err := generatorScripts.GenerateDockerfile()
-			if err != nil {
-				return err
-			}
-			for _, f := range scriptFiles {
+		scriptFiles, err := generatorScripts.GenerateDockerfile(g.targets)
+		if err != nil {
+			return err
+		}
+		for _, f := range scriptFiles {
+			if f.Rewrite {
 				genFile := gen.NewGeneratedFile(f.GetName(), protogen.GoImportPath(f.GoPkg.Path))
 				if _, err := genFile.Write([]byte(f.GetContent())); err != nil {
 					return err

@@ -43,3 +43,14 @@ message Clients {
 extend google.protobuf.ServiceOptions {
   Clients clients = 50002;
 }
+
+extend google.protobuf.FileOptions {
+  DockerfileSpec dockerfile_spec = 50003;
+}
+
+message DockerfileSpec {
+  string package = 1;
+  repeated int32 expose = 2;
+  repeated string commands = 3;
+  bool rewrite_if_exists = 4;
+}
