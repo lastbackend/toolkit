@@ -17,9 +17,9 @@ limitations under the License.
 package generator
 
 import (
-	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
-	"github.com/lastbackend/engine/protoc-gen-engine/genengine"
-	"github.com/lastbackend/engine/protoc-gen-engine/genscripts"
+	"gitlab.com/lastbackend/platform/toolkit/engine/protoc-gen-engine/descriptor"
+	"gitlab.com/lastbackend/platform/toolkit/engine/protoc-gen-engine/genengine"
+	"gitlab.com/lastbackend/platform/toolkit/engine/protoc-gen-engine/genscripts"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/types/pluginpb"
 

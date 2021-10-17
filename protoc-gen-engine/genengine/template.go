@@ -17,7 +17,7 @@ limitations under the License.
 package genengine
 
 import (
-	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
+	"gitlab.com/lastbackend/platform/toolkit/engine/protoc-gen-engine/descriptor"
 
 	"bytes"
 	"strings"
@@ -97,7 +97,7 @@ import (
 
 	{{range $i := .Imports}}{{if not $i.Standard}}{{$i | printf "%s\n"}}{{end}}{{end}}
 
-	"github.com/lastbackend/engine/client/grpc"
+	"gitlab.com/lastbackend/platform/toolkit/engine/client/grpc"
 )
 
 // Suppress "imported and not used" errors

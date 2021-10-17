@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package engine;
 
-option go_package = "github.com/lastbackend/engine/protoc-gen-engine/engine/options;annotations";
+option go_package = "gitlab.com/lastbackend/platform/toolkit/engine/protoc-gen-engine/engine/options;annotations";
 
 import "google/protobuf/descriptor.proto";
 

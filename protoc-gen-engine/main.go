@@ -19,7 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/lastbackend/engine/protoc-gen-engine/generator"
+	"gitlab.com/lastbackend/platform/toolkit/engine/protoc-gen-engine/generator"
 
 	"os"
 )
