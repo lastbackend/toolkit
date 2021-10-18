@@ -140,8 +140,6 @@ func (c *cli) Run(fn func() error) error {
 
 	c.rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 
-		fmt.Println("1 ###")
-
 		resolverFlag, err := cmd.Flags().GetString("resolver")
 		if err != nil {
 			return err
