@@ -24,10 +24,10 @@ import (
 	"github.com/lastbackend/engine/network/resolver/route"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"regexp"
 
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -45,7 +45,7 @@ type CLI interface {
 	SetEnvPrefix(string)
 	AddFlags(...Flag)
 	AddCommands(...Command)
-	Execute() error
+	Run(f func() error) error
 }
 
 type cli struct {
@@ -70,6 +70,7 @@ func New(opts ...Option) CLI {
 	}
 
 	c := new(cli)
+
 	c.opts = options
 
 	// Set default services
@@ -112,7 +113,7 @@ func (c *cli) AddCommands(commands ...Command) {
 	c.Commands = append(c.Commands, commands...)
 }
 
-func (c *cli) Execute() error {
+func (c *cli) Run(fn func() error) error {
 
 	c.rootCmd = &cobra.Command{}
 	c.rootCmd.SetGlobalNormalizationFunc(wordSepNormalizeFunc)
@@ -138,6 +139,9 @@ func (c *cli) Execute() error {
 	}
 
 	c.rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+
+		fmt.Println("1 ###")
+
 		resolverFlag, err := cmd.Flags().GetString("resolver")
 		if err != nil {
 			return err
@@ -181,7 +185,7 @@ func (c *cli) Execute() error {
 			printFlags(cmd.Flags())
 		}
 
-		return nil
+		return fn()
 	}
 
 	for _, f := range c.Flags {

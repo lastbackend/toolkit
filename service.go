@@ -23,11 +23,11 @@ import (
 	"github.com/lastbackend/engine/plugin"
 	"github.com/lastbackend/engine/plugin/manager"
 	"github.com/lastbackend/engine/server"
+	"os/signal"
 
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
 	"reflect"
 	"sync"
 	"syscall"
@@ -282,52 +282,6 @@ func (s *service) SetContext(ctx context.Context) {
 
 func (s *service) Run() error {
 
-	if err := s.init(); err != nil {
-		return err
-	}
-
-	if err := s.pm.Start(); err != nil {
-		return err
-	}
-
-	for _, t := range s.clients {
-		if err := t.Start(); err != nil {
-			return err
-		}
-	}
-
-	for _, t := range s.servers {
-		if err := t.Start(); err != nil {
-			return err
-		}
-	}
-
-	ch := make(chan os.Signal, 1)
-
-	if s.signal {
-		signal.Notify(ch, shutdownSignals...)
-	}
-
-	select {
-	// wait on kill signal
-	case <-ch:
-	// wait on context cancel
-	case <-s.context.Done():
-	}
-
-	for _, t := range s.servers {
-		if err := t.Stop(); err != nil {
-			return err
-		}
-	}
-
-	s.pm.Stop()
-
-	return nil
-}
-
-func (s *service) init() error {
-
 	s.cli.SetName(s.meta.Name)
 	s.cli.SetEnvPrefix(s.meta.EnvPrefix)
 	s.cli.SetVersion(s.meta.Version)
@@ -345,11 +299,47 @@ func (s *service) init() error {
 		s.cli.AddFlags(t.Flags()...)
 	}
 
-	if err := s.cli.Execute(); err != nil {
-		return err
-	}
+	return s.cli.Run(func() error {
 
-	return nil
+		if err := s.pm.Start(); err != nil {
+			return err
+		}
+
+		for _, t := range s.clients {
+			if err := t.Start(); err != nil {
+				return err
+			}
+		}
+
+		for _, t := range s.servers {
+			if err := t.Start(); err != nil {
+				return err
+			}
+		}
+
+		ch := make(chan os.Signal, 1)
+
+		if s.signal {
+			signal.Notify(ch, shutdownSignals...)
+		}
+
+		select {
+		// wait on kill signal
+		case <-ch:
+		// wait on context cancel
+		case <-s.context.Done():
+		}
+
+		for _, t := range s.servers {
+			if err := t.Stop(); err != nil {
+				return err
+			}
+		}
+
+		s.pm.Stop()
+
+		return nil
+	})
 }
 
 var shutdownSignals = []os.Signal{
