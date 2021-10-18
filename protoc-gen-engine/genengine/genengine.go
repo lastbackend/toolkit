@@ -17,8 +17,8 @@ limitations under the License.
 package genengine
 
 import (
-	"gitlab.com/lastbackend/platform/toolkit/engine/protoc-gen-engine/descriptor"
-	engine_annotattions "gitlab.com/lastbackend/platform/toolkit/engine/protoc-gen-engine/engine/options"
+	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
+	engine_annotattions "github.com/lastbackend/engine/protoc-gen-engine/engine/options"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/pluginpb"
 
@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	defaultRepoRootPath = "gitlab.com/lastbackend/platform/toolkit/engine"
+	defaultRepoRootPath = "github.com/lastbackend/engine"
 )
 
 const (
@@ -51,11 +51,11 @@ func New(desc *descriptor.Descriptor) Generator {
 	var imports []descriptor.GoPackage
 	for _, pkgPath := range []string{
 		"context context",
-		"engine gitlab.com/lastbackend/platform/toolkit/engine",
-		"logger gitlab.com/lastbackend/platform/toolkit/engine/logger",
-		"plugin gitlab.com/lastbackend/platform/toolkit/engine/plugin",
-		"server gitlab.com/lastbackend/platform/toolkit/engine/server",
-		"client gitlab.com/lastbackend/platform/toolkit/engine/client",
+		"engine github.com/lastbackend/engine",
+		"logger github.com/lastbackend/engine/logger",
+		"plugin github.com/lastbackend/engine/plugin",
+		"server github.com/lastbackend/engine/server",
+		"client github.com/lastbackend/engine/client",
 	} {
 		var pkg descriptor.GoPackage
 
