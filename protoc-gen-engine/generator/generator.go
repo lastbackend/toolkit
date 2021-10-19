@@ -42,7 +42,7 @@ type Generator struct {
 	// TODO: Implement use name
 	name string
 	// TODO: Implement debug logs
-	debug          bool
+	debug bool
 
 	skipDockerfile bool
 	skipHelm       bool
