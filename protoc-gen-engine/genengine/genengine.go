@@ -95,8 +95,19 @@ func New(desc *descriptor.Descriptor) Generator {
 }
 
 func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.ResponseFile, error) {
-	var files []*descriptor.ResponseFile
+	var (
+		files         []*descriptor.ResponseFile
+		serviceExists = false
+	)
 	for _, file := range targets {
+		if len(file.Services) == 0 {
+			continue
+		}
+		if serviceExists {
+			return nil, fmt.Errorf("there must be only one service")
+		}
+		serviceExists = true
+
 		code, err := g.generate(file)
 		if err != nil {
 			return nil, err
@@ -122,6 +133,7 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 	var imports []descriptor.GoPackage
 	var pluginImportsExists map[string]bool
 	var clientImportsExists map[string]bool
+
 	for _, pkg := range g.baseImports {
 		pkgExists[pkg.Path] = true
 		imports = append(imports, pkg)
