@@ -92,7 +92,7 @@ func (c *grpcClient) Call(ctx context.Context, service, method string, body, res
 
 	routes, err := resolver.DefaultResolver.Lookup(req.service)
 	if err != nil {
-		return status.Error(codes.Internal, err.Error())
+		return status.Error(codes.Unavailable, err.Error())
 	}
 
 	next, err := c.opts.Selector.Select(routes.Addresses())
@@ -141,7 +141,7 @@ func (c *grpcClient) Stream(ctx context.Context, service, method string, body in
 
 	routes, err := resolver.DefaultResolver.Lookup(req.service)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Unavailable, err.Error())
 	}
 
 	next, err := c.opts.Selector.Select(routes.Addresses())
