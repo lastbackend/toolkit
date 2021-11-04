@@ -115,7 +115,7 @@ func (c *grpcClient) Call(ctx context.Context, service, method string, body, res
 			if err != nil {
 				d := b.Duration()
 				if d.Seconds() >= callOpts.Retries.Seconds() {
-					return status.Error(codes.Internal, err.Error())
+					return err
 				}
 				time.Sleep(d)
 				continue
@@ -162,7 +162,7 @@ func (c *grpcClient) Stream(ctx context.Context, service, method string, body in
 			if err != nil {
 				d := b.Duration()
 				if d.Seconds() >= callOpts.Retries.Seconds() {
-					return nil, status.Error(codes.Internal, err.Error())
+					return nil, err
 				}
 				time.Sleep(d)
 				continue
@@ -198,7 +198,7 @@ func (c *grpcClient) invoke(ctx context.Context, addr string, req *request, rsp 
 	case err := <-ch:
 		gErr = err
 	case <-ctx.Done():
-		gErr = status.Error(codes.Internal, ctx.Err().Error())
+		gErr = status.Error(codes.Canceled, ctx.Err().Error())
 	}
 
 	return gErr
@@ -226,7 +226,7 @@ func (c *grpcClient) stream(ctx context.Context, addr string, req *request, opts
 	if err != nil {
 		cancel()
 		c.pool.release(addr, cc, err)
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Canceled, err.Error())
 	}
 
 	s := &stream{
