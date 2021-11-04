@@ -69,6 +69,13 @@ func (s *postgresStorage) Flags() []cmd.Flag {
 			Required:    true,
 			Destination: &s.opts.Connection,
 		},
+		&cmd.BoolFlag{
+			Name:        s.withPrefix("logger"),
+			EnvVar:      s.withEnvPrefix("LOGGER"),
+			Usage:       "Enable the query logger",
+			Required:    false,
+			Destination: &s.opts.Logger,
+		},
 		&cmd.DurationFlag{
 			Name:        s.withPrefix("dial-timeout"),
 			EnvVar:      s.withEnvPrefix("DIAL_TIMEOUT"),

@@ -38,6 +38,9 @@ const (
 )
 
 type clientOptions struct {
+	// Enable the query logger
+	Logger bool
+
 	// Sets the connection string for connecting to the database
 	Connection string
 
@@ -152,7 +155,13 @@ func (c *client) open(opts clientOptions) error {
 	}
 
 	c.connection = opts.Connection
-	c.c = pg.Connect(opt)
+	db := pg.Connect(opt)
+
+	if opts.Logger {
+		db.AddQueryHook(dbLogger{})
+	}
+
+	c.c = db
 
 	return nil
 }
@@ -369,7 +378,7 @@ func (c *clientTx) Query(model interface{}, query interface{}, params ...interfa
 	return c.c.Query(model, query, params...)
 }
 
-func (c *clientTx) QueryContext(ctx context.Context, model interface{}, query interface{}, params ...interface{}, ) (pg.Result, error) {
+func (c *clientTx) QueryContext(ctx context.Context, model interface{}, query interface{}, params ...interface{}) (pg.Result, error) {
 	return c.c.QueryContext(ctx, model, query, params...)
 }
 
@@ -377,7 +386,7 @@ func (c *clientTx) QueryOne(model interface{}, query interface{}, params ...inte
 	return c.c.QueryOne(model, query, params...)
 }
 
-func (c *clientTx) QueryOneContext(ctx context.Context, model interface{}, query interface{}, params ...interface{}, ) (pg.Result, error) {
+func (c *clientTx) QueryOneContext(ctx context.Context, model interface{}, query interface{}, params ...interface{}) (pg.Result, error) {
 	return c.c.QueryOneContext(ctx, model, query, params...)
 }
 
