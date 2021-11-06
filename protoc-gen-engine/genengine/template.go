@@ -116,10 +116,8 @@ var _ client.Client
 
 	_ = template.Must(contentTemplate.New("plugins-content").Parse(`
 var props = map[string]map[string]engine.ServiceProps{
-	{{range $type, $plugins := .Plugins}}
-		"{{$type}}": {
-			{{range $name, $plugin := $plugins}}
-				"{{$name | ToCapitalize}}": engine.ServiceProps{
+	{{range $type, $plugins := .Plugins}} "{{$type}}": {
+			{{range $name, $plugin := $plugins}} "{{$name | ToCapitalize}}": engine.ServiceProps{
 					Func: {{$plugin.Plugin}}.Register,
 					Options: plugin.Option{
 						Prefix: "{{$plugin.Prefix | ToLower}}",
@@ -132,12 +130,14 @@ var props = map[string]map[string]engine.ServiceProps{
 
 	type layer struct {
 		RPC *RPC
-		{{range $type, $plugins := .Plugins}}{{$type}} *{{$type}}{{end}}
+		{{range $type, $plugins := .Plugins}} {{$type}} *{{$type}}
+		{{end}}
 	}
 
 	type RPC struct {
 		Grpc grpc.Client
-		{{range $key, $value := .Clients}}{{$value.Service | ToCapitalize}} {{$key}}.{{$value.Service | ToCapitalize}}RpcClient{{end}}
+		{{range $key, $value := .Clients}} {{$value.Service | ToCapitalize}} {{$key}}.{{$value.Service | ToCapitalize}}RpcClient
+		{{end}}
 	}
 
 	{{range $type, $plugins := .Plugins}}
@@ -148,7 +148,7 @@ var props = map[string]map[string]engine.ServiceProps{
 		{{else}}
 			type {{$type}} struct {
 				{{range $name, $plugin := $plugins}}
-					{{$name | ToCapitalize}} {{$plugin.Pkg}}{{end}}
+					{{$name | ToCapitalize}} {{$plugin.Pkg}} {{end}}
 			} 
 		{{end}}
 	{{end}}
