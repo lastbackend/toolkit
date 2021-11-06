@@ -116,8 +116,10 @@ var _ client.Client
 
 	_ = template.Must(contentTemplate.New("plugins-content").Parse(`
 var props = map[string]map[string]engine.ServiceProps{
-	{{range $type, $plugins := .Plugins}} "{{$type}}": {
-			{{range $name, $plugin := $plugins}} "{{$name | ToCapitalize}}": engine.ServiceProps{
+	{{- range $type, $plugins := .Plugins}} 
+		"{{$type}}": {
+			{{- range $name, $plugin := $plugins}} 
+				"{{$name | ToCapitalize}}": engine.ServiceProps{
 					Func: {{$plugin.Plugin}}.Register,
 					Options: plugin.Option{
 						Prefix: "{{$plugin.Prefix | ToLower}}",
@@ -130,25 +132,30 @@ var props = map[string]map[string]engine.ServiceProps{
 
 	type layer struct {
 		RPC *RPC
-		{{range $type, $plugins := .Plugins}} {{$type}} *{{$type}}
+		{{- range $type, $plugins := .Plugins}}
+			{{$type}} *{{$type}}
 		{{end}}
 	}
 
 	type RPC struct {
 		Grpc grpc.Client
-		{{range $key, $value := .Clients}} {{$value.Service | ToCapitalize}} {{$key}}.{{$value.Service | ToCapitalize}}RpcClient
+		{{- range $key, $value := .Clients}}
+			{{$value.Service | ToCapitalize}} {{$key}}.{{$value.Service | ToCapitalize}}RpcClient
 		{{end}}
 	}
 
-	{{range $type, $plugins := .Plugins}}
+	{{- range $type, $plugins := .Plugins}}
 		{{ $length := len $plugins }} {{ if eq $length 1 }}
 			type {{$type}} struct {
-				{{range $name, $plugin := $plugins}}{{$plugin.Pkg}}{{end}}
+				{{- range $name, $plugin := $plugins}}
+					{{$plugin.Pkg}}
+				{{end}}
 			}
 		{{else}}
 			type {{$type}} struct {
-				{{range $name, $plugin := $plugins}}
-					{{$name | ToCapitalize}} {{$plugin.Pkg}} {{end}}
+				{{- range $name, $plugin := $plugins}}
+					{{$name | ToCapitalize}} {{$plugin.Pkg}}
+				{{end}}
 			} 
 		{{end}}
 	{{end}}
@@ -163,14 +170,22 @@ type Service interface {
 	Run(i interface{}) error
 
 	RPC() *RPC
-	{{if .Plugins}}{{range $type, $plugins := .Plugins}}{{$type}}() *{{$type}}{{end}}{{end}}
+	{{if .Plugins}}
+		{{- range $type, $plugins := .Plugins -}}
+			{{$type}}() *{{$type}}
+		{{end}}
+	{{end}}
 }
 
 func NewService(name string) Service {
 	return &service{
 		layer: &layer{
 		RPC: &RPC{Grpc: new(struct{ grpc.Client })},
-		{{if .Plugins}}{{range $type, $plugins := .Plugins}}{{$type}}: new({{$type}}),{{end}}{{end}}
+		{{if .Plugins}}
+			{{- range $type, $plugins := .Plugins -}}
+				{{$type}}: new({{$type}}),
+			{{end}}
+		{{end}}
 		},
 		base: engine.NewService(name,
 	)}
