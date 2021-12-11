@@ -43,7 +43,7 @@ type Service interface {
 	CLI() CLI
 	Logger() logger.Logger
 	SetContext(ctx context.Context)
-	Register(i interface{}, props map[string]map[string]ServiceProps) error
+	PluginRegister(plug Plugin) error
 	Client(i interface{}, f func(f client.RegisterFunc) client.CreatorFunc, o client.Option) error
 	Server(t server.Server) error
 	Run() error
@@ -58,6 +58,11 @@ type Meta interface {
 
 type CLI interface {
 	cmd.FlagSet
+}
+
+type Plugin interface {
+	Start(ctx context.Context) error
+	Stop() error
 }
 
 func NewService(name string) Service {

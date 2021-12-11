@@ -20,14 +20,12 @@ import (
 	"github.com/lastbackend/engine/client"
 	"github.com/lastbackend/engine/cmd"
 	"github.com/lastbackend/engine/logger"
-	"github.com/lastbackend/engine/plugin"
-	"github.com/lastbackend/engine/plugin/manager"
 	"github.com/lastbackend/engine/server"
-	"os/signal"
 
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"reflect"
 	"sync"
 	"syscall"
@@ -43,9 +41,9 @@ type service struct {
 
 	logger logger.Logger
 
-	pm      manager.Manager
 	servers []server.Server
 	clients []client.Client
+	plugins []Plugin
 
 	signal bool
 }
@@ -58,9 +56,9 @@ func newService(name string) Service {
 	s.context = context.Background()
 	s.logger = logger.DefaultLogger
 	s.cli = cmd.New()
-	s.pm = manager.NewManager()
 	s.servers = make([]server.Server, 0)
 	s.clients = make([]client.Client, 0)
+	s.plugins = make([]Plugin, 0)
 	return s
 }
 
@@ -80,149 +78,8 @@ func (s *service) CLI() CLI {
 	return s.cli
 }
 
-func (s *service) Register(i interface{}, props map[string]map[string]ServiceProps) error {
-
-	initField := func(tech string, service ServiceProps, valueField reflect.Value) error {
-		if valueField.Kind() == reflect.Ptr && valueField.IsNil() {
-			t := reflect.TypeOf(valueField.Interface()).Elem()
-			valueField.Set(reflect.New(t))
-		}
-
-		switch tech {
-		case "Storage":
-			fallthrough
-		case "Cache":
-			fallthrough
-		case "Broker":
-			if err := s.pm.Register(valueField.Interface(), service.Func.(func(f plugin.RegisterFunc) plugin.CreatorFunc), service.Options.(plugin.Option)); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}
-
-	valueIface := reflect.ValueOf(i)
-
-	// Check if the passed interface is a pointer
-	if valueIface.Type().Kind() != reflect.Ptr {
-		return fmt.Errorf("the argument must be a pointer")
-	}
-	if valueIface.IsNil() {
-		return fmt.Errorf("the argument must not be nil")
-	}
-
-	for tech, fields := range props {
-
-		valueField := valueIface.Elem().FieldByName(tech)
-		if !valueField.IsValid() {
-			return fmt.Errorf("interface `%s` does not have the field `%s`", valueIface.Type(), tech)
-		}
-
-		typeField := reflect.TypeOf(valueIface.Elem().FieldByName(tech))
-
-		if typeField.Kind() == reflect.Interface {
-			return fmt.Errorf("the argument %s must not be interface", valueIface.Elem().FieldByName(tech).Type())
-		}
-
-		techValueField := valueIface.Elem().FieldByName(tech)
-
-		if techValueField.Kind() == reflect.Ptr && techValueField.IsNil() {
-			if len(fields) != 1 {
-				return fmt.Errorf("interface `%s` does not inplement custom options structure", techValueField.Type())
-			}
-
-			vField := techValueField
-
-			// Get first element from map
-			keys := reflect.ValueOf(fields).MapKeys()
-			serviceProp := fields[keys[0].String()]
-
-			if err := initField(tech, serviceProp, vField); err != nil {
-				return fmt.Errorf("can not init %s argument: %v", vField.Type(), err)
-			}
-
-			continue
-		}
-
-		if techValueField.Kind() == reflect.Struct {
-			if techValueField.NumField() == 1 {
-				elemValueFiled := techValueField.Field(0)
-				if elemValueFiled.Kind() == reflect.Interface {
-					if techValueField.Kind() != reflect.Ptr {
-						return fmt.Errorf("using unaddressable value %s", techValueField.Type().Field(0).Name)
-					}
-					elemValueFiled = techValueField
-				}
-				if elemValueFiled.Kind() == reflect.Struct {
-					if techValueField.Kind() != reflect.Ptr {
-						return fmt.Errorf("using unaddressable value %s", techValueField.Type().Field(0).Name)
-					}
-				}
-
-				// Get first element from map
-				keys := reflect.ValueOf(fields).MapKeys()
-				serviceProp := fields[keys[0].String()]
-
-				if err := initField(tech, serviceProp, elemValueFiled); err != nil {
-					return fmt.Errorf("can not init %s argument: %v", elemValueFiled.Type(), err)
-				}
-
-				continue
-			}
-		}
-
-		if techValueField.Kind() == reflect.Ptr && !techValueField.IsNil() {
-			elemValueFiled := techValueField.Elem().Field(0)
-
-			if elemValueFiled.Kind() == reflect.Interface {
-				if techValueField.Kind() != reflect.Ptr {
-					return fmt.Errorf("using unaddressable value %s", techValueField.Type().Field(0).Name)
-				}
-				elemValueFiled = techValueField
-			}
-			if elemValueFiled.Kind() == reflect.Struct {
-				if techValueField.Kind() != reflect.Ptr {
-					return fmt.Errorf("using unaddressable value %s", techValueField.Type().Field(0).Name)
-				}
-			}
-
-			// Get first element from map
-			keys := reflect.ValueOf(fields).MapKeys()
-			serviceProp := fields[keys[0].String()]
-
-			if err := initField(tech, serviceProp, elemValueFiled); err != nil {
-				return fmt.Errorf("can not init %s argument: %v", elemValueFiled.Type(), err)
-			}
-
-			continue
-		}
-
-		for srv, serviceProp := range fields {
-
-			srvField := valueIface.Elem().FieldByName(tech).FieldByName(srv)
-
-			if srvField.Kind() != reflect.Interface {
-				if !srvField.IsValid() {
-					return fmt.Errorf("interface `%s` does not have the field `%s`", valueField.Type(), srv)
-				}
-				if srvField.Kind() != reflect.Ptr {
-					return fmt.Errorf("the `%s` must be a pointer`", srv)
-				}
-				if srvField.IsNil() {
-					t := reflect.TypeOf(srvField.Interface()).Elem()
-					srvField.Set(reflect.New(t))
-				}
-			}
-
-			if err := initField(tech, serviceProp, srvField); err != nil {
-				return fmt.Errorf("can not init %s argument: %v", srvField.Type(), err)
-			}
-
-		}
-
-	}
-
+func (s *service) PluginRegister(plug Plugin) error {
+	s.plugins = append(s.plugins, plug)
 	return nil
 }
 
@@ -288,9 +145,6 @@ func (s *service) Run() error {
 	s.cli.SetShortDescription(s.meta.ShorDescription)
 	s.cli.SetLongDescription(s.meta.LongDescription)
 
-	s.cli.AddFlags(s.pm.Flags()...)
-	s.cli.AddCommands(s.pm.Commands()...)
-
 	for _, t := range s.clients {
 		s.cli.AddFlags(t.Flags()...)
 	}
@@ -301,8 +155,10 @@ func (s *service) Run() error {
 
 	return s.cli.Run(func() error {
 
-		if err := s.pm.Start(); err != nil {
-			return err
+		for _, t := range s.plugins {
+			if err := t.Start(s.context); err != nil {
+				return err
+			}
 		}
 
 		for _, t := range s.clients {
@@ -336,7 +192,11 @@ func (s *service) Run() error {
 			}
 		}
 
-		s.pm.Stop()
+		for _, t := range s.plugins {
+			if err := t.Stop(); err != nil {
+				return err
+			}
+		}
 
 		return nil
 	})
