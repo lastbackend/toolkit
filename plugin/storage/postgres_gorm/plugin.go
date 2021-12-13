@@ -18,13 +18,12 @@ package postgres_gorm
 
 import (
 	"github.com/golang-migrate/migrate/v4"
-	psql "gorm.io/driver/postgres"
-
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/jmoiron/sqlx"
 	"github.com/lastbackend/engine"
 	"github.com/lastbackend/engine/cmd"
 	"github.com/pkg/errors"
+	psql "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -49,33 +48,33 @@ type Plugin interface {
 	engine.Plugin
 
 	DB() *gorm.DB
-	Register(app engine.Service, opts PluginOptions) error
-}
-
-type PluginOptions struct {
-	Name string
+	Register(app engine.Service, opts Options) error
 }
 
 type Options struct {
+	Name string
+}
+
+type options struct {
 	Connection    string
 	MigrationsDir *string
 }
 
 type plugin struct {
 	prefix string
-	opts   Options
+	opts   options
 
 	db *gorm.DB
 }
 
-func Register(app engine.Service, opts PluginOptions) Plugin {
-	db := new(plugin)
-	db.Register(app, opts)
-	return db
+func Register(app engine.Service, opts Options) Plugin {
+	p := new(plugin)
+	p.Register(app, opts)
+	return p
 }
 
 // Register - registers the plug implements storage using Postgres as a database storage
-func (p *plugin) Register(app engine.Service, opts PluginOptions) error {
+func (p *plugin) Register(app engine.Service, opts Options) error {
 
 	p.prefix = opts.Name
 	if p.prefix == "" {
@@ -121,10 +120,10 @@ func (p *plugin) addFlags(app engine.Service) {
 }
 
 func (p *plugin) addCommands(app engine.Service) {
-	migrateCmd := &cmd.Cmd{
+	migrateCmd := &cmd.Command{
 		Use:       "migrate [SOURCE_PATH]",
 		ShortDesc: "Database migrations",
-		Run: func(cmd *cmd.Cmd, args []string) error {
+		Run: func(cmd *cmd.Command, args []string) error {
 
 			if len(args) == 0 {
 				return fmt.Errorf("argument \"source path\" is not set, programmer error, please correct")

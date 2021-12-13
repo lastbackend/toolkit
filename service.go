@@ -146,11 +146,17 @@ func (s *service) Run() error {
 	s.cli.SetLongDescription(s.meta.LongDescription)
 
 	for _, t := range s.clients {
-		s.cli.AddFlags(t.Flags()...)
+		flags := t.Flags()
+		for _, f := range flags {
+			s.cli.AddFlag(f)
+		}
 	}
 
 	for _, t := range s.servers {
-		s.cli.AddFlags(t.Flags()...)
+		flags := t.Flags()
+		for _, f := range flags {
+			s.cli.AddFlag(f)
+		}
 	}
 
 	return s.cli.Run(func() error {

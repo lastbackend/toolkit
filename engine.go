@@ -58,6 +58,7 @@ type Meta interface {
 
 type CLI interface {
 	cmd.FlagSet
+	cmd.CommandSet
 }
 
 type Plugin interface {

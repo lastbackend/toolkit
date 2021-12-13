@@ -47,10 +47,10 @@ type Plugin interface {
 	engine.Plugin
 
 	DB() *pg.DB
-	Register(app engine.Service, opts PluginOptions) error
+	Register(app engine.Service, opts Options) error
 }
 
-type PluginOptions struct {
+type Options struct {
 	Name string
 }
 
@@ -120,14 +120,14 @@ type plugin struct {
 	db *pg.DB
 }
 
-func Register(app engine.Service, opts PluginOptions) Plugin {
+func Register(app engine.Service, opts Options) Plugin {
 	db := new(plugin)
 	db.Register(app, opts)
 	return db
 }
 
 // Register - registers the plug implements storage using Postgres as a database storage
-func (p *plugin) Register(app engine.Service, opts PluginOptions) error {
+func (p *plugin) Register(app engine.Service, opts Options) error {
 
 	p.prefix = opts.Name
 	if p.prefix == "" {
@@ -240,10 +240,10 @@ func (p *plugin) addFlags(app engine.Service) {
 }
 
 func (p *plugin) addCommands(app engine.Service) {
-	migrateCmd := &cmd.Cmd{
+	migrateCmd := &cmd.Command{
 		Use:       "migrate [SOURCE_PATH]",
 		ShortDesc: "Database migrations",
-		Run: func(cmd *cmd.Cmd, args []string) error {
+		Run: func(cmd *cmd.Command, args []string) error {
 
 			if len(args) == 0 {
 				return fmt.Errorf("argument \"source path\" is not set, programmer error, please correct")
