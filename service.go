@@ -160,7 +160,6 @@ func (s *service) Run() error {
 	}
 
 	return s.cli.Run(func() error {
-
 		for _, t := range s.plugins {
 			if err := t.Start(s.context); err != nil {
 				return err

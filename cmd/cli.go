@@ -186,8 +186,10 @@ func (c *cli) Run(fn func() error) error {
 	}
 
 	c.rootCmd.Run = func(cmd *Command, args []string) error {
+		fmt.Println("1 +++++++")
 		debugFlag, err := cmd.Flags().GetBool("debug")
 		if err != nil {
+			fmt.Println("2 +++++++", err)
 			return err
 		}
 

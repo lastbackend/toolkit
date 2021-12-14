@@ -47,7 +47,7 @@ type Plugin interface {
 	engine.Plugin
 
 	DB() *pg.DB
-	Register(app engine.Service, opts Options) error
+	Register(app engine.Service, opts *Options) error
 }
 
 type Options struct {
@@ -120,26 +120,26 @@ type plugin struct {
 	db *pg.DB
 }
 
-func Register(app engine.Service, opts Options) Plugin {
+func NewPlugin(app engine.Service, opts *Options) Plugin {
 	db := new(plugin)
 	db.Register(app, opts)
 	return db
 }
 
 // Register - registers the plug implements storage using Postgres as a database storage
-func (p *plugin) Register(app engine.Service, opts Options) error {
+func (p *plugin) Register(app engine.Service, opts *Options) error {
 
 	p.prefix = opts.Name
 	if p.prefix == "" {
 		p.prefix = defaultPrefix
 	}
 
+	p.addFlags(app)
+	p.addCommands(app)
+
 	if err := app.PluginRegister(p); err != nil {
 		return err
 	}
-
-	p.addFlags(app)
-	p.addCommands(app)
 
 	return nil
 }
