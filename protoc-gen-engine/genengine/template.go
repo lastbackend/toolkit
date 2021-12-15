@@ -139,7 +139,7 @@ var props = map[string]map[string]engine.ServiceProps{
 
 	type RPC struct {
 		Grpc grpc.Client
-		{{- range $key, $value := .Clients}}
+		{{range $key, $value := .Clients -}}
 			{{$value.Service | ToCapitalize}} {{$key}}.{{$value.Service | ToCapitalize}}RpcClient
 		{{end}}
 	}
@@ -220,7 +220,7 @@ func (s *service) RPC() *RPC {
 }
 
 {{if .Plugins}}
-	{{range $type, $plugins := .Plugins}}
+	{{- range $type, $plugins := .Plugins}}
 		func (s *service) {{$type}}() *{{$type}} {
 			return s.layer.{{$type}}
 		}
