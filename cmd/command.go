@@ -125,29 +125,29 @@ func (c *Command) Flags() *pflag.FlagSet {
 	return c.cobraCommand.Flags()
 }
 
-func (c *Command) AddStringFlag(name string, shorthand string, value string, dest *string, envVar string, required bool, usage string) {
+func (c *Command) AddStringFlag(name string, dest *string) {
 	c.flagsInit()
-	c.flags.AddStringFlag(name, shorthand, value, dest, envVar, required, usage)
+	c.flags.AddStringFlag(name, dest)
 }
 
-func (c *Command) AddIntFlag(name string, shorthand string, value int, dest *int, envVar string, required bool, usage string) {
+func (c *Command) AddIntFlag(name string, dest *int) {
 	c.flagsInit()
-	c.flags.AddIntFlag(name, shorthand, value, dest, envVar, required, usage)
+	c.flags.AddIntFlag(name, dest)
 }
 
-func (c *Command) AddInt32Flag(name string, shorthand string, value int32, dest *int32, envVar string, required bool, usage string) {
+func (c *Command) AddInt32Flag(name string, dest *int32) {
 	c.flagsInit()
-	c.flags.AddInt32Flag(name, shorthand, value, dest, envVar, required, usage)
+	c.flags.AddInt32Flag(name, dest)
 }
 
-func (c *Command) AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVar string, required bool, usage string) {
+func (c *Command) AddBoolFlag(name string, dest *bool) {
 	c.flagsInit()
-	c.flags.AddBoolFlag(name, shorthand, value, dest, envVar, required, usage)
+	c.flags.AddBoolFlag(name, dest)
 }
 
-func (c *Command) AddStringSliceFlag(name string, shorthand string, value []string, dest *[]string, envVar string, required bool, usage string) {
+func (c *Command) AddStringSliceFlag(name string, dest *[]string, envVar string, required bool, usage string) {
 	c.flagsInit()
-	c.flags.AddStringSliceFlag(name, shorthand, value, dest, envVar, required, usage)
+	c.flags.AddStringSliceFlag(name, dest)
 }
 
 func (c *Command) flagsInit() {
