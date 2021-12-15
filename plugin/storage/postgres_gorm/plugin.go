@@ -91,7 +91,6 @@ func (p *plugin) Register(app engine.Service, opts *Options) error {
 }
 
 func (p *plugin) DB() *gorm.DB {
-	fmt.Println("DB >>>>>", p.db)
 	return p.db
 }
 
@@ -103,7 +102,6 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Start >>>>>", db)
 	p.db = db
 	return nil
 }

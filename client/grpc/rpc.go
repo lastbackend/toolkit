@@ -18,19 +18,19 @@ package grpc
 
 import (
 	"context"
-	"github.com/lastbackend/engine"
-
 	"fmt"
+	"github.com/lastbackend/engine"
 	"strings"
 )
 
 const (
-	clientName    = "grpc"
 	defaultPrefix = "grpc"
 )
 
 type RpcClient interface {
-	Get() *GrpcClient
+	engine.Client
+
+	Client() *GrpcClient
 }
 
 type Client interface {
@@ -47,7 +47,6 @@ type Stream interface {
 	RecvMsg(m interface{}) error
 	CloseSend() error
 }
-
 
 type rpcClient struct {
 	client *GrpcClient
@@ -75,8 +74,16 @@ func NewClient(app engine.Service, opts *ClientOptions) RpcClient {
 	return c
 }
 
-func (s *rpcClient) Get() *GrpcClient {
+func (s *rpcClient) Client() *GrpcClient {
 	return s.client
+}
+
+func (s *rpcClient) Start() error {
+	return s.client.Init(s.opts)
+}
+
+func (s *rpcClient) Stop() error {
+	return s.client.Close()
 }
 
 func (s *rpcClient) addFlags(app engine.Service) {

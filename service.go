@@ -163,13 +163,13 @@ func (s *service) Run() error {
 			}
 		}
 
-		//for _, t := range s.clients {
-		//	if err := t.Start(); err != nil {
-		//		return err
-		//	}
-		//}
-
 		for _, t := range s.servers {
+			if err := t.Start(); err != nil {
+				return err
+			}
+		}
+
+		for _, t := range s.clients {
 			if err := t.Start(); err != nil {
 				return err
 			}
