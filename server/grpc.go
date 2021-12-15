@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package grpc
+package server
 
 import (
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
-	"github.com/lastbackend/engine/cmd"
+	"github.com/lastbackend/engine"
 	"github.com/lastbackend/engine/logger"
 	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
@@ -33,8 +33,12 @@ import (
 )
 
 const (
-	ServiceName = "grpc"
+	serviceName = "grpc"
 )
+
+type ServerOptions struct {
+	Name string
+}
 
 type grpcServer struct {
 	sync.RWMutex
@@ -43,18 +47,20 @@ type grpcServer struct {
 
 	opts Options
 
-	srv        *grpc.Server
-	isRunning  bool
+	srv       *grpc.Server
+	isRunning bool
 
 	exit chan chan error
 }
 
-func NewServer(prefix string) Server {
-	return newServer(prefix)
-}
-
-func (g *grpcServer) Name() string {
-	return ServiceName
+func NewServer(app engine.Service, opts *ServerOptions) *grpcServer {
+	name := opts.Name
+	if name == "" {
+		name = serviceName
+	}
+	s := newServer(name)
+	s.addFlags(app)
+	return s
 }
 
 func (g *grpcServer) Register(sd *grpc.ServiceDesc, ss interface{}) error {
@@ -165,48 +171,31 @@ func (g *grpcServer) Stop() error {
 	return err
 }
 
-func (g *grpcServer) Flags() []cmd.Flag {
-	return []cmd.Flag{
-		&cmd.StringFlag{
-			Name:        g.withPrefix("address"),
-			EnvVar:      g.withEnvPrefix("ADDRESS"),
-			Usage:       "Server address for listening",
-			Required:    false,
-			Value:       defaultAddress,
-			Destination: &g.opts.Address,
-		},
-		&cmd.StringFlag{
-			Name:        g.withPrefix("name"),
-			EnvVar:      g.withEnvPrefix("NAME"),
-			Usage:       "Server name",
-			Required:    false,
-			Value:       defaultName,
-			Destination: &g.opts.Name,
-		},
-		&cmd.IntFlag{
-			Name:        g.withPrefix("max-recv-msg-size"),
-			EnvVar:      g.withEnvPrefix("MAX-RECV-MSG-SIZE"),
-			Usage:       "Sets the max message size in bytes the server can receive (default 16 MB)",
-			Required:    false,
-			Value:       defaultMaxRecvMsgSize,
-			Destination: &g.opts.MaxRecvMsgSize,
-		},
-		&cmd.IntFlag{
-			Name:        g.withPrefix("max-send-msg-size"),
-			EnvVar:      g.withEnvPrefix("MAX-SEND-MSG-SIZE"),
-			Usage:       "Sets the max message size in bytes the server can send (default 16 MB)",
-			Required:    false,
-			Value:       defaultMaxSendMsgSize,
-			Destination: &g.opts.MaxSendMsgSize,
-		},
-		&cmd.IntFlag{
-			Name:        g.withPrefix("max-conn-size"),
-			EnvVar:      g.withEnvPrefix("MAX-CONN-SIZE"),
-			Usage:       "Sets the max simultaneous connections for server (default unlimited)",
-			Required:    false,
-			Destination: &g.opts.MaxConnSize,
-		},
-	}
+func (g *grpcServer) addFlags(app engine.Service) {
+
+	app.CLI().AddStringFlag(g.withPrefix("address"), &g.opts.Address).
+		Env(g.withEnvPrefix("ADDRESS")).
+		Usage("Server address for listening").
+		Default(defaultAddress)
+
+	app.CLI().AddStringFlag(g.withPrefix("name"), &g.opts.Name).
+		Env(g.withEnvPrefix("NAME")).
+		Usage("Server name").
+		Default(defaultName)
+
+	app.CLI().AddIntFlag(g.withPrefix("max-recv-msg-size"), &g.opts.MaxRecvMsgSize).
+		Env(g.withEnvPrefix("MAX_RECV_MSG_SIZE")).
+		Usage("Sets the max message size in bytes the server can receive (default 16 MB)").
+		Default(defaultMaxRecvMsgSize)
+
+	app.CLI().AddIntFlag(g.withPrefix("max-send-msg-size"), &g.opts.MaxSendMsgSize).
+		Env(g.withEnvPrefix("MAX_RECV_MSG_SIZE")).
+		Usage("Sets the max message size in bytes the server can send (default 16 MB)").
+		Default(defaultMaxSendMsgSize)
+
+	app.CLI().AddIntFlag(g.withPrefix("max-conn-size"), &g.opts.MaxConnSize).
+		Env(g.withEnvPrefix("MAX_CONN_SIZE")).
+		Usage("Sets the max simultaneous connections for server (default unlimited)")
 }
 
 func newServer(prefix string) *grpcServer {

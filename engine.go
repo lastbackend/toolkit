@@ -19,10 +19,8 @@ package engine
 import (
 	"context"
 
-	"github.com/lastbackend/engine/client"
 	"github.com/lastbackend/engine/cmd"
 	"github.com/lastbackend/engine/logger"
-	"github.com/lastbackend/engine/server"
 )
 
 type ServiceType uint8
@@ -38,19 +36,18 @@ type HandlerProps struct {
 }
 
 type Service interface {
-	Name() string
-	Version() string
 	Meta() Meta
 	CLI() CLI
 	Logger() logger.Logger
 	SetContext(ctx context.Context)
 	PluginRegister(plug Plugin) error
-	Client(i interface{}, f func(f client.RegisterFunc) client.CreatorFunc, o client.Option) error
-	Server(t server.Server) error
+	ServerRegister(srv Server) error
+	ClientRegister(cli Client) error
 	Run() error
 }
 
 type Meta interface {
+	SetName(name string) Meta
 	SetVersion(version string) Meta
 	SetEnvPrefix(prefix string) Meta
 	SetShortDescription(desc string) Meta
@@ -60,6 +57,16 @@ type Meta interface {
 type CLI interface {
 	cmd.FlagSet
 	cmd.CommandSet
+}
+
+type Server interface {
+	Start() error
+	Stop() error
+}
+
+type Client interface {
+	Start() error
+	Stop() error
 }
 
 type Plugin interface {

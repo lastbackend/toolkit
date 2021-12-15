@@ -17,10 +17,8 @@ limitations under the License.
 package engine
 
 import (
-	"github.com/lastbackend/engine/client"
 	"github.com/lastbackend/engine/cmd"
 	"github.com/lastbackend/engine/logger"
-	"github.com/lastbackend/engine/server"
 
 	"context"
 	"fmt"
@@ -41,8 +39,8 @@ type service struct {
 
 	logger logger.Logger
 
-	servers []server.Server
-	clients []client.Client
+	clients []Client
+	servers []Server
 	plugins []Plugin
 
 	signal bool
@@ -51,23 +49,14 @@ type service struct {
 func newService(name string) Service {
 	s := new(service)
 	s.meta = new(meta)
-	s.meta.Name = name
-
+	s.meta.SetName(name)
 	s.context = context.Background()
 	s.logger = logger.DefaultLogger
 	s.cli = cmd.New()
-	s.servers = make([]server.Server, 0)
-	s.clients = make([]client.Client, 0)
+	s.clients = make([]Client, 0)
+	s.servers = make([]Server, 0)
 	s.plugins = make([]Plugin, 0)
 	return s
-}
-
-func (s *service) Name() string {
-	return s.meta.Name
-}
-
-func (s *service) Version() string {
-	return s.meta.Version
 }
 
 func (s *service) Meta() Meta {
@@ -79,42 +68,7 @@ func (s *service) CLI() CLI {
 }
 
 func (s *service) PluginRegister(plug Plugin) error {
-	s.plugins = append(s.plugins, plug)
-	return nil
-}
-
-func (s *service) Client(i interface{}, f func(f client.RegisterFunc) client.CreatorFunc, o client.Option) error {
-
-	valueIface := reflect.ValueOf(i)
-	if valueIface.Kind() != reflect.Ptr || valueIface.IsNil() {
-		return fmt.Errorf("using unaddressable value %s", valueIface.Type().Field(0).Name)
-	}
-
-	typeField := reflect.TypeOf(i)
-	if typeField.Kind() == reflect.Interface {
-		return fmt.Errorf("the argument %s must not be interface", valueIface.Elem().Field(0).Type())
-	}
-
-	t := reflect.TypeOf(valueIface.Interface()).Elem()
-	valueIface.Elem().Field(0).Set(reflect.New(t))
-
-	valIface := valueIface.Elem()
-	funcType := reflect.TypeOf(client.RegisterFunc(nil))
-	funcRegister := reflect.MakeFunc(funcType, func(args []reflect.Value) []reflect.Value {
-		s.clients = append(s.clients, args[0].Interface().(client.Client))
-		return nil
-	})
-	funcCreator := reflect.ValueOf(f).Call([]reflect.Value{funcRegister})
-	valueOptions := reflect.ValueOf(o)
-	valueInstance := funcCreator[0].Call([]reflect.Value{valueOptions})
-
-	valIface.Field(0).Set(valueInstance[0].Elem().Convert(valIface.Field(0).Type()))
-
-	return nil
-}
-
-func (s *service) Server(t server.Server) error {
-	valueIface := reflect.ValueOf(t)
+	valueIface := reflect.ValueOf(plug)
 
 	// Check if the passed interface is a pointer
 	if valueIface.Type().Kind() != reflect.Ptr {
@@ -124,7 +78,64 @@ func (s *service) Server(t server.Server) error {
 		return fmt.Errorf("the argument must not be nil")
 	}
 
-	s.servers = append(s.servers, t)
+	s.plugins = append(s.plugins, plug)
+	return nil
+}
+
+func (s *service) ClientRegister(cli Client) error {
+	//
+	//valueIface := reflect.ValueOf(i)
+	//if valueIface.Kind() != reflect.Ptr || valueIface.IsNil() {
+	//	return fmt.Errorf("using unaddressable value %s", valueIface.Type().Field(0).Name)
+	//}
+	//
+	//typeField := reflect.TypeOf(i)
+	//if typeField.Kind() == reflect.Interface {
+	//	return fmt.Errorf("the argument %s must not be interface", valueIface.Elem().Field(0).Type())
+	//}
+	//
+	//t := reflect.TypeOf(valueIface.Interface()).Elem()
+	//valueIface.Elem().Field(0).Set(reflect.New(t))
+	//
+	//valIface := valueIface.Elem()
+	//funcType := reflect.TypeOf(client.RegisterFunc(nil))
+	//funcRegister := reflect.MakeFunc(funcType, func(args []reflect.Value) []reflect.Value {
+	//	s.clients = append(s.clients, args[0].Interface().(grpc.Client))
+	//	return nil
+	//})
+	//funcCreator := reflect.ValueOf(f).Call([]reflect.Value{funcRegister})
+	//valueOptions := reflect.ValueOf(o)
+	//valueInstance := funcCreator[0].Call([]reflect.Value{valueOptions})
+	//
+	//valIface.Field(0).Set(valueInstance[0].Elem().Convert(valIface.Field(0).Type()))
+
+	valueIface := reflect.ValueOf(cli)
+
+	// Check if the passed interface is a pointer
+	if valueIface.Type().Kind() != reflect.Ptr {
+		return fmt.Errorf("the argument must be a pointer")
+	}
+	if valueIface.IsNil() {
+		return fmt.Errorf("the argument must not be nil")
+	}
+
+	s.clients = append(s.clients, cli)
+
+	return nil
+}
+
+func (s *service) ServerRegister(srv Server) error {
+	valueIface := reflect.ValueOf(srv)
+
+	// Check if the passed interface is a pointer
+	if valueIface.Type().Kind() != reflect.Ptr {
+		return fmt.Errorf("the argument must be a pointer")
+	}
+	if valueIface.IsNil() {
+		return fmt.Errorf("the argument must not be nil")
+	}
+
+	s.servers = append(s.servers, srv)
 
 	return nil
 }
@@ -145,20 +156,6 @@ func (s *service) Run() error {
 	s.cli.SetShortDescription(s.meta.ShorDescription)
 	s.cli.SetLongDescription(s.meta.LongDescription)
 
-	for _, t := range s.clients {
-		flags := t.Flags()
-		for _, f := range flags {
-			s.cli.AddFlag(f)
-		}
-	}
-
-	for _, t := range s.servers {
-		flags := t.Flags()
-		for _, f := range flags {
-			s.cli.AddFlag(f)
-		}
-	}
-
 	return s.cli.Run(func() error {
 		for _, t := range s.plugins {
 			if err := t.Start(s.context); err != nil {
@@ -166,11 +163,11 @@ func (s *service) Run() error {
 			}
 		}
 
-		for _, t := range s.clients {
-			if err := t.Start(); err != nil {
-				return err
-			}
-		}
+		//for _, t := range s.clients {
+		//	if err := t.Start(); err != nil {
+		//		return err
+		//	}
+		//}
 
 		for _, t := range s.servers {
 			if err := t.Start(); err != nil {

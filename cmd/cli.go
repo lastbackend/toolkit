@@ -66,6 +66,7 @@ type FlagSet interface {
 	AddFlag(Flag)
 	AddStringFlag(name string, dest *string) *StringFlag
 	AddIntFlag(name string, dest *int) *IntFlag
+	AddInt32Flag(name string, dest *int32) *Int32Flag
 	AddBoolFlag(name string, dest *bool) *BoolFlag
 	AddStringSliceFlag(name string, dest *[]string) *StringSliceFlag
 	AddDurationFlag(name string, dest *time.Duration) *DurationFlag

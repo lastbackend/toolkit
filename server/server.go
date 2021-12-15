@@ -17,17 +17,11 @@ limitations under the License.
 package server
 
 import (
-	"github.com/lastbackend/engine/cmd"
-	"github.com/lastbackend/engine/server/grpc"
+	"google.golang.org/grpc"
 )
 
 type Server interface {
+	Register(sd *grpc.ServiceDesc, ss interface{}) error
 	Start() error
 	Stop() error
-	Flags() []cmd.Flag
-}
-
-
-func NewGrpcServer() grpc.Server {
-	return grpc.NewServer("server-grpc")
 }
