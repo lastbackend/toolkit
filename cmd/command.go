@@ -125,29 +125,29 @@ func (c *Command) Flags() *pflag.FlagSet {
 	return c.cobraCommand.Flags()
 }
 
-func (c *Command) AddStringFlag(name string, dest *string) {
+func (c *Command) AddStringFlag(name string, dest *string) *StringFlag {
 	c.flagsInit()
-	c.flags.AddStringFlag(name, dest)
+	return c.flags.AddStringFlag(name, dest)
 }
 
-func (c *Command) AddIntFlag(name string, dest *int) {
+func (c *Command) AddIntFlag(name string, dest *int) *IntFlag {
 	c.flagsInit()
-	c.flags.AddIntFlag(name, dest)
+	return c.flags.AddIntFlag(name, dest)
 }
 
-func (c *Command) AddInt32Flag(name string, dest *int32) {
+func (c *Command) AddInt32Flag(name string, dest *int32) *Int32Flag {
 	c.flagsInit()
-	c.flags.AddInt32Flag(name, dest)
+	return c.flags.AddInt32Flag(name, dest)
 }
 
-func (c *Command) AddBoolFlag(name string, dest *bool) {
+func (c *Command) AddBoolFlag(name string, dest *bool) *BoolFlag {
 	c.flagsInit()
-	c.flags.AddBoolFlag(name, dest)
+	return c.flags.AddBoolFlag(name, dest)
 }
 
-func (c *Command) AddStringSliceFlag(name string, dest *[]string) {
+func (c *Command) AddStringSliceFlag(name string, dest *[]string) *StringSliceFlag {
 	c.flagsInit()
-	c.flags.AddStringSliceFlag(name, dest)
+	return c.flags.AddStringSliceFlag(name, dest)
 }
 
 func (c *Command) flagsInit() {

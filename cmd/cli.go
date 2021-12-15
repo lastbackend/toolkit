@@ -64,11 +64,11 @@ type flag interface {
 
 type FlagSet interface {
 	AddFlag(Flag)
-	AddStringFlag(name string, dest *string)
-	AddIntFlag(name string, dest *int)
-	AddBoolFlag(name string, dest *bool)
-	AddStringSliceFlag(name string, dest *[]string)
-	AddDurationFlag(name string, dest *time.Duration)
+	AddStringFlag(name string, dest *string) *StringFlag
+	AddIntFlag(name string, dest *int) *IntFlag
+	AddBoolFlag(name string, dest *bool) *BoolFlag
+	AddStringSliceFlag(name string, dest *[]string) *StringSliceFlag
+	AddDurationFlag(name string, dest *time.Duration) *DurationFlag
 }
 
 type cli struct {

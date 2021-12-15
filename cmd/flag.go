@@ -26,46 +26,58 @@ import (
 
 type Flags []Flag
 
-func (f *Flags) AddStringFlag(name string, dest *string) {
-	*f = append(*f, &StringFlag{
+func (f *Flags) AddStringFlag(name string, dest *string) *StringFlag {
+	flag := &StringFlag{
 		name:        name,
 		destination: dest,
-	})
+	}
+	*f = append(*f, flag)
+	return flag
 }
 
-func (f *Flags) AddIntFlag(name string, dest *int) {
-	*f = append(*f, &IntFlag{
+func (f *Flags) AddIntFlag(name string, dest *int) *IntFlag {
+	flag := &IntFlag{
 		name:        name,
 		destination: dest,
-	})
+	}
+	*f = append(*f, flag)
+	return flag
 }
 
-func (f *Flags) AddInt32Flag(name string, dest *int32) {
-	*f = append(*f, &Int32Flag{
+func (f *Flags) AddInt32Flag(name string, dest *int32) *Int32Flag {
+	flag := &Int32Flag{
 		name:        name,
 		destination: dest,
-	})
+	}
+	*f = append(*f, flag)
+	return flag
 }
 
-func (f *Flags) AddBoolFlag(name string, dest *bool) {
-	*f = append(*f, &BoolFlag{
+func (f *Flags) AddBoolFlag(name string, dest *bool) *BoolFlag {
+	flag := &BoolFlag{
 		name:        name,
 		destination: dest,
-	})
+	}
+	*f = append(*f, flag)
+	return flag
 }
 
-func (f *Flags) AddStringSliceFlag(name string, dest *[]string) {
-	*f = append(*f, &StringSliceFlag{
+func (f *Flags) AddStringSliceFlag(name string, dest *[]string) *StringSliceFlag {
+	flag := &StringSliceFlag{
 		name:        name,
 		destination: dest,
-	})
+	}
+	*f = append(*f, flag)
+	return flag
 }
 
-func (f *Flags) AddDurationFlag(name string, dest *time.Duration) {
-	*f = append(*f, &DurationFlag{
+func (f *Flags) AddDurationFlag(name string, dest *time.Duration) *DurationFlag {
+	flag := &DurationFlag{
 		name:        name,
 		destination: dest,
-	})
+	}
+	*f = append(*f, flag)
+	return flag
 }
 
 func getEnv(envVar string) (string, bool) {
