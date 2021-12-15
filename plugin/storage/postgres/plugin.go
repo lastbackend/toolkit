@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package postgres_pg
+package postgres
 
 import (
 	"github.com/golang-migrate/migrate/v4"
@@ -178,11 +178,40 @@ func (p *plugin) withEnvPrefix(name string) string {
 }
 
 func (p *plugin) addFlags(app engine.Service) {
-	app.CLI().AddStringFlag(p.withPrefix("connection"), "", "", &p.opts.Connection, p.withEnvPrefix("CONNECTION"), true, "PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>)")
-	app.CLI().AddDurationFlag(p.withPrefix("conn-max-lifetime"), "", 0, p.opts.ConnMaxLifetime, p.withEnvPrefix("CONN_MAX_LIFETIME"), true, "Sets the maximum amount of time a connection may be reused.\nIf <= 0, connections are not closed due to a connection's age")
-	app.CLI().AddDurationFlag(p.withPrefix("conn-max-idle-time"), "", 0, p.opts.ConnMaxIdleTime, p.withEnvPrefix("CONN_MAX_IDLE_TIME"), true, "Sets the maximum amount of time a connection may be idle.\nIf <= 0, connections are not closed due to a connection's idle time")
-	app.CLI().AddIntFlag(p.withPrefix("max-idle-conns"), "", 0, p.opts.MaxIdleConns, p.withEnvPrefix("MAX_IDLE_CONNS"), true, "Sets the maximum number of connections in the idle connection pool.\nIf <= 0, no idle connections are retained.\n(The default max idle connections is currently 2)")
-	app.CLI().AddIntFlag(p.withPrefix("max-open-conns"), "", 0, p.opts.MaxOpenConns, p.withEnvPrefix("MAX_OPEN_CONNS"), true, "Sets the maximum number of open connections to the database.\nIf <= 0, then there is no limit on the number of open connections.\n(default unlimited)")
+
+	// define plugin connection
+	app.CLI().AddStringFlag(p.withPrefix("connection"), &p.opts.Connection).
+		Env(p.withEnvPrefix("CONNECTION")).
+		Usage("PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>)").
+		Required()
+
+	// define connection max lifetime flag
+	app.CLI().AddDurationFlag(p.withPrefix("conn-max-lifetime"), p.opts.ConnMaxLifetime).
+		Env(p.withEnvPrefix("CONN_MAX_LIFETIME")).
+		Usage("Sets the maximum amount of time a connection may be reused.\nIf <= 0, connections are not closed due to a connection's age").
+		Default(0).
+		Required()
+
+	// define connection max idle flag
+	app.CLI().AddDurationFlag(p.withPrefix("conn-max-idle-time"), p.opts.ConnMaxIdleTime).
+		Env(p.withEnvPrefix("CONN_MAX_IDLE_TIME")).
+		Usage("Sets the maximum amount of time a connection may be idle.\nIf <= 0, connections are not closed due to a connection's idle time").
+		Default(0).
+		Required()
+
+	// define max idle connections flag
+	app.CLI().AddIntFlag(p.withPrefix("max-idle-conns"), p.opts.MaxIdleConns).
+		Env(p.withEnvPrefix("MAX_IDLE_CONNS")).
+		Usage("Sets the maximum number of connections in the idle connection pool.\nIf <= 0, no idle connections are retained.\n(The default max idle connections is currently 2)").
+		Default(0).
+		Required()
+
+	// define max idle connections flag
+	app.CLI().AddIntFlag(p.withPrefix("max-open-conns"), p.opts.MaxOpenConns).
+		Env(p.withEnvPrefix("MAX_OPEN_CONNS")).
+		Usage("Sets the maximum number of open connections to the database.\nIf <= 0, then there is no limit on the number of open connections.\n(default unlimited)").
+		Default(0).
+		Required()
 }
 
 func (p *plugin) addCommands(app engine.Service) {
@@ -243,7 +272,10 @@ func (p *plugin) addCommands(app engine.Service) {
 		},
 	}
 
-	migrateCmd.AddStringFlag(p.withPrefix("connection"), "", "", nil, p.withEnvPrefix("CONNECTION"), true, "PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>)")
+	migrateCmd.AddStringFlag(p.withPrefix("connection"), nil).
+		Env(p.withEnvPrefix("CONNECTION")).
+		Usage("PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>)").
+		Required()
 
 	app.CLI().AddCommand(migrateCmd)
 }
