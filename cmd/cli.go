@@ -22,6 +22,7 @@ import (
 	"github.com/lastbackend/engine/network/resolver/consul"
 	"github.com/lastbackend/engine/network/resolver/local"
 	"github.com/lastbackend/engine/network/resolver/route"
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"fmt"
@@ -75,7 +76,7 @@ type cli struct {
 	Commands
 
 	opts    Options
-	rootCmd *Command
+	rootCmd *cobra.Command
 }
 
 type Option func(o *Options)
@@ -131,11 +132,12 @@ func (c *cli) AddCommand(cmd *Command) {
 
 func (c *cli) Run(fn func() error) error {
 
-	c.rootCmd = &Command{}
+	c.rootCmd = &cobra.Command{}
 	c.rootCmd.SetGlobalNormalizationFunc(wordSepNormalizeFunc)
 	c.rootCmd.InitDefaultHelpFlag()
-	c.rootCmd.SetHelpCommand(&Command{Use: "no-help", Hidden: true})
+	c.rootCmd.SetHelpCommand(&cobra.Command{Use: "no-help", Hidden: true})
 	c.rootCmd.AddCommand(c.versionCommand())
+
 	c.rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
 	c.rootCmd.Flags().StringP("resolver", "", resolver.LocalResolver, "Sets the value for initial resolver (default: local)")
 	c.rootCmd.Flags().StringP("resolver-endpoint", "", resolver.LocalResolver, "Sets the value for initial resolver endpoint")
@@ -144,17 +146,16 @@ func (c *cli) Run(fn func() error) error {
 		c.rootCmd.Use = c.opts.Name
 	}
 	if len(c.opts.ShortDesc) > 0 {
-		c.rootCmd.ShortDesc = c.opts.ShortDesc
+		c.rootCmd.Short = c.opts.ShortDesc
 	}
 	if len(c.opts.ShortDesc) > 0 {
-		c.rootCmd.Desc = c.opts.LongDesc
+		c.rootCmd.Long = c.opts.LongDesc
 	}
 	if len(c.opts.Version) > 0 {
 		c.rootCmd.Version = c.opts.Version
 	}
 
-	c.rootCmd.PreRun = func(cmd *Command, args []string) error {
-
+	c.rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		resolverFlag, err := cmd.Flags().GetString("resolver")
 		if err != nil {
 			return err
@@ -185,11 +186,9 @@ func (c *cli) Run(fn func() error) error {
 		return nil
 	}
 
-	c.rootCmd.Run = func(cmd *Command, args []string) error {
-		fmt.Println("1 +++++++")
+	c.rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
 		debugFlag, err := cmd.Flags().GetBool("debug")
 		if err != nil {
-			fmt.Println("2 +++++++", err)
 			return err
 		}
 
@@ -210,19 +209,19 @@ func (c *cli) Run(fn func() error) error {
 	}
 
 	for _, cmd := range c.Commands {
-		c.rootCmd.AddCommand(cmd)
+		c.rootCmd.AddCommand(&cmd.cobraCommand)
 	}
 
 	return c.rootCmd.Execute()
 }
 
-func (c *cli) versionCommand() *Command {
-	return &Command{
-		Use:       "version",
-		Aliases:   []string{"v"},
-		ShortDesc: fmt.Sprintf("Print the version number of %s", c.opts.Name),
-		Desc:      fmt.Sprintf(`All software has versions. This is %s's`, c.opts.Name),
-		Run: func(cmd *Command, args []string) error {
+func (c *cli) versionCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:     "version",
+		Aliases: []string{"v"},
+		Short:   fmt.Sprintf("Print the version number of %s", c.opts.Name),
+		Long:    fmt.Sprintf(`All software has versions. This is %s's`, c.opts.Name),
+		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println(fmt.Sprintf("version: %s", c.opts.Version))
 			os.Exit(0)
 			return nil
