@@ -121,7 +121,10 @@ func (p *plugin) withEnvPrefix(name string) string {
 }
 
 func (p *plugin) addFlags(app engine.Service) {
-	app.CLI().AddStringFlag(p.withPrefix("connection"), "", "", &p.opts.Connection, p.withEnvPrefix("CONNECTION"), true, "PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name)")
+	app.CLI().AddStringFlag(p.withPrefix("connection"), &p.opts.Connection).
+		Env(p.withEnvPrefix("CONNECTION")).
+		Usage("PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name)").
+		Required()
 }
 
 func (p *plugin) addCommands(app engine.Service) {
@@ -182,7 +185,10 @@ func (p *plugin) addCommands(app engine.Service) {
 		},
 	}
 
-	migrateCmd.AddStringFlag(p.withPrefix("connection"), "", "", nil, p.withEnvPrefix("CONNECTION"), true, "PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>)")
+	migrateCmd.AddStringFlag(p.withPrefix("connection"), nil).
+		Env(p.withEnvPrefix("CONNECTION")).
+		Usage("PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>)").
+		Required()
 
 	app.CLI().AddCommand(migrateCmd)
 }

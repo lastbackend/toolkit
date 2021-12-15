@@ -223,20 +223,76 @@ func (p *plugin) withEnvPrefix(name string) string {
 }
 
 func (p *plugin) addFlags(app engine.Service) {
-	app.CLI().AddStringFlag(p.withPrefix("connection"), "", "", &p.opts.Connection, p.withEnvPrefix("CONNECTION"), true, "PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name)")
-	app.CLI().AddBoolFlag(p.withPrefix("logger"), "", false, &p.opts.Logger, p.withEnvPrefix("LOGGER"), false, "Enable the query logger")
-	app.CLI().AddDurationFlag(p.withPrefix("dial-timeout"), "", 0, p.opts.DialTimeout, p.withEnvPrefix("DIAL_TIMEOUT"), false, "Enable the query logger")
-	app.CLI().AddDurationFlag(p.withPrefix("read-timeout"), "", 0, p.opts.ReadTimeout, p.withEnvPrefix("READ_TIMEOUT"), false, "Sets the timeout for socket reads.\nIf reached, commands will fail with a timeout instead of blocking.")
-	app.CLI().AddDurationFlag(p.withPrefix("write-timeout"), "", 0, p.opts.WriteTimeout, p.withEnvPrefix("WRITE_TIMEOUT"), false, "Sets the timeout for socket writes.\nIf reached, commands will fail with a timeout instead of blocking.")
-	app.CLI().AddBoolFlag(p.withPrefix("retry-statement-timeout"), "", false, p.opts.RetryStatementTimeout, p.withEnvPrefix("MAX_RETRIES"), false, "Sets the whether to retry queries cancelled because of statement_timeout.")
-	app.CLI().AddDurationFlag(p.withPrefix("min-retry-backoff"), "", 0, p.opts.MinRetryBackoff, p.withEnvPrefix("MIN_RETRY_BACKOFF"), false, "Sets the minimum backoff between each retry.\nDefault is 250 milliseconds; -1 disables backoff.")
-	app.CLI().AddDurationFlag(p.withPrefix("max-retry-backoff"), "", 0, p.opts.MaxRetryBackoff, p.withEnvPrefix("MAX_RETRY_BACKOFF"), false, "Sets the maximum backoff between each retry.\nDefault is 4 seconds; -1 disables backoff.")
-	app.CLI().AddIntFlag(p.withPrefix("pool-size"), "", 0, p.opts.PoolSize, p.withEnvPrefix("POOL_SIZE"), false, "Sets the maximum number of socket connections.\nDefault is 10 connections per every CPU.")
-	app.CLI().AddIntFlag(p.withPrefix("min-idle-conns"), "", 0, p.opts.MinIdleConns, p.withEnvPrefix("MIN_IDLE_CONNS"), false, "Minimum number of idle connections which is useful when establishing new connection is slow.")
-	app.CLI().AddDurationFlag(p.withPrefix("max-conn-age"), "", 0, p.opts.MaxConnAge, p.withEnvPrefix("MAX_CONN_AGE"), false, "Sets the connection age at which client retires (closes) the connection.\nDefault is to not close aged connections.")
-	app.CLI().AddDurationFlag(p.withPrefix("pool-timeout"), "", 0, p.opts.PoolTimeout, p.withEnvPrefix("POOL_TIMEOUT"), false, "Sets the time for which client waits for free connection if all connections are busy before returning an error.\nDefault is 30 seconds if ReadTimeOut is not defined, otherwise, ReadTimeout + 1 second.")
-	app.CLI().AddDurationFlag(p.withPrefix("idle-timeout"), "", 0, p.opts.IdleTimeout, p.withEnvPrefix("IDLE_TIMEOUT"), false, "Sets the amount of time after which client closes idle connections.\nShould be less than server's timeout.\nDefault is 5 minutes. -1 disables idle timeout check.")
-	app.CLI().AddDurationFlag(p.withPrefix("idle-check-frequency"), "", 0, p.opts.IdleCheckFrequency, p.withEnvPrefix("IDLE_CHECK_FREQUENCY"), false, "Sets the frequency of idle checks made by idle connections reaper.\nDefault is 1 minute. -1 disables idle connections reaper, but idle connections are still discarded by the client if IdleTimeout is set.")
+
+	app.CLI().AddStringFlag(p.withPrefix("connection"), &p.opts.Connection).
+		Env(p.withEnvPrefix("CONNECTION")).
+		Usage("PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name)").
+		Required()
+
+	app.CLI().AddBoolFlag(p.withPrefix("logger"), &p.opts.Logger).
+		Env(p.withEnvPrefix("LOGGER")).
+		Usage("Enable the query logger").
+		Default(false)
+
+	app.CLI().AddDurationFlag(p.withPrefix("dial-timeout"), p.opts.DialTimeout).
+		Env(p.withEnvPrefix("DIAL_TIMEOUT")).
+		Usage("Enable the query logger").
+		Default(0)
+
+	app.CLI().AddDurationFlag(p.withPrefix("read-timeout"), p.opts.ReadTimeout).
+		Env(p.withEnvPrefix("READ_TIMEOUT")).
+		Usage("Sets the timeout for socket reads.\nIf reached, commands will fail with a timeout instead of blocking.").
+		Default(0)
+
+	app.CLI().AddDurationFlag(p.withPrefix("write-timeout"), p.opts.WriteTimeout).
+		Env(p.withEnvPrefix("WRITE_TIMEOUT")).
+		Usage("Sets the timeout for socket writes.\nIf reached, commands will fail with a timeout instead of blocking.").
+		Default(0)
+
+	app.CLI().AddBoolFlag(p.withPrefix("retry-statement-timeout"), p.opts.RetryStatementTimeout).
+		Env(p.withEnvPrefix("MAX_RETRIES")).
+		Usage("Sets the whether to retry queries cancelled because of statement_timeout.").
+		Default(false)
+
+	app.CLI().AddDurationFlag(p.withPrefix("min-retry-backoff"), p.opts.MinRetryBackoff).
+		Env(p.withEnvPrefix("MIN_RETRY_BACKOFF")).
+		Usage("Sets the minimum backoff between each retry.\nDefault is 250 milliseconds; -1 disables backoff.").
+		Default(0)
+
+	app.CLI().AddDurationFlag(p.withPrefix("max-retry-backoff"), p.opts.MaxRetryBackoff).
+		Env(p.withEnvPrefix("MAX_RETRY_BACKOFF")).
+		Usage("Sets the maximum backoff between each retry.\nDefault is 4 seconds; -1 disables backoff.").
+		Default(0)
+
+	app.CLI().AddIntFlag(p.withPrefix("pool-size"), p.opts.PoolSize).
+		Env(p.withEnvPrefix("POOL_SIZE")).
+		Usage("Sets the maximum number of socket connections.\nDefault is 10 connections per every CPU.").
+		Default(0)
+
+	app.CLI().AddIntFlag(p.withPrefix("min-idle-conns"), p.opts.MinIdleConns).
+		Env(p.withEnvPrefix("MIN_IDLE_CONNS")).
+		Usage("Minimum number of idle connections which is useful when establishing new connection is slow.").
+		Default(0)
+
+	app.CLI().AddDurationFlag(p.withPrefix("max-conn-age"), p.opts.MaxConnAge).
+		Env(p.withEnvPrefix("MAX_CONN_AGE")).
+		Usage("Sets the connection age at which client retires (closes) the connection.\nDefault is to not close aged connections.").
+		Default(0)
+
+	app.CLI().AddDurationFlag(p.withPrefix("pool-timeout"), p.opts.PoolTimeout).
+		Env(p.withEnvPrefix("POOL_TIMEOUT")).
+		Usage("Sets the time for which client waits for free connection if all connections are busy before returning an error.\nDefault is 30 seconds if ReadTimeOut is not defined, otherwise, ReadTimeout + 1 second.").
+		Default(0)
+
+	app.CLI().AddDurationFlag(p.withPrefix("idle-timeout"), p.opts.IdleTimeout).
+		Env(p.withEnvPrefix("IDLE_TIMEOUT")).
+		Usage("Sets the amount of time after which client closes idle connections.\nShould be less than server's timeout.\nDefault is 5 minutes. -1 disables idle timeout check.").
+		Default(0)
+
+	app.CLI().AddDurationFlag(p.withPrefix("idle-check-frequency"), p.opts.IdleCheckFrequency).
+		Env(p.withEnvPrefix("IDLE_CHECK_FREQUENCY")).
+		Usage("Sets the frequency of idle checks made by idle connections reaper.\nDefault is 1 minute. -1 disables idle connections reaper, but idle connections are still discarded by the client if IdleTimeout is set.").
+		Default(0)
 }
 
 func (p *plugin) addCommands(app engine.Service) {
@@ -291,7 +347,10 @@ func (p *plugin) addCommands(app engine.Service) {
 		},
 	}
 
-	migrateCmd.AddStringFlag(p.withPrefix("connection"), "", "", nil, p.withEnvPrefix("CONNECTION"), true, "PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name)")
+	migrateCmd.AddStringFlag(p.withPrefix("connection"), nil).
+		Env(p.withEnvPrefix("CONNECTION")).
+		Usage("PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name)").
+		Required()
 
 	app.CLI().AddCommand(migrateCmd)
 }
