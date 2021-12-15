@@ -18,6 +18,7 @@ package engine
 
 import (
 	"context"
+
 	"github.com/lastbackend/engine/client"
 	"github.com/lastbackend/engine/cmd"
 	"github.com/lastbackend/engine/logger"
@@ -50,10 +51,10 @@ type Service interface {
 }
 
 type Meta interface {
-	SetVersion(version string)
-	SetEnvPrefix(prefix string)
-	SetShortDescription(desc string)
-	SetLongDescription(desc string)
+	SetVersion(version string) Meta
+	SetEnvPrefix(prefix string) Meta
+	SetShortDescription(desc string) Meta
+	SetLongDescription(desc string) Meta
 }
 
 type CLI interface {
