@@ -24,31 +24,55 @@ import (
 type IntFlag struct {
 	flag
 
-	Name        string // name as it appears on command line
-	Shorthand   string // one-letter abbreviated flag
-	Usage       string // help message
-	EnvVar      string // environment values as set
-	Value       int    // value as set
-	Destination *int   // the return value is the address of a int variable that stores the value of the flag.
-	Required    bool   // mark flag as required
+	name        string // name as it appears on command line
+	shorthand   string // one-letter abbreviated flag
+	usage       string // help message
+	envVar      string // environment values as set
+	value       int    // value as set
+	destination *int   // the return value is the address of a int variable that stores the value of the flag.
+	required    bool   // mark flag as required
 
 	hasBeenSet bool
 }
 
+func (f *IntFlag) Short(short string) *IntFlag {
+	f.shorthand = short
+	return f
+}
+
+func (f *IntFlag) Env(env string) *IntFlag {
+	f.envVar = env
+	return f
+}
+
+func (f *IntFlag) Usage(usage string) *IntFlag {
+	f.usage = usage
+	return f
+}
+
+func (f *IntFlag) Default(value int) *IntFlag {
+	f.value = value
+	return f
+}
+func (f *IntFlag) Required() *IntFlag {
+	f.required = true
+	return f
+}
+
 func (f *IntFlag) apply(set *pflag.FlagSet) error {
-	if val, ok := getEnvAsInt(f.EnvVar); ok {
-		f.Value = val
+	if val, ok := getEnvAsInt(f.envVar); ok {
+		f.value = val
 		f.hasBeenSet = ok
 	}
 
-	if f.Destination == nil {
-		set.IntP(f.Name, f.Shorthand, f.Value, f.Usage)
+	if f.destination == nil {
+		set.IntP(f.name, f.shorthand, f.value, f.usage)
 	} else {
-		set.IntVarP(f.Destination, f.Name, f.Shorthand, f.Value, f.Usage)
+		set.IntVarP(f.destination, f.name, f.shorthand, f.value, f.usage)
 	}
 
-	if f.Required && !f.hasBeenSet {
-		if err := cobra.MarkFlagRequired(set, f.Name); err != nil {
+	if f.required && !f.hasBeenSet {
+		if err := cobra.MarkFlagRequired(set, f.name); err != nil {
 			return err
 		}
 	}

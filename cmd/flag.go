@@ -26,70 +26,45 @@ import (
 
 type Flags []Flag
 
-func (f *Flags) AddStringFlag(name string, shorthand string, value string, dest *string, envVar string, required bool, usage string) {
+func (f *Flags) AddStringFlag(name string, dest *string) {
 	*f = append(*f, &StringFlag{
-		Name:        name,
-		Shorthand:   shorthand,
-		Value:       value,
-		Usage:       usage,
-		EnvVar:      envVar,
-		Required:    required,
-		Destination: dest,
+		name:        name,
+		destination: dest,
 	})
 }
 
-func (f *Flags) AddIntFlag(name string, shorthand string, value int, dest *int, envVar string, required bool, usage string) {
+func (f *Flags) AddIntFlag(name string, dest *int) {
 	*f = append(*f, &IntFlag{
-		Name:        name,
-		Shorthand:   shorthand,
-		Value:       value,
-		Usage:       usage,
-		EnvVar:      envVar,
-		Destination: dest,
+		name:        name,
+		destination: dest,
 	})
 }
 
-func (f *Flags) AddInt32Flag(name string, shorthand string, value int32, dest *int32, envVar string, required bool, usage string) {
+func (f *Flags) AddInt32Flag(name string, dest *int32) {
 	*f = append(*f, &Int32Flag{
-		Name:        name,
-		Shorthand:   shorthand,
-		Value:       value,
-		Usage:       usage,
-		EnvVar:      envVar,
-		Destination: dest,
+		name:        name,
+		destination: dest,
 	})
 }
 
-func (f *Flags) AddBoolFlag(name string, shorthand string, value bool, dest *bool, envVar string, required bool, usage string) {
+func (f *Flags) AddBoolFlag(name string, dest *bool) {
 	*f = append(*f, &BoolFlag{
-		Name:        name,
-		Shorthand:   shorthand,
-		Value:       value,
-		Usage:       usage,
-		EnvVar:      envVar,
-		Destination: dest,
+		name:        name,
+		destination: dest,
 	})
 }
 
-func (f *Flags) AddStringSliceFlag(name string, shorthand string, value []string, dest *[]string, envVar string, required bool, usage string) {
+func (f *Flags) AddStringSliceFlag(name string, dest *[]string) {
 	*f = append(*f, &StringSliceFlag{
-		Name:        name,
-		Shorthand:   shorthand,
-		Value:       value,
-		Usage:       usage,
-		EnvVar:      envVar,
-		Destination: dest,
+		name:        name,
+		destination: dest,
 	})
 }
 
-func (f *Flags) AddDurationFlag(name string, shorthand string, value time.Duration, dest *time.Duration, envVar string, required bool, usage string) {
+func (f *Flags) AddDurationFlag(name string, dest *time.Duration) {
 	*f = append(*f, &DurationFlag{
-		Name:        name,
-		Shorthand:   shorthand,
-		Value:       value,
-		Usage:       usage,
-		EnvVar:      envVar,
-		Destination: dest,
+		name:        name,
+		destination: dest,
 	})
 }
 
