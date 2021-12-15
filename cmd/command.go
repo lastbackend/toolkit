@@ -145,7 +145,7 @@ func (c *Command) AddBoolFlag(name string, dest *bool) {
 	c.flags.AddBoolFlag(name, dest)
 }
 
-func (c *Command) AddStringSliceFlag(name string, dest *[]string, envVar string, required bool, usage string) {
+func (c *Command) AddStringSliceFlag(name string, dest *[]string) {
 	c.flagsInit()
 	c.flags.AddStringSliceFlag(name, dest)
 }
