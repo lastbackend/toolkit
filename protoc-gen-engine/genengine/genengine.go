@@ -53,9 +53,8 @@ func New(desc *descriptor.Descriptor) Generator {
 		"context context",
 		"engine github.com/lastbackend/engine",
 		"logger github.com/lastbackend/engine/logger",
-		"plugin github.com/lastbackend/engine/plugin",
 		"server github.com/lastbackend/engine/server",
-		"client github.com/lastbackend/engine/client",
+		"fx go.uber.org/fx",
 	} {
 		var pkg descriptor.GoPackage
 
