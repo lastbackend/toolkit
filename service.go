@@ -83,31 +83,6 @@ func (s *service) PluginRegister(plug Plugin) error {
 }
 
 func (s *service) ClientRegister(cli Client) error {
-	//
-	//valueIface := reflect.ValueOf(i)
-	//if valueIface.Kind() != reflect.Ptr || valueIface.IsNil() {
-	//	return fmt.Errorf("using unaddressable value %s", valueIface.Type().Field(0).Name)
-	//}
-	//
-	//typeField := reflect.TypeOf(i)
-	//if typeField.Kind() == reflect.Interface {
-	//	return fmt.Errorf("the argument %s must not be interface", valueIface.Elem().Field(0).Type())
-	//}
-	//
-	//t := reflect.TypeOf(valueIface.Interface()).Elem()
-	//valueIface.Elem().Field(0).Set(reflect.New(t))
-	//
-	//valIface := valueIface.Elem()
-	//funcType := reflect.TypeOf(client.RegisterFunc(nil))
-	//funcRegister := reflect.MakeFunc(funcType, func(args []reflect.Value) []reflect.Value {
-	//	s.clients = append(s.clients, args[0].Interface().(grpc.Client))
-	//	return nil
-	//})
-	//funcCreator := reflect.ValueOf(f).Call([]reflect.Value{funcRegister})
-	//valueOptions := reflect.ValueOf(o)
-	//valueInstance := funcCreator[0].Call([]reflect.Value{valueOptions})
-	//
-	//valIface.Field(0).Set(valueInstance[0].Elem().Convert(valIface.Field(0).Type()))
 
 	valueIface := reflect.ValueOf(cli)
 

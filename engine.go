@@ -25,11 +25,6 @@ import (
 
 type ServiceType uint8
 
-type ServiceProps struct {
-	Func    interface{}
-	Options interface{}
-}
-
 type HandlerProps struct {
 	Transport string
 	Options   interface{}
