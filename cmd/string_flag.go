@@ -24,30 +24,54 @@ import (
 type StringFlag struct {
 	flag
 
-	Name        string  // name as it appears on command line
-	Shorthand   string  // one-letter abbreviated flag
-	Usage       string  // help message
-	EnvVar      string  // environment values as set
-	Value       string  // value as set
-	Destination *string // the return value is the address of a string variable that stores the value of the flag.
-	Required    bool    // mark flag as required
+	name        string  // name as it appears on command line
+	shorthand   string  // one-letter abbreviated flag
+	usage       string  // help message
+	envVar      string  // environment values as set
+	value       string  // value as set
+	destination *string // the return value is the address of a string variable that stores the value of the flag.
+	required    bool    // mark flag as required
 	hasBeenSet  bool
 }
 
+func (f *StringFlag) Short(short string) *StringFlag {
+	f.shorthand = short
+	return f
+}
+
+func (f *StringFlag) Env(env string) *StringFlag {
+	f.envVar = env
+	return f
+}
+
+func (f *StringFlag) Usage(usage string) *StringFlag {
+	f.usage = usage
+	return f
+}
+
+func (f *StringFlag) Default(value string) *StringFlag {
+	f.value = value
+	return f
+}
+func (f *StringFlag) Required() *StringFlag {
+	f.required = true
+	return f
+}
+
 func (f *StringFlag) apply(set *pflag.FlagSet) error {
-	if val, ok := getEnv(f.EnvVar); ok {
-		f.Value = val
+	if val, ok := getEnv(f.envVar); ok {
+		f.value = val
 		f.hasBeenSet = ok
 	}
 
-	if f.Destination == nil {
-		set.StringP(f.Name, f.Shorthand, f.Value, f.Usage)
+	if f.destination == nil {
+		set.StringP(f.name, f.shorthand, f.value, f.usage)
 	} else {
-		set.StringVarP(f.Destination, f.Name, f.Shorthand, f.Value, f.Usage)
+		set.StringVarP(f.destination, f.name, f.shorthand, f.value, f.usage)
 	}
 
-	if f.Required && !f.hasBeenSet {
-		if err := cobra.MarkFlagRequired(set, f.Name); err != nil {
+	if f.required && !f.hasBeenSet {
+		if err := cobra.MarkFlagRequired(set, f.name); err != nil {
 			return err
 		}
 	}

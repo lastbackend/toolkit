@@ -24,18 +24,27 @@ type meta struct {
 	Version         string
 }
 
-func (m *meta) SetVersion(s string) {
+func (m *meta) SetName(s string) Meta {
+	m.Name = s
+	return m
+}
+
+func (m *meta) SetVersion(s string) Meta {
 	m.Version = s
+	return m
 }
 
-func (m *meta) SetEnvPrefix(s string) {
+func (m *meta) SetEnvPrefix(s string) Meta {
 	m.EnvPrefix = s
+	return m
 }
 
-func (m *meta) SetShortDescription(s string) {
+func (m *meta) SetShortDescription(s string) Meta {
 	m.ShorDescription = s
+	return m
 }
 
-func (m *meta) SetLongDescription(s string) {
+func (m *meta) SetLongDescription(s string) Meta {
 	m.LongDescription = s
+	return m
 }

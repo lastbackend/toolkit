@@ -24,31 +24,56 @@ import (
 type BoolFlag struct {
 	flag
 
-	Name        string // name as it appears on command line
-	Shorthand   string // one-letter abbreviated flag
-	Usage       string // help message
-	EnvVar      string // environment values as set
-	Value       bool   // value as set
-	Destination *bool  // the return value is the address of a bool variable that stores the value of the flag.
-	Required    bool   // mark flag as required
+	name        string // name as it appears on command line
+	shorthand   string // one-letter abbreviated flag
+	usage       string // help message
+	envVar      string // environment values as set
+	value       bool   // value as set
+	destination *bool  // the return value is the address of a bool variable that stores the value of the flag.
+	required    bool   // mark flag as required
 
 	hasBeenSet bool
 }
 
+func (f *BoolFlag) Short(short string) *BoolFlag {
+	f.shorthand = short
+	return f
+}
+
+func (f *BoolFlag) Env(env string) *BoolFlag {
+	f.envVar = env
+	return f
+}
+
+func (f *BoolFlag) Usage(usage string) *BoolFlag {
+	f.usage = usage
+	return f
+}
+
+func (f *BoolFlag) Default(value bool) *BoolFlag {
+	f.value = value
+	return f
+}
+
+func (f *BoolFlag) Required() *BoolFlag {
+	f.required = true
+	return f
+}
+
 func (f *BoolFlag) apply(set *pflag.FlagSet) error {
-	if val, ok := getEnvAsBool(f.EnvVar); ok {
-		f.Value = val
+	if val, ok := getEnvAsBool(f.envVar); ok {
+		f.value = val
 		f.hasBeenSet = ok
 	}
 
-	if f.Destination == nil {
-		set.BoolP(f.Name, f.Shorthand, f.Value, f.Usage)
+	if f.destination == nil {
+		set.BoolP(f.name, f.shorthand, f.value, f.usage)
 	} else {
-		set.BoolVarP(f.Destination, f.Name, f.Shorthand, f.Value, f.Usage)
+		set.BoolVarP(f.destination, f.name, f.shorthand, f.value, f.usage)
 	}
 
-	if f.Required && !f.hasBeenSet {
-		if err := cobra.MarkFlagRequired(set, f.Name); err != nil {
+	if f.required && !f.hasBeenSet {
+		if err := cobra.MarkFlagRequired(set, f.name); err != nil {
 			return err
 		}
 	}

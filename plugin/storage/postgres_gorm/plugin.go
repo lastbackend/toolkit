@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package postgres
+package postgres_gorm
 
 import (
 	"github.com/golang-migrate/migrate/v4"
@@ -23,14 +23,16 @@ import (
 	"github.com/lastbackend/engine"
 	"github.com/lastbackend/engine/cmd"
 	"github.com/pkg/errors"
+	psql "gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 )
 
 const (
@@ -45,7 +47,7 @@ const (
 type Plugin interface {
 	engine.Plugin
 
-	DB() *sqlx.DB
+	DB() *gorm.DB
 	Register(app engine.Service, opts *Options) error
 }
 
@@ -54,65 +56,25 @@ type Options struct {
 }
 
 type options struct {
-	// Sets the connection string for connecting to the database
-	Connection string
-
-	// Sets the maximum number of connections in the idle
-	// connection pool.
-	//
-	// If MaxOpenConns is greater than 0 but less than the new MaxIdleConns,
-	// then the new MaxIdleConns will be reduced to match the MaxOpenConns limit.
-	//
-	// If n <= 0, no idle connections are retained.
-	//
-	// The default max idle connections is currently 2. This may change in
-	// a future release.
-	MaxIdleConns *int
-
-	// Sets the maximum number of open connections to the database.
-	//
-	// If MaxIdleConns is greater than 0 and the new MaxOpenConns is less than
-	// MaxIdleConns, then MaxIdleConns will be reduced to match the new
-	// MaxOpenConns limit.
-	//
-	// If n <= 0, then there is no limit on the number of open connections.
-	// The default is 0 (unlimited).
-	MaxOpenConns *int
-
-	// Sets the maximum amount of time a connection may be reused.
-	//
-	// Expired connections may be closed lazily before reuse.
-	//
-	// If d <= 0, connections are not closed due to a connection's age.
-	ConnMaxLifetime *time.Duration
-
-	// Sets the maximum amount of time a connection may be reused.
-	//
-	// Expired connections may be closed lazily before reuse.
-	//
-	// If d <= 0, connections are not closed due to a connection's age.
-	ConnMaxIdleTime *time.Duration
-
+	Connection    string
 	MigrationsDir *string
 }
 
 type plugin struct {
-	prefix     string
-	connection string
-	opts       options
+	prefix string
+	opts   options
 
-	db *sqlx.DB
+	db *gorm.DB
 }
 
 func NewPlugin(app engine.Service, opts *Options) Plugin {
-	db := new(plugin)
-	db.Register(app, opts)
-	return db
+	p := new(plugin)
+	p.Register(app, opts)
+	return p
 }
 
 // Register - registers the plug implements storage using Postgres as a database storage
 func (p *plugin) Register(app engine.Service, opts *Options) error {
-
 	p.prefix = opts.Name
 	if p.prefix == "" {
 		p.prefix = defaultPrefix
@@ -128,40 +90,19 @@ func (p *plugin) Register(app engine.Service, opts *Options) error {
 	return nil
 }
 
-func (p *plugin) DB() *sqlx.DB {
+func (p *plugin) DB() *gorm.DB {
 	return p.db
 }
 
 func (p *plugin) Start(ctx context.Context) (err error) {
-	if len(p.opts.Connection) == 0 {
-		return errors.New(errMissingConnectionString)
-	}
-
-	if len(p.opts.Connection) == 0 {
-		return errors.New(errMissingConnectionString)
-	}
-
-	conn, err := sqlx.Open(driverName, p.opts.Connection)
+	sqlDB, err := sql.Open("postgres", p.opts.Connection)
+	db, err := gorm.Open(psql.New(psql.Config{
+		Conn: sqlDB,
+	}))
 	if err != nil {
 		return err
 	}
-
-	if p.opts.MaxIdleConns != nil {
-		conn.SetMaxIdleConns(*p.opts.MaxIdleConns)
-	}
-	if p.opts.MaxOpenConns != nil {
-		conn.SetMaxOpenConns(*p.opts.MaxOpenConns)
-	}
-	if p.opts.ConnMaxLifetime != nil {
-		conn.SetConnMaxLifetime(*p.opts.ConnMaxLifetime)
-	}
-	if p.opts.ConnMaxIdleTime != nil {
-		conn.SetConnMaxIdleTime(*p.opts.ConnMaxIdleTime)
-	}
-
-	p.connection = p.opts.Connection
-	p.db = conn
-
+	p.db = db
 	return nil
 }
 
@@ -178,39 +119,9 @@ func (p *plugin) withEnvPrefix(name string) string {
 }
 
 func (p *plugin) addFlags(app engine.Service) {
-
-	// define plugin connection
 	app.CLI().AddStringFlag(p.withPrefix("connection"), &p.opts.Connection).
 		Env(p.withEnvPrefix("CONNECTION")).
-		Usage("PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>)").
-		Required()
-
-	// define connection max lifetime flag
-	app.CLI().AddDurationFlag(p.withPrefix("conn-max-lifetime"), p.opts.ConnMaxLifetime).
-		Env(p.withEnvPrefix("CONN_MAX_LIFETIME")).
-		Usage("Sets the maximum amount of time a connection may be reused.\nIf <= 0, connections are not closed due to a connection's age").
-		Default(0).
-		Required()
-
-	// define connection max idle flag
-	app.CLI().AddDurationFlag(p.withPrefix("conn-max-idle-time"), p.opts.ConnMaxIdleTime).
-		Env(p.withEnvPrefix("CONN_MAX_IDLE_TIME")).
-		Usage("Sets the maximum amount of time a connection may be idle.\nIf <= 0, connections are not closed due to a connection's idle time").
-		Default(0).
-		Required()
-
-	// define max idle connections flag
-	app.CLI().AddIntFlag(p.withPrefix("max-idle-conns"), p.opts.MaxIdleConns).
-		Env(p.withEnvPrefix("MAX_IDLE_CONNS")).
-		Usage("Sets the maximum number of connections in the idle connection pool.\nIf <= 0, no idle connections are retained.\n(The default max idle connections is currently 2)").
-		Default(0).
-		Required()
-
-	// define max idle connections flag
-	app.CLI().AddIntFlag(p.withPrefix("max-open-conns"), p.opts.MaxOpenConns).
-		Env(p.withEnvPrefix("MAX_OPEN_CONNS")).
-		Usage("Sets the maximum number of open connections to the database.\nIf <= 0, then there is no limit on the number of open connections.\n(default unlimited)").
-		Default(0).
+		Usage("PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name)").
 		Required()
 }
 

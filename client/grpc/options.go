@@ -62,8 +62,8 @@ type BackoffFunc func(ctx context.Context, req *request, attempts int) (time.Dur
 type RetryFunc func(ctx context.Context, req *request, retryCount int, err error) (bool, error)
 
 type CallOptions struct {
-	Backoff               BackoffFunc
-	Retries               time.Duration
+	Backoff BackoffFunc
+	Retries time.Duration
 	RequestTimeout        time.Duration
 	Context               context.Context
 	Headers               map[string]string

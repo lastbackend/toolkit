@@ -29,23 +29,47 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 )
 
 const (
 	defaultShortDescription = "a engine service"
 )
 
+var EnvPrefix = "ENGINE"
+
 type CLI interface {
 	FlagSet
+	CommandSet
 
 	SetName(string)
 	SetVersion(string)
 	SetShortDescription(string)
 	SetLongDescription(string)
 	SetEnvPrefix(string)
-	AddFlags(...Flag)
-	AddCommands(...Command)
 	Run(f func() error) error
+}
+
+type CommandSet interface {
+	AddCommand(*Command)
+}
+
+type Flag interface {
+	IsSet() bool
+}
+
+type flag interface {
+	apply(*pflag.FlagSet) error
+}
+
+type FlagSet interface {
+	AddFlag(Flag)
+	AddStringFlag(name string, dest *string) *StringFlag
+	AddIntFlag(name string, dest *int) *IntFlag
+	AddInt32Flag(name string, dest *int32) *Int32Flag
+	AddBoolFlag(name string, dest *bool) *BoolFlag
+	AddStringSliceFlag(name string, dest *[]string) *StringSliceFlag
+	AddDurationFlag(name string, dest *time.Duration) *DurationFlag
 }
 
 type cli struct {
@@ -99,18 +123,12 @@ func (c *cli) SetEnvPrefix(s string) {
 	EnvPrefix = s
 }
 
-func (c *cli) AddFlags(flags ...Flag) {
-	if len(flags) == 0 {
-		return
-	}
-	c.Flags = append(c.Flags, flags...)
+func (c *cli) AddFlag(flags Flag) {
+	c.Flags = append(c.Flags, flags)
 }
 
-func (c *cli) AddCommands(commands ...Command) {
-	if len(commands) == 0 {
-		return
-	}
-	c.Commands = append(c.Commands, commands...)
+func (c *cli) AddCommand(cmd *Command) {
+	c.Commands = append(c.Commands, cmd)
 }
 
 func (c *cli) Run(fn func() error) error {
@@ -139,7 +157,6 @@ func (c *cli) Run(fn func() error) error {
 	}
 
 	c.rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-
 		resolverFlag, err := cmd.Flags().GetString("resolver")
 		if err != nil {
 			return err
@@ -193,9 +210,7 @@ func (c *cli) Run(fn func() error) error {
 	}
 
 	for _, cmd := range c.Commands {
-		if err := (cmd.(command)).apply(c.rootCmd); err != nil {
-			return err
-		}
+		c.rootCmd.AddCommand(&cmd.cobraCommand)
 	}
 
 	return c.rootCmd.Execute()
@@ -223,7 +238,7 @@ func wordSepNormalizeFunc(f *pflag.FlagSet, name string) pflag.NormalizedName {
 	return pflag.NormalizedName(name)
 }
 
-// printFlags logs the flags in the flagset
+// printFlags logs the flags in the flagSet
 func printFlags(flags *pflag.FlagSet) {
 	flags.VisitAll(func(flag *pflag.Flag) {
 		fmt.Println(fmt.Sprintf("FLAG: --%s=%q", flag.Name, flag.Value))

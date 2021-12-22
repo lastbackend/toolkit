@@ -26,31 +26,56 @@ import (
 type DurationFlag struct {
 	flag
 
-	Name        string         // name as it appears on command line
-	Shorthand   string         // one-letter abbreviated flag
-	Usage       string         // help message
-	Value       time.Duration  // value as set
-	Destination *time.Duration // the return value is the address of a int variable that stores the value of the flag.
-	EnvVar      string         // environment values as set
-	Required    bool           // mark flag as required
+	name        string         // name as it appears on command line
+	shorthand   string         // one-letter abbreviated flag
+	usage       string         // help message
+	value       time.Duration  // value as set
+	destination *time.Duration // the return value is the address of a int variable that stores the value of the flag.
+	envVar      string         // environment values as set
+	required    bool           // mark flag as required
 
 	hasBeenSet bool
 }
 
+func (f *DurationFlag) Short(short string) *DurationFlag {
+	f.shorthand = short
+	return f
+}
+
+func (f *DurationFlag) Env(env string) *DurationFlag {
+	f.envVar = env
+	return f
+}
+
+func (f *DurationFlag) Usage(usage string) *DurationFlag {
+	f.usage = usage
+	return f
+}
+
+func (f *DurationFlag) Default(value time.Duration) *DurationFlag {
+	f.value = value
+	return f
+}
+
+func (f *DurationFlag) Required() *DurationFlag {
+	f.required = true
+	return f
+}
+
 func (f *DurationFlag) apply(set *pflag.FlagSet) error {
-	if val, ok := getEnvAsDuration(f.EnvVar); ok {
-		f.Value = val
+	if val, ok := getEnvAsDuration(f.envVar); ok {
+		f.value = val
 		f.hasBeenSet = ok
 	}
 
-	if f.Destination == nil {
-		set.DurationP(f.Name, f.Shorthand, f.Value, f.Usage)
+	if f.destination == nil {
+		set.DurationP(f.name, f.shorthand, f.value, f.usage)
 	} else {
-		set.DurationVarP(f.Destination, f.Name, f.Shorthand, f.Value, f.Usage)
+		set.DurationVarP(f.destination, f.name, f.shorthand, f.value, f.usage)
 	}
 
-	if f.Required && !f.hasBeenSet {
-		if err := cobra.MarkFlagRequired(set, f.Name); err != nil {
+	if f.required && !f.hasBeenSet {
+		if err := cobra.MarkFlagRequired(set, f.name); err != nil {
 			return err
 		}
 	}
