@@ -136,17 +136,22 @@ type Service interface {
 	{{end}}
 }
 
-type RPC struct {
+{{range $svc := .Services}}
+type {{$svc.GetName}}RPC struct {
 	Grpc grpc.RpcClient
-	{{range $key, $value := .Clients -}}
+	{{range $key, $value := $.Clients -}}
 		{{$value.Service | ToCapitalize}} {{$key}}.{{$value.Service | ToCapitalize}}RpcClient
 	{{end}}
 }
+{{end}}
 
 func NewService(name string) Service {
 	return &service{
 		engine: engine.NewService(name),
-		rpc:    new(RPC),
+		
+		{{range $svc := .Services -}}
+		rpc{{$svc.GetName}}:    new({{$svc.GetName}}RPC),
+		{{end}}
 		{{- range $type, $plugins := .Plugins}}
 			{{- range $name, $plugin := $plugins}} 
 				{{$plugin.Prefix | ToLower}}: {{$plugin.Plugin}}.NewPlugin,
@@ -158,8 +163,10 @@ func NewService(name string) Service {
 type service struct {
 	engine engine.Service
 
-	rpc *RPC
-
+	{{range $svc := .Services -}}
+	rpc{{$svc.GetName}} *{{$svc.GetName}}RPC
+	{{end}}
+	
 	srv interface{}
 	svc interface{}
 	cfg interface{}
@@ -227,9 +234,11 @@ func (s *service) Run() error {
 		func() Service {
 			return s
 		},
-		func() *RPC {
-			return s.rpc
+		{{range $svc := .Services}}
+		func() *{{$svc.GetName}}RPC {
+			return s.rpc{{$svc.GetName}}
 		},
+		{{end}}
 		s.svc,
 		s.srv,
 	)
@@ -249,8 +258,10 @@ func (s *service) Run() error {
 		fx.Options(
 			fx.Supply(s.cfg),
 			fx.Provide(provide...),
-			fx.Invoke(s.registerClient),
-			fx.Invoke(s.runServer),
+			{{- range $svc := .Services}}			
+				fx.Invoke(s.register{{$svc.GetName}}Client),
+				fx.Invoke(s.run{{$svc.GetName}}Server),
+			{{end}}
 		),
 		fx.NopLogger,
 	).Run()
@@ -258,51 +269,46 @@ func (s *service) Run() error {
 	return nil
 }
 
-func (s *service) runServer(srv AuthRpcServer) error {
-
-	// Register servers
-	{{range $svc := .Services}}
-		// Install grpc server
-		type {{$svc.GetName}}GrpcRpcServer struct {
-			{{$svc.GetName}}Server
-		}
-
-		h := &authGrpcRpcServer{srv.(AuthRpcServer)}
-		grpcServer := server.NewServer(s.engine, &server.ServerOptions{Name: "server-grpc"})
-		if err := grpcServer.Register(&Auth_ServiceDesc, &AuthGrpcRpcServer{h}); err != nil {
-			return err
-		}
-
-		if err := s.engine.ServerRegister(grpcServer); err != nil {
-			return err
-		}
-	{{end}}
-
-	return s.engine.Run()
-}
-
-func (s *service) registerClient(srv AuthRpcServer) error {
+{{range $svc := .Services}}
+func (s *service) register{{$svc.GetName}}Client() error {
 
 	// Register clients
-	{{range $svc := .Services}}
-	// Install grpc client
-	type {{$svc.GetName}}GrpcRpcClient struct {
-		{{$svc.GetName}}Client
-	}
-	{{end}}
+	
+	s.rpc{{$svc.GetName}}.Grpc = grpc.NewClient(s.engine, &grpc.ClientOptions{Name: "client-{{$svc.GetName | ToLower}}-grpc"})
 
-	s.rpc.Grpc = grpc.NewClient(s.engine, &grpc.ClientOptions{Name: "client-grpc"})
-
-	if err := s.engine.ClientRegister(s.rpc.Grpc); err != nil {
+	if err := s.engine.ClientRegister(s.rpc{{$svc.GetName}}.Grpc); err != nil {
 		return err
 	}
 
-	{{range $key, $value := .Clients}}
-		s.rpc.{{$value.Service | ToCapitalize}} = {{$value.Service | ToLower}}.New{{$value.Service | ToCapitalize}}RpcClient("{{$value.Service | ToLower}}", s.rpc.Grpc.Client())
+	{{range $key, $value := $.Clients}}
+		s.rpc{{$svc.GetName}}.{{$value.Service | ToCapitalize}} = {{$value.Service | ToLower}}.New{{$value.Service | ToCapitalize}}RpcClient("{{$value.Service | ToLower}}", s.rpc{{$svc.GetName}}.Grpc.Client())
 	{{end}}
 
 	return nil
 }
+
+
+func (s *service) run{{$svc.GetName}}Server(srv {{$svc.GetName}}RpcServer) error {
+
+	// Register servers
+
+	type {{$svc.GetName}}GrpcRpcServer struct {
+			{{$svc.GetName}}Server
+	}
+
+	h := &{{$svc.GetName | ToLower}}GrpcRpcServer{srv.({{$svc.GetName}}RpcServer)}
+	grpcServer := server.NewServer(s.engine, &server.ServerOptions{Name: "server-{{$svc.GetName | ToLower}}-grpc"})
+	if err := grpcServer.Register(&{{$svc.GetName}}_ServiceDesc, &{{$svc.GetName}}GrpcRpcServer{h}); err != nil {
+		return err
+	}
+
+	if err := s.engine.ServerRegister(grpcServer); err != nil {
+		return err
+	}
+
+	return s.engine.Run()
+}
+{{end}}
 
 `))
 
