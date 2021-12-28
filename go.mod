@@ -10,7 +10,6 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/consul/api v1.12.0
 	github.com/improbable-eng/grpc-web v0.14.1
-	github.com/jinzhu/now v1.1.3 // indirects
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/lib/pq v1.10.3
 	github.com/pkg/errors v0.9.1
@@ -22,9 +21,6 @@ require (
 	google.golang.org/protobuf v1.27.1
 	gorm.io/driver/postgres v1.0.8
 	gorm.io/gorm v1.22.4
-)
-
-require (
 	github.com/armon/go-metrics v0.3.10 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
@@ -50,6 +46,7 @@ require (
 	github.com/jackc/pgtype v1.6.2 // indirect
 	github.com/jackc/pgx/v4 v4.10.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.3 // indirect; indirects
 	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
