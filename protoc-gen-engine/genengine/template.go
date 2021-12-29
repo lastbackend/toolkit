@@ -148,7 +148,8 @@ type {{$svc.GetName}}RPC struct {
 func NewService(name string) Service {
 	return &service{
 		engine: engine.NewService(name),
-		
+		srv:     make([]interface{}, 0),
+		svc:     make([]interface{}, 0),
 		{{range $svc := .Services -}}
 		rpc{{$svc.GetName}}:    new({{$svc.GetName}}RPC),
 		{{end}}
@@ -167,8 +168,8 @@ type service struct {
 	rpc{{$svc.GetName}} *{{$svc.GetName}}RPC
 	{{end}}
 	
-	srv interface{}
-	svc interface{}
+	srv []interface{}
+	svc []interface{}
 	cfg interface{}
 
 	{{- range $type, $plugins := .Plugins}}
@@ -191,11 +192,11 @@ func (s *service) Logger() logger.Logger {
 }
 
 func (s *service) SetServer(srv interface{}) {
-	s.srv = srv
+	s.srv = append(s.srv, srv)
 }
 
 func (s *service) SetService(svc interface{}) {
-	s.svc = svc
+	s.svc = append(s.svc, svc)
 }
 
 func (s *service) SetConfig(cfg interface{}) {
@@ -239,10 +240,9 @@ func (s *service) Run() error {
 			return s.rpc{{$svc.GetName}}
 		},
 		{{end}}
-		s.svc,
-		s.srv,
 	)
-
+	provide = append(provide, s.svc...)
+	provide = append(provide, s.srv...)
 	provide = append(provide,
 		{{- range $type, $plugins := .Plugins}}
 			{{- range $name, $plugin := $plugins}}
@@ -260,8 +260,9 @@ func (s *service) Run() error {
 			fx.Provide(provide...),
 			{{- range $svc := .Services}}			
 				fx.Invoke(s.register{{$svc.GetName}}Client),
-				fx.Invoke(s.run{{$svc.GetName}}Server),
+				fx.Invoke(s.register{{$svc.GetName}}Server),
 			{{end}}
+			fx.Invoke(s.runService),
 		),
 		fx.NopLogger,
 	).Run()
@@ -287,8 +288,7 @@ func (s *service) register{{$svc.GetName}}Client() error {
 	return nil
 }
 
-
-func (s *service) run{{$svc.GetName}}Server(srv {{$svc.GetName}}RpcServer) error {
+func (s *service) register{{$svc.GetName}}Server(srv {{$svc.GetName}}RpcServer) error {
 
 	// Register servers
 
@@ -306,9 +306,22 @@ func (s *service) run{{$svc.GetName}}Server(srv {{$svc.GetName}}RpcServer) error
 		return err
 	}
 
-	return s.engine.Run()
+	return nil
 }
 {{end}}
+
+func (s *service) runService(lc fx.Lifecycle) error {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			return s.engine.Run()
+		},
+		OnStop: func(ctx context.Context) error {
+			return nil
+		},
+	})
+	return nil
+}
+
 
 `))
 
