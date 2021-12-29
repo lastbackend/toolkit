@@ -270,7 +270,6 @@ func (s *service) Run(ctx context.Context) error {
 	go app.Run()
 
 	if app.Err() != nil {
-		app.Stop(ctx)
 		return app.Err()
 	}
 
