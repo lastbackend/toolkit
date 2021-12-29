@@ -123,7 +123,7 @@ type Service interface {
 	Logger() logger.Logger
 	Meta() engine.Meta
 	CLI() engine.CLI
-	Run() error
+	Run(ctx context.Context) error
 
 	SetServer(srv interface{})
 	SetService(svc interface{})
@@ -211,7 +211,7 @@ func (s *service) SetConfig(cfg interface{}) {
 	{{end}}
 {{end}}
 
-func (s *service) Run() error {
+func (s *service) Run(ctx context.Context) error {
 	provide := make([]interface{}, 0)
 	provide = append(provide,
 		fx.Annotate(
@@ -254,7 +254,7 @@ func (s *service) Run() error {
 		{{end}}
 	)
 
-	fx.New(
+	app := fx.New(
 		fx.Options(
 			fx.Supply(s.cfg),
 			fx.Provide(provide...),
@@ -265,7 +265,16 @@ func (s *service) Run() error {
 			fx.Invoke(s.runService),
 		),
 		fx.NopLogger,
-	).Run()
+	)
+
+	go app.Run()
+
+	if app.Err() != nil {
+		app.Stop(ctx)
+		return app.Err()
+	}
+
+	<-app.Done()
 
 	return nil
 }
