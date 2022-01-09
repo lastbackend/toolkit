@@ -197,7 +197,7 @@ func (s *service) SetConfig(cfg interface{}) {
 	s.cfg = cfg
 }
 
-{{- range $type, $plugins := .Plugins}}
+{{range $type, $plugins := .Plugins}}
 	{{- range $name, $plugin := $plugins}} 
 		func (s *service) Set{{$name | ToCapitalize}}({{$plugin.Prefix | ToLower}} interface{}) {
 			s.{{$plugin.Prefix | ToLower}} = {{$plugin.Prefix | ToLower}}
@@ -253,15 +253,7 @@ func (s *service) Run(ctx context.Context) error {
 		fx.NopLogger,
 	)
 
-	go app.Run()
-
-	if app.Err() != nil {
-		return app.Err()
-	}
-
-	<-app.Done()
-
-	return nil
+	return app.Start(context.Background())
 }
 
 {{range $svc := .Services}}
