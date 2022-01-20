@@ -51,19 +51,6 @@ func applyMakefileTemplate(to tplMakefileOptions) (string, error) {
 	return w.String(), nil
 }
 
-type tplMockeryTestOptions struct {
-	Package         string
-}
-
-func applyTestTemplate(to tplMockeryTestOptions) (string, error) {
-	w := bytes.NewBuffer(nil)
-
-	if err := mockeryTestTemplate.Execute(w, to); err != nil {
-		return "", err
-	}
-
-	return w.String(), nil
-}
 
 var (
 	dockerfileTemplate = template.Must(template.New("dockerfile").Parse(
@@ -136,71 +123,6 @@ install:
 	@echo "== Install binaries"
 	#Here you need to describe the script for install binaries your service.
 
-`))
-
-
-	mockeryTestTemplate = template.Must(template.New("stub-content-mockery").Parse(`
-{{range $svc := .Services}}
-	// Server API for Api service
-	type {{$svc.GetName}}Stubs struct {
-		{{range $m := $svc.Methods}}
-		{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
-				{{$m.GetName}} []{{$m.GetName}}Stub
-		{{else}}{{if not $m.GetClientStreaming}}
-				{{$m.GetName}} []{{$m.GetName}}Stub
-		{{end}}{{end}}
-	{{end}}
-	}
-
-	func New{{$svc.GetName}}Stubs() *{{$svc.GetName}}Stubs {
-		stubs:= new({{$svc.GetName}}Stubs)
-		{{range $m := $svc.Methods}}
-			{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
-		stubs.{{$m.GetName}} = make([]{{$m.GetName}}Stub,0)
-			{{else if not $m.GetClientStreaming}}
-		stubs.{{$m.GetName}} = make([]{{$m.GetName}}Stub,0)
-			{{end}}
-		{{end}}
-		return stubs
-	}
-
-	func With{{$svc.GetName}}Stubs(rpc_mock {{$svc.GetName}}RpcClient, stubs *{{$svc.GetName}}Stubs) {{$svc.GetName}}RpcClient{
-		{{range $m := $svc.Methods}}
-		for _, st := range stubs.{{$m.GetName}} {
-			sbCtx := st.Context
-			sbReq := st.Request
-			sbRsp := st.Response
-			sbErr := st.Error
-			rpc_mock.On("{{$m.GetName}}", sbCtx, &sbReq, mock.IsType("[]grpc.CallOption")).Return(
-				func(ctx context.Context, req *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) *{{$m.ResponseType.GoName}} {
-					return &sbRsp
-				},
-				func(ctx context.Context, req *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) error {
-					return sbErr
-				},
-			)
-		}
-		{{end}}
-
-		return rpc_mock
-	}
-
-
-{{end}}
-
-{{range $svc := .Services}}
-	{{range $m := $svc.Methods}}
-	type {{$m.GetName}}Stub struct {
-	{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
-		Context  context.Context
-		Request  {{$m.RequestType.GoName}}
-		Response {{$m.ResponseType.GoName}}
-		Error 	 error
-	{{end}}
-	
-	}
-	{{end}}
-	{{end}}
 `))
 
 )

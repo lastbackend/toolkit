@@ -46,7 +46,7 @@ extend google.protobuf.ServiceOptions {
 
 extend google.protobuf.FileOptions {
   DockerfileSpec dockerfile_spec = 50003;
-  TestSpec tests_mockery_spec = 50004;
+  TestSpec tests_spec = 50004;
 }
 
 message DockerfileSpec {

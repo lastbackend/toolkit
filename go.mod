@@ -21,9 +21,6 @@ require (
 	google.golang.org/protobuf v1.27.1
 	gorm.io/driver/postgres v1.2.3
 	gorm.io/gorm v1.22.5
-)
-
-require (
 	github.com/armon/go-metrics v0.3.10 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
