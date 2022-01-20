@@ -18,9 +18,10 @@ package descriptor
 
 import (
 	"fmt"
+	"strings"
+
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
-	"strings"
 )
 
 type GoPackage struct {

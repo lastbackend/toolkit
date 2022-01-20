@@ -43,53 +43,12 @@ type Generator interface {
 }
 
 type generator struct {
-	desc        *descriptor.Descriptor
-	baseImports []descriptor.GoPackage
+	desc *descriptor.Descriptor
 }
 
 func New(desc *descriptor.Descriptor) Generator {
-	var imports []descriptor.GoPackage
-	for _, pkgPath := range []string{
-		"context context",
-		"engine github.com/lastbackend/engine",
-		"logger github.com/lastbackend/engine/logger",
-		"server github.com/lastbackend/engine/server",
-		"fx go.uber.org/fx",
-	} {
-		var pkg descriptor.GoPackage
-
-		match := strings.Split(pkgPath, " ")
-		if len(match) == 2 {
-			pkg = descriptor.GoPackage{
-				Path:  match[1],
-				Name:  path.Base(match[1]),
-				Alias: match[0],
-			}
-		} else {
-			pkg = descriptor.GoPackage{
-				Path: pkgPath,
-				Name: path.Base(pkgPath),
-			}
-		}
-
-		if len(pkg.Alias) == 0 {
-			if err := desc.ReserveGoPackageAlias(pkg.Name, pkg.Path); err != nil {
-				for i := 0; ; i++ {
-					alias := fmt.Sprintf("%s_%d", pkg.Name, i)
-					if err := desc.ReserveGoPackageAlias(alias, pkg.Path); err != nil {
-						continue
-					}
-					pkg.Alias = alias
-					break
-				}
-			}
-		}
-		imports = append(imports, pkg)
-	}
-
 	return &generator{
-		desc:        desc,
-		baseImports: imports,
+		desc: desc,
 	}
 }
 
@@ -107,6 +66,25 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 		}
 		serviceExists = true
 
+		if proto.HasExtension(file.Options, engine_annotattions.E_TestsSpec) {
+			code, err := g.generateTestStubs(file)
+			if err != nil {
+				return nil, err
+			}
+			formatted, err := format.Source([]byte(code))
+			if err != nil {
+				return nil, err
+			}
+
+			files = append(files, &descriptor.ResponseFile{
+				GoPkg: file.GoPkg,
+				CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
+					Name:    proto.String(file.GeneratedFilenamePrefix + ".pb.lb.mockery.go"),
+					Content: proto.String(string(formatted)),
+				},
+			})
+		}
+
 		code, err := g.generate(file)
 		if err != nil {
 			return nil, err
@@ -115,10 +93,11 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 		if err != nil {
 			return nil, err
 		}
+
 		files = append(files, &descriptor.ResponseFile{
 			GoPkg: file.GoPkg,
 			CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
-				Name:    proto.String(file.GeneratedFilenamePrefix + ".pb.engine.go"),
+				Name:    proto.String(file.GeneratedFilenamePrefix + ".pb.lb.go"),
 				Content: proto.String(string(formatted)),
 			},
 		})
@@ -127,14 +106,19 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 }
 
 func (g *generator) generate(file *descriptor.File) (string, error) {
-	pkgExists := make(map[string]bool)
 
-	var imports []descriptor.GoPackage
 	var pluginImportsExists map[string]bool
 	var clientImportsExists map[string]bool
+	var imports = g.prepareImports([]string{
+		"context context",
+		"engine github.com/lastbackend/engine",
+		"logger github.com/lastbackend/engine/logger",
+		"server github.com/lastbackend/engine/server",
+		"github.com/lastbackend/engine/client/grpc",
+		"fx go.uber.org/fx",
+	})
 
-	for _, pkg := range g.baseImports {
-		pkgExists[pkg.Path] = true
+	for _, pkg := range imports {
 		imports = append(imports, pkg)
 	}
 
@@ -226,4 +210,78 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 	}
 
 	return applyTemplate(to)
+}
+
+func (g *generator) generateTestStubs(file *descriptor.File) (string, error) {
+	ext := proto.GetExtension(file.Options, engine_annotattions.E_TestsSpec)
+	opts, ok := ext.(*engine_annotattions.TestSpec)
+	if ok {
+
+		baseImports := []string{
+			"context context",
+			"grpc github.com/lastbackend/engine/client/grpc",
+			"mock github.com/stretchr/testify/mock",
+		}
+
+		if len(opts.Mockery.Package) == 0 {
+			opts.Mockery.Package = "github.com/dummy/dummy"
+		}
+
+		var imports = g.prepareImports(baseImports)
+
+		imports = append(imports, descriptor.GoPackage{
+			Path: fmt.Sprintf(opts.Mockery.Package),
+			Name: path.Base(opts.Mockery.Package),
+			Alias: "service_mocks",
+		})
+
+		content, err := applyTestTemplate(tplMockeryTestOptions{
+			File:    file,
+			Imports: imports,
+		})
+		if err != nil {
+			return "", err
+		}
+
+		return content, nil
+	}
+
+	return "", nil
+}
+
+func (g *generator) prepareImports(importList []string) []descriptor.GoPackage {
+	var imports []descriptor.GoPackage
+	for _, pkgPath := range importList {
+		var pkg descriptor.GoPackage
+
+		match := strings.Split(pkgPath, " ")
+		if len(match) == 2 {
+			pkg = descriptor.GoPackage{
+				Path:  match[1],
+				Name:  path.Base(match[1]),
+				Alias: match[0],
+			}
+		} else {
+			pkg = descriptor.GoPackage{
+				Path: pkgPath,
+				Name: path.Base(pkgPath),
+			}
+		}
+
+		if len(pkg.Alias) == 0 {
+			if err := g.desc.ReserveGoPackageAlias(pkg.Name, pkg.Path); err != nil {
+				for i := 0; ; i++ {
+					alias := fmt.Sprintf("%s_%d", pkg.Name, i)
+					if err := g.desc.ReserveGoPackageAlias(alias, pkg.Path); err != nil {
+						continue
+					}
+					pkg.Alias = alias
+					break
+				}
+			}
+		}
+		imports = append(imports, pkg)
+	}
+
+	return imports
 }

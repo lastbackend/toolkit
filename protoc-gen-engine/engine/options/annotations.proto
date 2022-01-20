@@ -46,6 +46,7 @@ extend google.protobuf.ServiceOptions {
 
 extend google.protobuf.FileOptions {
   DockerfileSpec dockerfile_spec = 50003;
+  TestSpec tests_spec = 50004;
 }
 
 message DockerfileSpec {
@@ -53,4 +54,12 @@ message DockerfileSpec {
   repeated int32 expose = 2;
   repeated string commands = 3;
   bool rewrite_if_exists = 4;
+}
+
+message TestSpec {
+  MockeryTestsSpec mockery = 1;
+}
+
+message MockeryTestsSpec {
+  string package = 1;
 }
