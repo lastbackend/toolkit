@@ -118,7 +118,7 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 		files = append(files, &descriptor.ResponseFile{
 			GoPkg: file.GoPkg,
 			CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
-				Name:    proto.String(file.GeneratedFilenamePrefix + ".pb.engine.go"),
+				Name:    proto.String(file.GeneratedFilenamePrefix + ".pb.lb.go"),
 				Content: proto.String(string(formatted)),
 			},
 		})

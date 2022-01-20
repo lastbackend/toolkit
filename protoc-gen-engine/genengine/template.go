@@ -98,6 +98,8 @@ import (
 	{{range $i := .Imports}}{{if not $i.Standard}}{{$i | printf "%s\n"}}{{end}}{{end}}
 
 	"github.com/lastbackend/engine/client/grpc"
+	mock "github.com/stretchr/testify/mock"
+
 )
 
 // Suppress "imported and not used" errors
@@ -307,8 +309,6 @@ func (s *service) runService(lc fx.Lifecycle) error {
 	})
 	return nil
 }
-
-
 `))
 
 	_ = template.Must(contentTemplate.New("server-content").Parse(`

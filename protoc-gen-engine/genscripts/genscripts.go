@@ -25,6 +25,7 @@ import (
 
 type Generator interface {
 	GenerateDockerfile(targets []*descriptor.File) ([]*descriptor.ResponseFile, error)
+	GenerateMockeryStubs(targets []*descriptor.File) ([]*descriptor.ResponseFile, error)
 }
 
 type generator struct {
@@ -55,7 +56,7 @@ func (g *generator) GenerateDockerfile(targets []*descriptor.File) ([]*descripto
 						return nil, err
 					}
 					files = append(files, &descriptor.ResponseFile{
-						Rewrite:  opts.RewriteIfExists,
+						Rewrite: opts.RewriteIfExists,
 						CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
 							Name:    proto.String("Dockerfile"),
 							Content: proto.String(dockerfileContent),
@@ -67,10 +68,43 @@ func (g *generator) GenerateDockerfile(targets []*descriptor.File) ([]*descripto
 						return nil, err
 					}
 					files = append(files, &descriptor.ResponseFile{
-						Rewrite:  opts.RewriteIfExists,
+						Rewrite: opts.RewriteIfExists,
 						CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
 							Name:    proto.String("Makefile"),
 							Content: proto.String(makefileContent),
+						},
+					})
+				}
+			}
+			break
+		}
+	}
+	return files, nil
+}
+
+func (g *generator) GenerateMockeryStubs(targets []*descriptor.File) ([]*descriptor.ResponseFile, error) {
+	var files []*descriptor.ResponseFile
+	for _, f := range targets {
+		if proto.HasExtension(f.Options, annotations.E_TestsMockerySpec) {
+			if proto.HasExtension(f.Options, annotations.E_TestsMockerySpec) {
+				ext := proto.GetExtension(f.Options, annotations.E_TestsMockerySpec)
+				opts, ok := ext.(*annotations.MockeryTestsSpec)
+				if ok {
+					if len(opts.Package) == 0 {
+						opts.Package = "github.com/dummy/dummy"
+					}
+
+					content, err := applyTestTemplate(tplMockeryTestOptions{
+						Package: opts.Package,
+					})
+					if err != nil {
+						return nil, err
+					}
+
+					files = append(files, &descriptor.ResponseFile{
+						CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
+							Name:    proto.String(f.GeneratedFilenamePrefix + ".pb.lb.mockery.go"),
+							Content: proto.String(content),
 						},
 					})
 				}
