@@ -17,13 +17,12 @@ limitations under the License.
 package generator
 
 import (
+	"flag"
 	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
 	"github.com/lastbackend/engine/protoc-gen-engine/genengine"
 	"github.com/lastbackend/engine/protoc-gen-engine/genscripts"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/types/pluginpb"
-
-	"flag"
 	"io"
 )
 
@@ -92,6 +91,7 @@ func (g *Generator) Run() error {
 		if err != nil {
 			return err
 		}
+
 		for _, f := range engineFiles {
 			genFile := gen.NewGeneratedFile(f.GetName(), protogen.GoImportPath(f.GoPkg.Path))
 			if _, err := genFile.Write([]byte(f.GetContent())); err != nil {
