@@ -109,7 +109,7 @@ func (g *Generator) Run() error {
 		}
 
 		// Generate scripts scripts
-		generatorScripts := genscripts.New()
+		generatorScripts := genscripts.New(&genscripts.Options{SourcePackage: sourcePkg.String()})
 
 		scriptFiles, err := generatorScripts.GenerateDockerfile(g.targets)
 		if err != nil {

@@ -28,10 +28,22 @@ type Generator interface {
 }
 
 type generator struct {
+	opts *Options
 }
 
-func New() Generator {
-	return &generator{}
+type Options struct {
+	SourcePackage string
+}
+
+func New(opts *Options) Generator {
+	g := &generator{}
+
+	if opts == nil {
+		opts = new(Options)
+	}
+	g.opts = opts
+
+	return g
 }
 
 func (g *generator) GenerateDockerfile(targets []*descriptor.File) ([]*descriptor.ResponseFile, error) {
@@ -41,11 +53,8 @@ func (g *generator) GenerateDockerfile(targets []*descriptor.File) ([]*descripto
 			ext := proto.GetExtension(f.Options, annotations.E_DockerfileSpec)
 			opts, ok := ext.(*annotations.DockerfileSpec)
 			if ok {
-				if len(opts.Package) == 0 {
-					opts.Package = "github.com/dummy/dummy"
-				}
 				dockerfileContent, err := applyDockerfileTemplate(tplDockerfileOptions{
-					Package:         opts.Package,
+					Package:         g.opts.SourcePackage,
 					RewriteIfExists: opts.RewriteIfExists,
 					Expose:          opts.Expose,
 					Commands:        opts.Commands,

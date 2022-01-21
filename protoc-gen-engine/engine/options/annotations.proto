@@ -50,10 +50,9 @@ extend google.protobuf.FileOptions {
 }
 
 message DockerfileSpec {
-  string package = 1;
-  repeated int32 expose = 2;
-  repeated string commands = 3;
-  bool rewrite_if_exists = 4;
+  repeated int32 expose = 1;
+  repeated string commands = 2;
+  bool rewrite_if_exists = 3;
 }
 
 message TestSpec {
