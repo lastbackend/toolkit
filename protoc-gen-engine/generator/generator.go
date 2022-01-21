@@ -18,6 +18,7 @@ package generator
 
 import (
 	"flag"
+	"fmt"
 	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
 	"github.com/lastbackend/engine/protoc-gen-engine/genengine"
 	"github.com/lastbackend/engine/protoc-gen-engine/genscripts"
@@ -64,16 +65,24 @@ func Init(opts ...Option) *Generator {
 }
 
 func (g *Generator) Run() error {
+	var flagSet flag.FlagSet
+	flagSet.String("source_package", "", "set package name for source")
+
 	protogen.Options{
-		ParamFunc: flag.CommandLine.Set,
+		ParamFunc: flagSet.Set,
 	}.Run(func(gen *protogen.Plugin) error {
+		sourcePkg := flagSet.Lookup("source_package").Value
+
+		if sourcePkg == nil || sourcePkg.String() == "" {
+			return fmt.Errorf("source_package does not set")
+		}
 
 		gen.SupportedFeatures = uint64(pluginpb.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL)
 
 		desc := descriptor.NewDescriptor()
 
 		// Generate engine files
-		generatorEngine := genengine.New(desc)
+		generatorEngine := genengine.New(desc, &genengine.Options{SourcePackage: sourcePkg.String()})
 
 		if err := desc.LoadFromPlugin(gen); err != nil {
 			return err
