@@ -536,7 +536,7 @@ var _ context.Context
 		return stubs
 	}
 
-	func With{{$svc.GetName}}Stubs(stubs *{{$svc.GetName}}Stubs) engine.{{$svc.GetName}}RpcClient{
+	func With{{$svc.GetName}}Stubs(stubs *{{$svc.GetName}}Stubs) proto.{{$svc.GetName}}RpcClient{
 
 		rpc_mock := new(service_mocks.{{$svc.GetName}}RpcClient)
 
@@ -545,10 +545,10 @@ var _ context.Context
 			resp := st.Response
 			err := st.Error
 			rpc_mock.On("{{$m.GetName}}", st.Context, st.Request, mock.IsType("[]grpc.CallOption")).Return(
-				func(ctx context.Context, req *engine.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) *engine.{{$m.ResponseType.GoName}} {
+				func(ctx context.Context, req *proto.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) *proto.{{$m.ResponseType.GoName}} {
 					return resp
 				},
-				func(ctx context.Context, req *engine.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) error {
+				func(ctx context.Context, req *proto.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) error {
 					return err
 				},
 			)
@@ -564,8 +564,8 @@ var _ context.Context
 			type {{$m.GetName}}Stub struct {
 			{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
 				Context  context.Context
-				Request  *engine.{{$m.RequestType.GoName}}
-				Response *engine.{{$m.ResponseType.GoName}}
+				Request  *proto.{{$m.RequestType.GoName}}
+				Response *proto.{{$m.ResponseType.GoName}}
 				Error 	 error
 			{{end}}
 			}

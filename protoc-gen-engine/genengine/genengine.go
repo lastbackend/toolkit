@@ -46,12 +46,24 @@ type Generator interface {
 
 type generator struct {
 	desc *descriptor.Descriptor
+	opts *Options
 }
 
-func New(desc *descriptor.Descriptor) Generator {
-	return &generator{
-		desc: desc,
+type Options struct {
+	SourcePackage string
+}
+
+func New(desc *descriptor.Descriptor, opts *Options) Generator {
+
+	g := &generator{}
+
+	if opts == nil {
+		opts = new(Options)
 	}
+	g.desc = desc
+	g.opts = opts
+
+	return g
 }
 
 func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.ResponseFile, error) {
@@ -223,7 +235,7 @@ func (g *generator) generateTestStubs(file *descriptor.File) (string, error) {
 			"context context",
 			"grpc github.com/lastbackend/engine/client/grpc",
 			"mock github.com/stretchr/testify/mock",
-			fmt.Sprintf("engine %s", filepath.Join(*file.Package, filepath.Dir(file.GeneratedFilenamePrefix))),
+			fmt.Sprintf("proto %s", filepath.Join(g.opts.SourcePackage, filepath.Dir(file.GeneratedFilenamePrefix))),
 		}
 
 		if len(opts.Mockery.Package) == 0 {

@@ -17,24 +17,12 @@ limitations under the License.
 package main
 
 import (
-	"flag"
-	"fmt"
 	"github.com/lastbackend/engine/protoc-gen-engine/generator"
 
 	"os"
 )
 
 func main() {
-	showVersion := flag.Bool("version", false, "print the version and exit")
-
-	flag.Parse()
-	generator.ParseFlag()
-
-	if *showVersion {
-		fmt.Printf("protoc-gen-engine %v\n", generator.DefaultVersion)
-		os.Exit(0)
-	}
-
 	g := generator.Init(
 		generator.DebugEnv("ENGINE_DEBUG"),
 	)
