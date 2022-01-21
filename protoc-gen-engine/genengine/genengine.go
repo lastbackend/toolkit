@@ -17,14 +17,13 @@ limitations under the License.
 package genengine
 
 import (
+	"fmt"
 	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
 	engine_annotattions "github.com/lastbackend/engine/protoc-gen-engine/engine/options"
+	"go/format"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/pluginpb"
 	"io"
-
-	"fmt"
-	"go/format"
 	"os"
 	"path"
 	"path/filepath"
@@ -64,27 +63,6 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 			continue
 		}
 
-		if proto.HasExtension(file.Options, engine_annotattions.E_TestsSpec) {
-			code, err := g.generateTestStubs(file)
-			if err == nil {
-
-				formatted, err := format.Source([]byte(code))
-				if err != nil {
-					return nil, err
-				}
-
-				files = append(files, &descriptor.ResponseFile{
-					GoPkg: file.GoPkg,
-					CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
-						Name:    proto.String(file.GeneratedFilenamePrefix + ".pb.lb.mockery.go"),
-						Content: proto.String(string(formatted)),
-					},
-				})
-			} else {
-
-			}
-		}
-
 		code, err := g.generate(file)
 		if err != nil {
 			return nil, err
@@ -101,6 +79,29 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 				Content: proto.String(string(formatted)),
 			},
 		})
+
+		if proto.HasExtension(file.Options, engine_annotattions.E_TestsSpec) {
+			code, err := g.generateTestStubs(file)
+			if err != nil {
+				return nil, err
+			}
+
+			formatted, err := format.Source([]byte(code))
+			if err != nil {
+				return nil, err
+			}
+
+			dir := filepath.Dir(file.GeneratedFilenamePrefix)
+			name := filepath.Base(file.GeneratedFilenamePrefix)
+
+			files = append(files, &descriptor.ResponseFile{
+				GoPkg: file.GoPkg,
+				CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
+					Name:    proto.String(filepath.Join(dir, "tests", name+".pb.lb.mockery.go")),
+					Content: proto.String(string(formatted)),
+				},
+			})
+		}
 	}
 
 	return files, nil
@@ -222,6 +223,7 @@ func (g *generator) generateTestStubs(file *descriptor.File) (string, error) {
 			"context context",
 			"grpc github.com/lastbackend/engine/client/grpc",
 			"mock github.com/stretchr/testify/mock",
+			fmt.Sprintf("engine %s", filepath.Join(*file.Package, filepath.Dir(file.GeneratedFilenamePrefix))),
 		}
 
 		if len(opts.Mockery.Package) == 0 {
