@@ -21,10 +21,13 @@ import (
 	engine_annotattions "github.com/lastbackend/engine/protoc-gen-engine/engine/options"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/pluginpb"
+	"io"
 
 	"fmt"
 	"go/format"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -54,35 +57,32 @@ func New(desc *descriptor.Descriptor) Generator {
 
 func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.ResponseFile, error) {
 	var (
-		files         []*descriptor.ResponseFile
-		serviceExists = false
+		files []*descriptor.ResponseFile
 	)
 	for _, file := range targets {
 		if len(file.Services) == 0 {
 			continue
 		}
-		if serviceExists {
-			return nil, fmt.Errorf("there must be only one service")
-		}
-		serviceExists = true
 
 		if proto.HasExtension(file.Options, engine_annotattions.E_TestsSpec) {
 			code, err := g.generateTestStubs(file)
-			if err != nil {
-				return nil, err
-			}
-			formatted, err := format.Source([]byte(code))
-			if err != nil {
-				return nil, err
-			}
+			if err == nil {
 
-			files = append(files, &descriptor.ResponseFile{
-				GoPkg: file.GoPkg,
-				CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
-					Name:    proto.String(file.GeneratedFilenamePrefix + ".pb.lb.mockery.go"),
-					Content: proto.String(string(formatted)),
-				},
-			})
+				formatted, err := format.Source([]byte(code))
+				if err != nil {
+					return nil, err
+				}
+
+				files = append(files, &descriptor.ResponseFile{
+					GoPkg: file.GoPkg,
+					CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
+						Name:    proto.String(file.GeneratedFilenamePrefix + ".pb.lb.mockery.go"),
+						Content: proto.String(string(formatted)),
+					},
+				})
+			} else {
+
+			}
 		}
 
 		code, err := g.generate(file)
@@ -102,6 +102,7 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 			},
 		})
 	}
+
 	return files, nil
 }
 
@@ -227,11 +228,26 @@ func (g *generator) generateTestStubs(file *descriptor.File) (string, error) {
 			opts.Mockery.Package = "github.com/dummy/dummy"
 		}
 
+		var dirErr error
+		dir := filepath.Join(os.Getenv("GOPATH"), "src", opts.Mockery.Package)
+		if ok, _ := existsFileOrDir(dir); !ok {
+			dirErr = fmt.Errorf("directory %s does not exist", dir)
+		}
+		if ok, _ := dirIsEmpty(dir); ok {
+			dirErr = fmt.Errorf("directory %s is empty", dir)
+		}
+		if dirErr != nil {
+			return applyTemplateWithMessage(tplMessageOptions{
+				File:    file,
+				Message: "Warning: You have no mock in provided directory. Please check mockery docs for mocks generation.",
+			})
+		}
+
 		var imports = g.prepareImports(baseImports)
 
 		imports = append(imports, descriptor.GoPackage{
-			Path: fmt.Sprintf(opts.Mockery.Package),
-			Name: path.Base(opts.Mockery.Package),
+			Path:  fmt.Sprintf(opts.Mockery.Package),
+			Name:  path.Base(opts.Mockery.Package),
 			Alias: "service_mocks",
 		})
 
@@ -284,4 +300,29 @@ func (g *generator) prepareImports(importList []string) []descriptor.GoPackage {
 	}
 
 	return imports
+}
+
+func existsFileOrDir(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
+
+func dirIsEmpty(name string) (bool, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	_, err = f.Readdirnames(1)
+	if err == io.EOF {
+		return true, nil
+	}
+	return false, err
 }
