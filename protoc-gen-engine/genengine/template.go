@@ -24,13 +24,6 @@ import (
 	"text/template"
 )
 
-type tplOptions struct {
-	*descriptor.File
-	Imports []descriptor.GoPackage
-	Plugins map[string]map[string]*Plugin
-	Clients map[string]*Client
-}
-
 type Plugin struct {
 	Prefix string
 	Plugin string
@@ -42,13 +35,20 @@ type Client struct {
 	Pkg     string
 }
 
-type contentParams struct {
+type contentServiceParams struct {
 	Plugins  map[string]map[string]*Plugin
-	Clients  map[string]*Client
 	Services []*descriptor.Service
+	Clients  map[string]*Client
 }
 
-func applyTemplate(to tplOptions) (string, error) {
+type tplServiceOptions struct {
+	*descriptor.File
+	Imports []descriptor.GoPackage
+	Plugins map[string]map[string]*Plugin
+	Clients map[string]*Client
+}
+
+func applyServiceTemplate(to tplServiceOptions) (string, error) {
 	w := bytes.NewBuffer(nil)
 
 	if err := headerTemplate.Execute(w, to); err != nil {
@@ -67,13 +67,55 @@ func applyTemplate(to tplOptions) (string, error) {
 		targetServices = append(targetServices, svc)
 	}
 
-	tp := contentParams{
+	tp := contentServiceParams{
 		Plugins:  to.Plugins,
 		Clients:  to.Clients,
 		Services: targetServices,
 	}
 
 	if err := contentTemplate.Execute(w, tp); err != nil {
+		return "", err
+	}
+
+	return w.String(), nil
+}
+
+type tplClientOptions struct {
+	*descriptor.File
+	Imports []descriptor.GoPackage
+	Clients map[string]*Client
+}
+
+type contentClientParams struct {
+	Clients  map[string]*Client
+	Services []*descriptor.Service
+}
+
+func applyClientTemplate(to tplClientOptions) (string, error) {
+	w := bytes.NewBuffer(nil)
+
+	if err := headerTemplate.Execute(w, to); err != nil {
+		return "", err
+	}
+
+	var targetServices = make([]*descriptor.Service, 0)
+	for _, msg := range to.Messages {
+		msgName := camel(*msg.Name)
+		msg.Name = &msgName
+	}
+
+	for _, svc := range to.Services {
+		svcName := camel(*svc.Name)
+		svc.Name = &svcName
+		targetServices = append(targetServices, svc)
+	}
+
+	tp := contentClientParams{
+		Clients:  to.Clients,
+		Services: targetServices,
+	}
+
+	if err := contentClientTemplate.Execute(w, tp); err != nil {
 		return "", err
 	}
 
@@ -312,12 +354,12 @@ func (s *service) register{{$svc.GetName}}Server(srv {{$svc.GetName}}RpcServer) 
 	// Register servers
 
 	type {{$svc.GetName}}GrpcRpcServer struct {
-			{{$svc.GetName}}Server
+			proto.{{$svc.GetName}}Server
 	}
 
 	h := &{{$svc.GetName | ToLower}}GrpcRpcServer{srv.({{$svc.GetName}}RpcServer)}
 	grpcServer := server.NewServer(s.engine, &server.ServerOptions{Name: "server-{{$svc.GetName | ToLower}}-grpc"})
-	if err := grpcServer.Register(&{{$svc.GetName}}_ServiceDesc, &{{$svc.GetName}}GrpcRpcServer{h}); err != nil {
+	if err := grpcServer.Register(&proto.{{$svc.GetName}}_ServiceDesc, &{{$svc.GetName}}GrpcRpcServer{h}); err != nil {
 		return err
 	}
 
@@ -348,11 +390,11 @@ func (s *service) runService(lc fx.Lifecycle) error {
 	type {{$svc.GetName}}RpcServer interface {
 		{{range $m := $svc.Methods}}
     {{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
-			{{$m.GetName}}(ctx context.Context, req *{{$m.RequestType.GoName}}) (*{{$m.ResponseType.GoName}}, error)
+			{{$m.GetName}}(ctx context.Context, req *proto.{{$m.RequestType.GoName}}) (*proto.{{$m.ResponseType.GoName}}, error)
     {{else}}{{if not $m.GetClientStreaming}}
-			{{$m.GetName}}(req *{{$m.RequestType.GoName}}, stream {{$svc.GetName}}_{{$m.GetName}}Server) error
+			{{$m.GetName}}(req *proto.{{$m.RequestType.GoName}}, stream proto.{{$svc.GetName}}_{{$m.GetName}}Server) error
     {{else}}
-			{{$m.GetName}}(stream {{$svc.GetName}}_{{$m.GetName}}Server) error
+			{{$m.GetName}}(stream proto.{{$svc.GetName}}_{{$m.GetName}}Server) error
     {{end}}{{end}}
 	{{end}}
 	}
@@ -365,15 +407,15 @@ func (s *service) runService(lc fx.Lifecycle) error {
 
 	{{range $m := $svc.Methods}}
     {{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
-  		func (h *{{$svc.GetName | ToLower}}GrpcRpcServer) {{$m.GetName}}(ctx context.Context, req *{{$m.RequestType.GoName}}) (*{{$m.ResponseType.GoName}}, error) {
+  		func (h *{{$svc.GetName | ToLower}}GrpcRpcServer) {{$m.GetName}}(ctx context.Context, req *proto.{{$m.RequestType.GoName}}) (*proto.{{$m.ResponseType.GoName}}, error) {
 				return h.{{$svc.GetName}}RpcServer.{{$m.GetName}}(ctx, req)
 			}
     {{else}}{{if not $m.GetClientStreaming}}
-			func (h *{{$svc.GetName | ToLower}}GrpcRpcServer) {{$m.GetName}}(req *{{$m.RequestType.GoName}}, stream {{$svc.GetName}}_{{$m.GetName}}Server) error {
+			func (h *{{$svc.GetName | ToLower}}GrpcRpcServer) {{$m.GetName}}(req *proto.{{$m.RequestType.GoName}}, stream proto.{{$svc.GetName}}_{{$m.GetName}}Server) error {
 				return h.{{$svc.GetName}}RpcServer.{{$m.GetName}}(req, stream)
 			}
     {{else}}
-			func (h *{{$svc.GetName | ToLower}}GrpcRpcServer) {{$m.GetName}}(stream {{$svc.GetName}}_{{$m.GetName}}Server) error {
+			func (h *{{$svc.GetName | ToLower}}GrpcRpcServer) {{$m.GetName}}(stream proto.{{$svc.GetName}}_{{$m.GetName}}Server) error {
 				return h.{{$svc.GetName}}RpcServer.{{$m.GetName}}(stream)
 			}
     {{end}}{{end}}
@@ -382,7 +424,17 @@ func (s *service) runService(lc fx.Lifecycle) error {
 {{end}}
 `))
 
-	_ = template.Must(contentTemplate.New("client-content").Parse(`
+	contentTemplate = template.Must(template.New("content").Funcs(funcMap).Parse(`
+// Suppress "imported and not used" errors
+var _ context.Context
+var _ logger.Logger
+var _ server.Server
+
+{{template "services-content" .}}
+{{template "server-content" .}}
+`))
+
+	contentClientTemplate = template.Must(template.New("client-content").Funcs(funcMap).Parse(`
 {{range $svc := .Services}}
 	// Client gRPC API for {{$svc.GetName}} service
 	func New{{$svc.GetName}}RpcClient(service string, c grpc.Client) {{$svc.GetName}}RpcClient {
@@ -393,10 +445,10 @@ func (s *service) runService(lc fx.Lifecycle) error {
 	type {{$svc.GetName}}RpcClient interface {
 		{{range $m := $svc.Methods}}
 			{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
-				{{$m.GetName}}(ctx context.Context, req *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) (*{{$m.ResponseType.GoName}}, error)
+				{{$m.GetName}}(ctx context.Context, req *proto.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) (*proto.{{$m.ResponseType.GoName}}, error)
 			{{else}}
 				{{if not $m.GetClientStreaming}}
-					{{$m.GetName}}(ctx context.Context, req *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) ({{$svc.GetName}}_{{$m.GetName}}Service, error)
+					{{$m.GetName}}(ctx context.Context, req *proto.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) ({{$svc.GetName}}_{{$m.GetName}}Service, error)
 				{{else}}
 					{{$m.GetName}}(ctx context.Context, opts ...grpc.CallOption) ({{$svc.GetName}}_{{$m.GetName}}Service, error)
 				{{end}}
@@ -413,8 +465,8 @@ func (s *service) runService(lc fx.Lifecycle) error {
 
 	{{range $m := $svc.Methods}}
 		{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
-			func (c *{{$svc.GetName | ToLower}}GrpcRpcClient) {{$m.GetName}}(ctx context.Context, req *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) (*{{$m.ResponseType.GoName}}, error) {
-				resp := new({{$m.ResponseType.GoName}})
+			func (c *{{$svc.GetName | ToLower}}GrpcRpcClient) {{$m.GetName}}(ctx context.Context, req *proto.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) (*proto.{{$m.ResponseType.GoName}}, error) {
+				resp := new(proto.{{$m.ResponseType.GoName}})
 				if err := c.cli.Call(ctx, c.service, {{$svc.GetName}}_{{$m.GetName}}Method, req, resp, opts...); err != nil {
 					return nil, err
 				}
@@ -422,7 +474,7 @@ func (s *service) runService(lc fx.Lifecycle) error {
 			}
 		{{else}}
 			{{if not $m.GetClientStreaming}}
-				func (c *{{$svc.GetName | ToLower}}GrpcRpcClient) {{$m.GetName}}(ctx context.Context, req *{{$m.RequestType.GoName}}, opts ...grpc.CallOption) ({{$svc.GetName}}_{{$m.GetName}}Service, error) {
+				func (c *{{$svc.GetName | ToLower}}GrpcRpcClient) {{$m.GetName}}(ctx context.Context, req *proto.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) ({{$svc.GetName}}_{{$m.GetName}}Service, error) {
 					stream, err := c.cli.Stream(ctx, c.service, {{$svc.GetName}}_{{$m.GetName}}Method, req, opts...)
 					if err != nil {
 						return nil, err
@@ -446,8 +498,8 @@ func (s *service) runService(lc fx.Lifecycle) error {
 				SendMsg(interface{}) error
 				RecvMsg(interface{}) error
 				Close() error
-				Recv() (*{{$m.ResponseType.GoName}}, error)
-				{{if $m.GetClientStreaming}}Send(*{{$m.RequestType.GoName}}) error{{end}}
+				Recv() (*proto.{{$m.ResponseType.GoName}}, error)
+				{{if $m.GetClientStreaming}}Send(*proto.{{$m.RequestType.GoName}}) error{{end}}
 			}
 
 			type {{$svc.GetName | ToLower}}{{$m.GetName}}Service struct {
@@ -466,8 +518,8 @@ func (s *service) runService(lc fx.Lifecycle) error {
 				return x.stream.RecvMsg(m)
 			}
 
-			func (x *{{$svc.GetName | ToLower}}{{$m.GetName}}Service) Recv() (*{{$m.ResponseType.GoName}}, error) {
-				m := new({{$m.ResponseType.GoName}})
+			func (x *{{$svc.GetName | ToLower}}{{$m.GetName}}Service) Recv() (*proto.{{$m.ResponseType.GoName}}, error) {
+				m := new(proto.{{$m.ResponseType.GoName}})
 				err := x.stream.RecvMsg(m)
 				if err != nil {
 					return nil, err
@@ -476,7 +528,7 @@ func (s *service) runService(lc fx.Lifecycle) error {
 			}
 
 			{{if $m.GetClientStreaming}}
-			func (x *{{$svc.GetName | ToLower}}{{$m.GetName}}Service) Send(m *{{$m.RequestType.GoName}}) error {
+			func (x *{{$svc.GetName | ToLower}}{{$m.GetName}}Service) Send(m *proto.{{$m.RequestType.GoName}}) error {
 				return x.stream.SendMsg(m)
 			}
 			{{end}}
@@ -497,18 +549,7 @@ func (s *service) runService(lc fx.Lifecycle) error {
 {{end}}
 `))
 
-	contentTemplate = template.Must(template.New("content").Funcs(funcMap).Parse(`
-// Suppress "imported and not used" errors
-var _ context.Context
-var _ logger.Logger
-var _ server.Server
-
-{{template "services-content" .}}
-{{template "server-content" .}}
-{{template "client-content" .}}
-`))
-
-	contentTestStubTemplate = template.Must(contentTemplate.New("stub-content-mockery").Parse(`
+	contentTestStubTemplate = template.Must(template.New("stub-content-mockery").Parse(`
 // Suppress "imported and not used" errors
 var _ context.Context
 
@@ -516,11 +557,10 @@ var _ context.Context
 	// Server API for Api service
 	type {{$svc.GetName}}Stubs struct {
 		{{range $m := $svc.Methods}}
-		{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
+			{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
 				{{$m.GetName}} []{{$m.GetName}}Stub
-		{{else}}{{if not $m.GetClientStreaming}}
-				{{$m.GetName}} []{{$m.GetName}}Stub
-		{{end}}{{end}}
+			{{else}}
+		{{end}}
 	{{end}}
 	}
 
@@ -528,31 +568,31 @@ var _ context.Context
 		stubs:= new({{$svc.GetName}}Stubs)
 		{{range $m := $svc.Methods}}
 			{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
-		stubs.{{$m.GetName}} = make([]{{$m.GetName}}Stub,0)
-			{{else if not $m.GetClientStreaming}}
-		stubs.{{$m.GetName}} = make([]{{$m.GetName}}Stub,0)
+				stubs.{{$m.GetName}} = make([]{{$m.GetName}}Stub,0)
 			{{end}}
 		{{end}}
 		return stubs
 	}
 
-	func With{{$svc.GetName}}Stubs(stubs *{{$svc.GetName}}Stubs) proto.{{$svc.GetName}}RpcClient{
+	func With{{$svc.GetName}}Stubs(stubs *{{$svc.GetName}}Stubs) client.{{$svc.GetName}}RpcClient{
 
 		rpc_mock := new(service_mocks.{{$svc.GetName}}RpcClient)
 
 		{{range $m := $svc.Methods}}
-		for _, st := range stubs.{{$m.GetName}} {
-			resp := st.Response
-			err := st.Error
-			rpc_mock.On("{{$m.GetName}}", st.Context, st.Request, mock.IsType("[]grpc.CallOption")).Return(
-				func(ctx context.Context, req *proto.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) *proto.{{$m.ResponseType.GoName}} {
-					return resp
-				},
-				func(ctx context.Context, req *proto.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) error {
-					return err
-				},
-			)
-		}
+			{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
+				for _, st := range stubs.{{$m.GetName}} {
+					resp := st.Response
+					err := st.Error
+					rpc_mock.On("{{$m.GetName}}", st.Context, st.Request, mock.IsType("[]grpc.CallOption")).Return(
+						func(ctx context.Context, req *proto.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) *proto.{{$m.ResponseType.GoName}} {
+							return resp
+						},
+						func(ctx context.Context, req *proto.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) error {
+							return err
+						},
+					)
+				}
+			{{end}}
 		{{end}}
 
 		return rpc_mock

@@ -75,11 +75,33 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 			continue
 		}
 
-		code, err := g.generate(file)
+		// Generate service
+		lbServiceCode, err := g.generateService(file)
 		if err != nil {
 			return nil, err
 		}
-		formatted, err := format.Source([]byte(code))
+		lbServiceFormatted, err := format.Source([]byte(lbServiceCode))
+		if err != nil {
+			return nil, err
+		}
+
+		dir := filepath.Dir(file.GeneratedFilenamePrefix)
+		name := filepath.Base(file.GeneratedFilenamePrefix)
+
+		files = append(files, &descriptor.ResponseFile{
+			GoPkg: file.GoPkg,
+			CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
+				Name:    proto.String(filepath.Join(dir, "service", name+".pb.lb.service.go")),
+				Content: proto.String(string(lbServiceFormatted)),
+			},
+		})
+
+		// Generate rpc client
+		lbClientCode, err := g.generateClient(file)
+		if err != nil {
+			return nil, err
+		}
+		lbClientFormatted, err := format.Source([]byte(lbClientCode))
 		if err != nil {
 			return nil, err
 		}
@@ -87,11 +109,12 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 		files = append(files, &descriptor.ResponseFile{
 			GoPkg: file.GoPkg,
 			CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
-				Name:    proto.String(file.GeneratedFilenamePrefix + ".pb.lb.go"),
-				Content: proto.String(string(formatted)),
+				Name:    proto.String(filepath.Join(dir, "client", name+".pb.lb.rpc.go")),
+				Content: proto.String(string(lbClientFormatted)),
 			},
 		})
 
+		// Generate mockery
 		if proto.HasExtension(file.Options, engine_annotattions.E_TestsSpec) {
 			code, err := g.generateTestStubs(file)
 			if err != nil {
@@ -102,9 +125,6 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 			if err != nil {
 				return nil, err
 			}
-
-			dir := filepath.Dir(file.GeneratedFilenamePrefix)
-			name := filepath.Base(file.GeneratedFilenamePrefix)
 
 			files = append(files, &descriptor.ResponseFile{
 				GoPkg: file.GoPkg,
@@ -119,16 +139,19 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 	return files, nil
 }
 
-func (g *generator) generate(file *descriptor.File) (string, error) {
+func (g *generator) generateService(file *descriptor.File) (string, error) {
 
-	var pluginImportsExists map[string]bool
-	var clientImportsExists map[string]bool
+	var pluginImportsExists = make(map[string]bool, 0)
+	var clientImportsExists = make(map[string]bool, 0)
+	var plugins = make(map[string]map[string]*Plugin, 0)
+	var clients = make(map[string]*Client, 0)
 	var imports = g.prepareImports([]string{
 		"context context",
 		"engine github.com/lastbackend/engine",
 		"logger github.com/lastbackend/engine/logger",
 		"server github.com/lastbackend/engine/server",
 		"github.com/lastbackend/engine/client/grpc",
+		fmt.Sprintf("proto %s/apis/proto", g.opts.SourcePackage),
 		"fx go.uber.org/fx",
 	})
 
@@ -136,11 +159,7 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 		imports = append(imports, pkg)
 	}
 
-	plugins := make(map[string]map[string]*Plugin, 0)
-	clients := make(map[string]*Client, 0)
-
 	for _, svc := range file.Services {
-
 		if svc.Options != nil && proto.HasExtension(svc.Options, engine_annotattions.E_Plugins) {
 			ePlugins := proto.GetExtension(svc.Options, engine_annotattions.E_Plugins)
 			if ePlugins != nil {
@@ -204,7 +223,7 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 					if _, ok := clientImportsExists[value.Service]; !ok {
 						imports = append(imports, descriptor.GoPackage{
 							Alias: strings.ToLower(value.Service),
-							Path:  value.Package,
+							Path:  filepath.Join(value.Package, "client"),
 						})
 					}
 					clients[value.Service] = &Client{
@@ -216,14 +235,51 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 		}
 	}
 
-	to := tplOptions{
+	to := tplServiceOptions{
 		File:    file,
 		Imports: imports,
 		Clients: clients,
 		Plugins: plugins,
 	}
 
-	return applyTemplate(to)
+	return applyServiceTemplate(to)
+}
+
+func (g *generator) generateClient(file *descriptor.File) (string, error) {
+
+	var clients = make(map[string]*Client, 0)
+	var imports = g.prepareImports([]string{
+		"context context",
+		"github.com/lastbackend/engine/client/grpc",
+		fmt.Sprintf("proto %s/apis/proto", g.opts.SourcePackage),
+	})
+
+	for _, pkg := range imports {
+		imports = append(imports, pkg)
+	}
+
+	for _, svc := range file.Services {
+		if svc.Options != nil && proto.HasExtension(svc.Options, engine_annotattions.E_Clients) {
+			eClients := proto.GetExtension(svc.Options, engine_annotattions.E_Clients)
+			if eClients != nil {
+				clnts := eClients.(*engine_annotattions.Clients)
+				for _, value := range clnts.Client {
+					clients[value.Service] = &Client{
+						Service: value.Service,
+						Pkg:     value.Package,
+					}
+				}
+			}
+		}
+	}
+
+	to := tplClientOptions{
+		File:    file,
+		Imports: imports,
+		Clients: clients,
+	}
+
+	return applyClientTemplate(to)
 }
 
 func (g *generator) generateTestStubs(file *descriptor.File) (string, error) {
@@ -236,6 +292,7 @@ func (g *generator) generateTestStubs(file *descriptor.File) (string, error) {
 			"grpc github.com/lastbackend/engine/client/grpc",
 			"mock github.com/stretchr/testify/mock",
 			fmt.Sprintf("proto %s", filepath.Join(g.opts.SourcePackage, filepath.Dir(file.GeneratedFilenamePrefix))),
+			fmt.Sprintf("client %s/apis/proto/client", g.opts.SourcePackage),
 		}
 
 		if len(opts.Mockery.Package) == 0 {
