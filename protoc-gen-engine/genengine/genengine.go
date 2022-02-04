@@ -290,7 +290,6 @@ func (g *generator) generateTestStubs(file *descriptor.File) (string, error) {
 		baseImports := []string{
 			"context context",
 			"grpc github.com/lastbackend/engine/client/grpc",
-			"mock github.com/stretchr/testify/mock",
 			fmt.Sprintf("proto %s", filepath.Join(g.opts.SourcePackage, filepath.Dir(file.GeneratedFilenamePrefix))),
 			fmt.Sprintf("client %s/apis/proto/client", g.opts.SourcePackage),
 		}
