@@ -195,10 +195,11 @@ type Service interface {
 	Run(ctx context.Context) error
 
 	SetServer(srv interface{})
-	SetService(svc interface{})
 	SetConfig(cfg interface{})
 
-	{{- range $type, $plugins := .Plugins}}
+	AddPackage(pkg interface{})
+
+	{{range $type, $plugins := .Plugins}}
 		{{- range $name, $plugin := $plugins}} 
 			Set{{$name | ToCapitalize}}({{$plugin.Prefix | ToLower}} interface{})
 		{{end}}
@@ -264,8 +265,8 @@ func (s *service) SetServer(srv interface{}) {
 	s.srv = append(s.srv, srv)
 }
 
-func (s *service) SetService(svc interface{}) {
-	s.svc = append(s.svc, svc)
+func (s *service) AddPackage(pkg interface{}) {
+	s.svc = append(s.svc, pkg)
 }
 
 func (s *service) SetConfig(cfg interface{}) {
@@ -583,7 +584,15 @@ var _ context.Context
 				for _, st := range stubs.{{$m.GetName}} {
 					resp := st.Response
 					err := st.Error
-					rpc_mock.On("{{$m.GetName}}", st.Context, st.Request, mock.IsType("[]grpc.CallOption")).Return(
+					rpc_mock.On("{{$m.GetName}}", st.Context, st.Request).Return(
+						func(ctx context.Context, req *proto.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) *proto.{{$m.ResponseType.GoName}} {
+							return resp
+						},
+						func(ctx context.Context, req *proto.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) error {
+							return err
+						},
+					)
+					rpc_mock.On("{{$m.GetName}}", st.Context, st.Request, st.CallOptions).Return(
 						func(ctx context.Context, req *proto.{{$m.RequestType.GoName}}, opts ...grpc.CallOption) *proto.{{$m.ResponseType.GoName}} {
 							return resp
 						},
@@ -603,10 +612,11 @@ var _ context.Context
 		{{range $m := $svc.Methods}}
 			type {{$m.GetName}}Stub struct {
 			{{if and (not $m.GetServerStreaming) (not $m.GetClientStreaming)}}
-				Context  context.Context
-				Request  *proto.{{$m.RequestType.GoName}}
-				Response *proto.{{$m.ResponseType.GoName}}
-				Error 	 error
+				Context     context.Context
+				Request     *proto.{{$m.RequestType.GoName}}
+				Response    *proto.{{$m.ResponseType.GoName}}
+				CallOptions []grpc.CallOption				
+				Error 	    error
 			{{end}}
 			}
 		{{end}}
