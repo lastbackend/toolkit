@@ -305,6 +305,11 @@ func (s *service) AddController(ctrl interface{}) {
 func (s *service) Run(ctx context.Context) error {
 	provide := make([]interface{}, 0)
 	provide = append(provide,
+		// default
+		fx.Annotate(
+			func() engine.Controller {
+				return nil
+			}),
 		fx.Annotate(
 			func() engine.Service {
 				return s.engine
@@ -417,6 +422,10 @@ func (s *service) Run(ctx context.Context) error {
 {{ end }}
 
 func (s *service) registerController(ctrl engine.Controller) error {
+	if ctrl == nil {
+		return nil
+	}
+
 	// Register controllers
 	if err := s.engine.ControllerRegister(ctrl); err != nil {
 		return err
