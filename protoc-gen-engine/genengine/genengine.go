@@ -263,6 +263,7 @@ func (g *generator) generateClient(file *descriptor.File) (string, error) {
 
 	pkgImports := []string{
 		"context context",
+		fmt.Sprintf("proto %s/apis/proto", g.opts.SourcePackage),
 		"github.com/lastbackend/engine/client/grpc",
 	}
 
