@@ -138,7 +138,7 @@ func (s *service) Run() error {
 	if err := s.Start(); err != nil {
 		return err
 	}
-	fmt.Println("1 >>>>>>")
+
 	ch := make(chan os.Signal, 1)
 	if s.signal {
 		signal.Notify(ch, shutdownSignals...)
