@@ -17,6 +17,7 @@ limitations under the License.
 package postgres_pg
 
 import (
+	"database/sql"
 	"github.com/go-pg/pg/v10"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -109,7 +110,7 @@ type options struct {
 	// if IdleTimeout is set.
 	IdleCheckFrequency *time.Duration
 
-	MigrationsDir *string
+	MigrationsDir string
 }
 
 type plugin struct {
@@ -158,7 +159,7 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 
 	opt, err := pg.ParseURL(p.opts.Connection)
 	if err != nil {
-		panic(err)
+		return errors.New(errMissingConnectionString)
 	}
 
 	if p.opts.DialTimeout != nil {
@@ -206,6 +207,21 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 
 	if p.opts.Logger {
 		db.AddQueryHook(dbLogger{})
+	}
+
+	if p.opts.MigrationsDir != "" {
+		fmt.Printf("\nRun migration from dir: %s", p.opts.MigrationsDir)
+		sqlDB, err := sql.Open(driverName, p.opts.Connection)
+		if err != nil {
+			return fmt.Errorf("failed to db open: %w", err)
+		}
+		if err = p.migration(sqlDB, p.opts.MigrationsDir, p.opts.Connection); err != nil {
+			return err
+		}
+		if err = sqlDB.Close(); err != nil {
+			return err
+		}
+		fmt.Printf("\nMigration completed!\n")
 	}
 
 	p.db = db
@@ -296,6 +312,10 @@ func (p *plugin) addFlags(app engine.Service) {
 		Env(p.withEnvPrefix("IDLE_CHECK_FREQUENCY")).
 		Usage("Sets the frequency of idle checks made by idle connections reaper.\nDefault is 1 minute. -1 disables idle connections reaper, but idle connections are still discarded by the client if IdleTimeout is set.").
 		Default(0)
+
+	app.CLI().AddStringFlag(p.withPrefix("migration-dir"), &p.opts.MigrationsDir).
+		Env(p.withEnvPrefix("MIGRATION_DIR")).
+		Usage("PostgreSQL migration dir path")
 }
 
 func (p *plugin) addCommands(app engine.Service) {
@@ -313,40 +333,12 @@ func (p *plugin) addCommands(app engine.Service) {
 				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct", p.withPrefix("connection"))
 			}
 
-			opt, err := pg.ParseURL(connection)
-			if err != nil {
-				return errors.New(errMissingConnectionString)
-			}
-
 			c, err := sqlx.Open(driverName, connection)
 			if err != nil {
 				return fmt.Errorf("failed to db open: %w", err)
 			}
 
-			driver, err := postgres.WithInstance(c.DB, &postgres.Config{})
-			if err != nil {
-				return err
-			}
-
-			m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", args[0]), opt.Database, driver)
-			if err != nil {
-				return err
-			}
-
-			version, dirty, err := m.Version()
-			if err != nil && err != migrate.ErrNilVersion {
-				return err
-			}
-			if dirty {
-				if err := m.Force(int(version)); err != nil {
-					return err
-				}
-				if err := m.Down(); err != nil {
-					return err
-				}
-			}
-
-			if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+			if err = p.migration(c.DB, args[0], connection); err != nil {
 				return err
 			}
 
@@ -360,4 +352,41 @@ func (p *plugin) addCommands(app engine.Service) {
 		Required()
 
 	app.CLI().AddCommand(migrateCmd)
+}
+
+func (p *plugin) migration(db *sql.DB, migrateDir, connectionString string) error {
+
+	opts, err := pg.ParseURL(connectionString)
+	if err != nil {
+		return errors.New(errMissingConnectionString)
+	}
+
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return err
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", migrateDir), opts.Database, driver)
+	if err != nil {
+		return err
+	}
+
+	version, dirty, err := m.Version()
+	if err != nil && err != migrate.ErrNilVersion {
+		return err
+	}
+	if dirty {
+		if err := m.Force(int(version)); err != nil {
+			return err
+		}
+		if err := m.Down(); err != nil {
+			return err
+		}
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	return nil
 }

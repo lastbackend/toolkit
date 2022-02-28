@@ -17,6 +17,8 @@ limitations under the License.
 package postgres
 
 import (
+	"database/sql"
+	"github.com/go-pg/pg/v10"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/jmoiron/sqlx"
@@ -93,7 +95,7 @@ type options struct {
 	// If d <= 0, connections are not closed due to a connection's age.
 	ConnMaxIdleTime *time.Duration
 
-	MigrationsDir *string
+	MigrationsDir string
 }
 
 type plugin struct {
@@ -162,6 +164,14 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 		conn.SetConnMaxIdleTime(*p.opts.ConnMaxIdleTime)
 	}
 
+	if p.opts.MigrationsDir != "" {
+		fmt.Printf("\nRun migration from dir: %s", p.opts.MigrationsDir)
+		if err = p.migration(conn.DB, p.opts.MigrationsDir, p.opts.Connection); err != nil {
+			return err
+		}
+		fmt.Printf("\nMigration completed!\n")
+	}
+
 	p.connection = p.opts.Connection
 	p.db = conn
 
@@ -192,29 +202,29 @@ func (p *plugin) addFlags(app engine.Service) {
 	app.CLI().AddDurationFlag(p.withPrefix("conn-max-lifetime"), p.opts.ConnMaxLifetime).
 		Env(p.withEnvPrefix("CONN_MAX_LIFETIME")).
 		Usage("Sets the maximum amount of time a connection may be reused.\nIf <= 0, connections are not closed due to a connection's age").
-		Default(0).
-		Required()
+		Default(0)
 
 	// define connection max idle flag
 	app.CLI().AddDurationFlag(p.withPrefix("conn-max-idle-time"), p.opts.ConnMaxIdleTime).
 		Env(p.withEnvPrefix("CONN_MAX_IDLE_TIME")).
 		Usage("Sets the maximum amount of time a connection may be idle.\nIf <= 0, connections are not closed due to a connection's idle time").
-		Default(0).
-		Required()
+		Default(0)
 
 	// define max idle connections flag
 	app.CLI().AddIntFlag(p.withPrefix("max-idle-conns"), p.opts.MaxIdleConns).
 		Env(p.withEnvPrefix("MAX_IDLE_CONNS")).
 		Usage("Sets the maximum number of connections in the idle connection pool.\nIf <= 0, no idle connections are retained.\n(The default max idle connections is currently 2)").
-		Default(0).
-		Required()
+		Default(0)
 
 	// define max idle connections flag
 	app.CLI().AddIntFlag(p.withPrefix("max-open-conns"), p.opts.MaxOpenConns).
 		Env(p.withEnvPrefix("MAX_OPEN_CONNS")).
 		Usage("Sets the maximum number of open connections to the database.\nIf <= 0, then there is no limit on the number of open connections.\n(default unlimited)").
-		Default(0).
-		Required()
+		Default(0)
+
+	app.CLI().AddStringFlag(p.withPrefix("migration-dir"), &p.opts.MigrationsDir).
+		Env(p.withEnvPrefix("MIGRATION_DIR")).
+		Usage("PostgreSQL migration dir path")
 }
 
 func (p *plugin) addCommands(app engine.Service) {
@@ -237,41 +247,7 @@ func (p *plugin) addCommands(app engine.Service) {
 				return fmt.Errorf("failed to db open: %w", err)
 			}
 
-			// Parse connection string and get database name
-			items := strings.Split(connection, " ")
-
-			dbName := ""
-			for _, item := range items {
-				if strings.HasPrefix(item, "dbname") {
-					dbName = strings.Split(item, "=")[1]
-					break
-				}
-			}
-
-			driver, err := postgres.WithInstance(c.DB, &postgres.Config{})
-			if err != nil {
-				return err
-			}
-
-			m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", args[0]), dbName, driver)
-			if err != nil {
-				return err
-			}
-
-			version, dirty, err := m.Version()
-			if err != nil && err != migrate.ErrNilVersion {
-				return err
-			}
-			if dirty {
-				if err := m.Force(int(version)); err != nil {
-					return err
-				}
-				if err := m.Down(); err != nil {
-					return err
-				}
-			}
-
-			if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+			if err = p.migration(c.DB, args[0], connection); err != nil {
 				return err
 			}
 
@@ -285,4 +261,41 @@ func (p *plugin) addCommands(app engine.Service) {
 		Required()
 
 	app.CLI().AddCommand(migrateCmd)
+}
+
+func (p *plugin) migration(db *sql.DB, migrateDir, connectionString string) error {
+
+	opts, err := pg.ParseURL(connectionString)
+	if err != nil {
+		return errors.New(errMissingConnectionString)
+	}
+
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return err
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", migrateDir), opts.Database, driver)
+	if err != nil {
+		return err
+	}
+
+	version, dirty, err := m.Version()
+	if err != nil && err != migrate.ErrNilVersion {
+		return err
+	}
+	if dirty {
+		if err := m.Force(int(version)); err != nil {
+			return err
+		}
+		if err := m.Down(); err != nil {
+			return err
+		}
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	return nil
 }
