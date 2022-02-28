@@ -17,9 +17,9 @@ limitations under the License.
 package postgres_gorm
 
 import (
+	"github.com/go-pg/pg/v10"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
-	"github.com/jmoiron/sqlx"
 	"github.com/lastbackend/engine"
 	"github.com/lastbackend/engine/cmd"
 	"github.com/pkg/errors"
@@ -40,6 +40,10 @@ const (
 	driverName    = "postgres"
 )
 
+const (
+	errMissingConnectionString = "Missing connection string"
+)
+
 type Plugin interface {
 	engine.Plugin
 
@@ -53,7 +57,7 @@ type Options struct {
 
 type options struct {
 	Connection    string
-	MigrationsDir *string
+	MigrationsDir string
 }
 
 type plugin struct {
@@ -94,7 +98,7 @@ func (p *plugin) DB() *gorm.DB {
 }
 
 func (p *plugin) Start(ctx context.Context) (err error) {
-	sqlDB, err := sql.Open("postgres", p.opts.Connection)
+	sqlDB, err := sql.Open(driverName, p.opts.Connection)
 	if err != nil {
 		return err
 	}
@@ -104,6 +108,15 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 	if err != nil {
 		return err
 	}
+
+	if p.opts.MigrationsDir != "" {
+		fmt.Printf("\nRun migration from dir: %s", p.opts.MigrationsDir)
+		if err = p.migration(sqlDB, p.opts.MigrationsDir, p.opts.Connection); err != nil {
+			return err
+		}
+		fmt.Printf("\nMigration completed!\n")
+	}
+
 	p.db = db
 	return nil
 }
@@ -125,6 +138,10 @@ func (p *plugin) addFlags(app engine.Service) {
 		Env(p.withEnvPrefix("CONNECTION")).
 		Usage("PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name)").
 		Required()
+
+	app.CLI().AddStringFlag(p.withPrefix("migration-dir"), &p.opts.MigrationsDir).
+		Env(p.withEnvPrefix("MIGRATION_DIR")).
+		Usage("PostgreSQL migration dir path")
 }
 
 func (p *plugin) addCommands(app engine.Service) {
@@ -142,57 +159,60 @@ func (p *plugin) addCommands(app engine.Service) {
 				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct", p.withPrefix("connection"))
 			}
 
-			c, err := sqlx.Open(driverName, connection)
+			sqlDB, err := sql.Open(driverName, p.opts.Connection)
 			if err != nil {
 				return fmt.Errorf("failed to db open: %w", err)
 			}
 
-			// Parse connection string and get database name
-			items := strings.Split(connection, " ")
-
-			dbName := ""
-			for _, item := range items {
-				if strings.HasPrefix(item, "dbname") {
-					dbName = strings.Split(item, "=")[1]
-					break
-				}
-			}
-
-			driver, err := postgres.WithInstance(c.DB, &postgres.Config{})
-			if err != nil {
+			if err = p.migration(sqlDB, args[0], connection); err != nil {
 				return err
 			}
 
-			m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", args[0]), dbName, driver)
-			if err != nil {
-				return err
-			}
-
-			version, dirty, err := m.Version()
-			if err != nil && err != migrate.ErrNilVersion {
-				return err
-			}
-			if dirty {
-				if err := m.Force(int(version)); err != nil {
-					return err
-				}
-				if err := m.Down(); err != nil {
-					return err
-				}
-			}
-
-			if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-				return err
-			}
-
-			return c.Close()
+			return sqlDB.Close()
 		},
 	}
 
 	migrateCmd.AddStringFlag(p.withPrefix("connection"), nil).
 		Env(p.withEnvPrefix("CONNECTION")).
-		Usage("PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>)").
+		Usage("PostgreSQL connection string Ex: postgres://user:pass@localhost:5432/db_name)").
 		Required()
 
 	app.CLI().AddCommand(migrateCmd)
+}
+
+func (p *plugin) migration(db *sql.DB, migrateDir, connectionString string) error {
+
+	opts, err := pg.ParseURL(connectionString)
+	if err != nil {
+		return errors.New(errMissingConnectionString)
+	}
+
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return err
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", migrateDir), opts.Database, driver)
+	if err != nil {
+		return err
+	}
+
+	version, dirty, err := m.Version()
+	if err != nil && err != migrate.ErrNilVersion {
+		return err
+	}
+	if dirty {
+		if err := m.Force(int(version)); err != nil {
+			return err
+		}
+		if err := m.Down(); err != nil {
+			return err
+		}
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	return nil
 }
