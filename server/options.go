@@ -37,7 +37,7 @@ const (
 )
 
 type Options struct {
-	Id      string
+	ID      string
 	Name    string
 	Address string
 
@@ -57,7 +57,7 @@ type Options struct {
 
 func defaultOptions() Options {
 	return Options{
-		Id:               uuid.New().String(),
+		ID:               uuid.New().String(),
 		Name:             defaultName,
 		Address:          defaultAddress,
 		RegisterInterval: defaultRegisterInterval,

@@ -36,7 +36,7 @@ const (
 	serviceName = "grpc"
 )
 
-type ServerOptions struct {
+type ServerOptions struct { // nolint
 	Name string
 }
 
@@ -53,7 +53,7 @@ type grpcServer struct {
 	exit chan chan error
 }
 
-func NewServer(app engine.Service, opts *ServerOptions) *grpcServer {
+func NewServer(app engine.Service, opts *ServerOptions) *grpcServer { //nolint
 	name := opts.Name
 	if name == "" {
 		name = serviceName
@@ -119,7 +119,12 @@ func (g *grpcServer) Start() error {
 				Handler:   http.Handler(wrappedGrpc),
 			}
 
-			go webGRPCServer.ListenAndServe()
+			go func() {
+				err = webGRPCServer.ListenAndServe()
+				if err != nil {
+					logger.Errorf("server [grpc] start error: %v", err)
+				}
+			}()
 
 			if logger.V(logger.InfoLevel, logger.DefaultLogger) {
 				logger.Infof("server [gRPC-Web] Listening on %s", gRPCWebAddr)
@@ -161,8 +166,7 @@ func (g *grpcServer) Stop() error {
 	g.exit <- ch
 
 	var err error
-	select {
-	case err = <-ch:
+	if err = <-ch; true {
 		g.Lock()
 		g.isRunning = false
 		g.Unlock()

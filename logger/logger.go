@@ -29,7 +29,7 @@ type Fields map[string]interface{}
 type Options struct {
 	Level           Level
 	VerboseLevel    Level
-	JsonFormat      bool
+	JSONFormat      bool
 	CallerSkipCount int
 	Fields          Fields
 	Out             io.Writer

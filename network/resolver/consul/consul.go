@@ -23,28 +23,11 @@ import (
 	"github.com/lastbackend/engine/network/resolver/route"
 	"time"
 
-	"errors"
 	"fmt"
-	"regexp"
-)
-
-const (
-	defaultPort = "8500"
-)
-
-var (
-	errMissingAddr   = errors.New("consul resolver: missing address")
-	errAddrMisMatch  = errors.New("consul resolver: invalied uri")
-	errEndsWithColon = errors.New("consul resolver: missing port after port-separator colon")
-)
-
-var (
-	regexConsul, _ = regexp.Compile("^([A-z0-9.]+)(:[0-9]{1,5})?/([A-z_]+)$")
 )
 
 type Resolver struct {
 	address string
-	cache   bool
 
 	table   *table
 	options resolver.Options
@@ -69,9 +52,7 @@ func NewResolver(opts ...resolver.Option) resolver.Resolver {
 	return r
 }
 
-func (c *Resolver) Lookup(service string, opts ...resolver.LookupOption) (route.RouteList, error) {
-
-	routes := make(route.RouteList, 0)
+func (c *Resolver) Lookup(service string, opts ...resolver.LookupOption) (route.List, error) {
 
 	routes, err := c.table.Find(service)
 	if err != nil && err != route.ErrRouteNotFound {
@@ -142,9 +123,9 @@ func (c *Resolver) watcher(client *api.Client, name string) {
 
 }
 
-func (c *Resolver) getRoutes(client *api.Client, service string) (route.RouteList, error) {
+func (c *Resolver) getRoutes(client *api.Client, service string) (route.List, error) {
 
-	routes := make(route.RouteList, 0)
+	routes := make(route.List, 0)
 
 	services, _, err := client.Health().Service(service, "", true, &api.QueryOptions{})
 	if err != nil {

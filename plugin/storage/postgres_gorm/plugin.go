@@ -26,7 +26,7 @@ import (
 	psql "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
 	_ "github.com/lib/pq"
 
 	"context"
@@ -38,10 +38,6 @@ import (
 const (
 	defaultPrefix = "psql"
 	driverName    = "postgres"
-)
-
-const (
-	errMissingConnectionString = "Missing connection string"
 )
 
 type Plugin interface {
@@ -69,7 +65,10 @@ type plugin struct {
 
 func NewPlugin(app engine.Service, opts *Options) Plugin {
 	p := new(plugin)
-	p.Register(app, opts)
+	err := p.Register(app, opts)
+	if err != nil {
+		return nil
+	}
 	return p
 }
 
@@ -96,6 +95,9 @@ func (p *plugin) DB() *gorm.DB {
 
 func (p *plugin) Start(ctx context.Context) (err error) {
 	sqlDB, err := sql.Open("postgres", p.opts.Connection)
+	if err != nil {
+		return err
+	}
 	db, err := gorm.Open(psql.New(psql.Config{
 		Conn: sqlDB,
 	}))
@@ -157,6 +159,10 @@ func (p *plugin) addCommands(app engine.Service) {
 			}
 
 			driver, err := postgres.WithInstance(c.DB, &postgres.Config{})
+			if err != nil {
+				return err
+			}
+
 			m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", args[0]), dbName, driver)
 			if err != nil {
 				return err

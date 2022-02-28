@@ -172,13 +172,16 @@ func (c *cli) Run(fn func() error) error {
 			resolver.DefaultResolver = local.NewResolver()
 			addresses := strings.Split(resolverEndpointFlag, ",")
 			for _, addr := range addresses {
-				re := regexp.MustCompile("([\\w]+):(.*)")
+				re := regexp.MustCompile(`([\\w]+):(.*)`)
 				match := re.FindStringSubmatch(addr)
 				if len(match) > 0 {
-					resolver.DefaultResolver.Table().Create(route.Route{
+					err = resolver.DefaultResolver.Table().Create(route.Route{
 						Service: match[1],
 						Address: match[2],
 					})
+					if err != nil {
+						return err
+					}
 				}
 			}
 		case resolver.ConsulResolver:
@@ -223,7 +226,7 @@ func (c *cli) versionCommand() *cobra.Command {
 		Short:   fmt.Sprintf("Print the version number of %s", c.opts.Name),
 		Long:    fmt.Sprintf(`All software has versions. This is %s's`, c.opts.Name),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println(fmt.Sprintf("version: %s", c.opts.Version))
+			fmt.Printf("version: %s", c.opts.Version)
 			os.Exit(0)
 			return nil
 		},
@@ -241,6 +244,6 @@ func wordSepNormalizeFunc(f *pflag.FlagSet, name string) pflag.NormalizedName {
 // printFlags logs the flags in the flagSet
 func printFlags(flags *pflag.FlagSet) {
 	flags.VisitAll(func(flag *pflag.Flag) {
-		fmt.Println(fmt.Sprintf("FLAG: --%s=%q", flag.Name, flag.Value))
+		fmt.Printf("FLAG: --%s=%q", flag.Name, flag.Value)
 	})
 }

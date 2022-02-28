@@ -7,7 +7,6 @@ linters:
     - deadcode
     - errcheck
     - gosimple
-    - golint
     - gofmt
     - govet
     - staticcheck

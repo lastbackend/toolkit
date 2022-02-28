@@ -76,7 +76,11 @@ func Certificate(host ...string) (tls.Certificate, error) {
 
 	// create public key
 	certOut := bytes.NewBuffer(nil)
-	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+
+	err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	if err != nil {
+		return tls.Certificate{}, err
+	}
 
 	// create private key
 	keyOut := bytes.NewBuffer(nil)
@@ -84,7 +88,10 @@ func Certificate(host ...string) (tls.Certificate, error) {
 	if err != nil {
 		return tls.Certificate{}, err
 	}
-	pem.Encode(keyOut, &pem.Block{Type: "EC PRIVATE KEY", Bytes: b})
+	err = pem.Encode(keyOut, &pem.Block{Type: "EC PRIVATE KEY", Bytes: b})
+	if err != nil {
+		return tls.Certificate{}, err
+	}
 
 	return tls.X509KeyPair(certOut.Bytes(), keyOut.Bytes())
 }

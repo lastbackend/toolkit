@@ -38,7 +38,7 @@ func NewResolver(opts ...resolver.Option) resolver.Resolver {
 	return r
 }
 
-func (c *Resolver) Lookup(service string, opts ...resolver.LookupOption) (route.RouteList, error) {
+func (c *Resolver) Lookup(service string, opts ...resolver.LookupOption) (route.List, error) {
 	q := resolver.NewLookup(opts...)
 	routes, err := c.table.Find(service)
 	if err != nil {

@@ -37,9 +37,9 @@ func (r *Route) Hash() string {
 	return hex.EncodeToString(hash[:])
 }
 
-type RouteList []Route
+type List []Route
 
-func (r *RouteList) Addresses() []string {
+func (r *List) Addresses() []string {
 	list := make([]string, 0)
 	for _, item := range *r {
 		list = append(list, item.Address)

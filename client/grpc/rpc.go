@@ -27,10 +27,10 @@ const (
 	defaultPrefix = "grpc"
 )
 
-type RpcClient interface {
+type RPCClient interface {
 	engine.Client
 
-	Client() *GrpcClient
+	Client() *GRPCClient
 }
 
 type Client interface {
@@ -49,7 +49,7 @@ type Stream interface {
 }
 
 type rpcClient struct {
-	client *GrpcClient
+	client *GRPCClient
 
 	prefix string
 	opts   Options
@@ -60,7 +60,7 @@ type ClientOptions struct {
 }
 
 // NewClient - client the plugin implements rpc client using gRPC as a transport
-func NewClient(app engine.Service, opts *ClientOptions) RpcClient {
+func NewClient(app engine.Service, opts *ClientOptions) RPCClient {
 	c := new(rpcClient)
 	if len(opts.Name) == 0 {
 		c.prefix = defaultPrefix
@@ -74,7 +74,7 @@ func NewClient(app engine.Service, opts *ClientOptions) RpcClient {
 	return c
 }
 
-func (s *rpcClient) Client() *GrpcClient {
+func (s *rpcClient) Client() *GRPCClient {
 	return s.client
 }
 
@@ -93,7 +93,7 @@ func (s *rpcClient) addFlags(app engine.Service) {
 		Usage("Set pool size").
 		Default(defaultPoolSize)
 
-	app.CLI().AddDurationFlag(s.withPrefix("pool-ttl"), s.opts.Pool.Ttl).
+	app.CLI().AddDurationFlag(s.withPrefix("pool-ttl"), s.opts.Pool.TTL).
 		Env(s.withEnvPrefix("POOL_TTL")).
 		Usage("Set pool ttl").
 		Default(defaultPoolTTL)

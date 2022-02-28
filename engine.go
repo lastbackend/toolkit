@@ -38,7 +38,10 @@ type Service interface {
 	PluginRegister(plug Plugin) error
 	ServerRegister(srv Server) error
 	ClientRegister(cli Client) error
+	ControllerRegister(ctrl Controller) error
 	Run() error
+	Start() error
+	Stop() error
 }
 
 type Meta interface {
@@ -65,6 +68,11 @@ type Client interface {
 }
 
 type Plugin interface {
+	Start(ctx context.Context) error
+	Stop() error
+}
+
+type Controller interface {
 	Start(ctx context.Context) error
 	Stop() error
 }

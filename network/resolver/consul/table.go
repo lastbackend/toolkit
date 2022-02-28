@@ -25,7 +25,7 @@ import (
 
 type table struct {
 	sync.RWMutex
-	x int
+	x      int
 	routes map[string]map[string]*resolverRoute
 }
 
@@ -127,5 +127,3 @@ func (t *table) Update(r rt.Route) error {
 	t.routes[service][sum] = &resolverRoute{r, time.Now()}
 	return nil
 }
-
-
