@@ -1,0 +1,44 @@
+run:
+  timeout: 2m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - deadcode
+    - errcheck
+    - gosimple
+    - golint
+    - gofmt
+    - govet
+    - staticcheck
+    - unused
+    - typecheck
+    - unconvert
+
+issues:
+  # Independently of option `exclude` we use default exclude patterns,
+  # it can be disabled by this option.
+  # To list all excluded by default patterns execute `golangci-lint run --help`.
+  # Default: true.
+  exclude-use-default: true
+  # If set to true exclude and exclude-rules regular expressions become case-sensitive.
+  # Default: false
+  exclude-case-sensitive: false
+  # The list of ids of default excludes to include or disable.
+  # Default: []
+  exclude:
+    - EXC0002 # disable excluding of issues about comments from golint.
+  # Maximum issues count per one linter.
+  # Set to 0 to disable.
+  # Default: 50
+  max-issues-per-linter: 0
+  # Maximum count of issues with the same text.
+  # Set to 0 to disable.
+  # Default: 3
+  max-same-issues: 0
+  # Fix found issues (if it's supported by the linter).
+  fix: true
+
+skip-files:
+  - ".*\\.pb\\.go$"
+  - ".*\\.pb\\.*\\.go$"
