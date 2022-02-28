@@ -305,11 +305,6 @@ func (s *service) AddController(ctrl interface{}) {
 func (s *service) Run(ctx context.Context) error {
 	provide := make([]interface{}, 0)
 	provide = append(provide,
-		// default
-		fx.Annotate(
-			func() engine.Controller {
-				return nil
-			}),
 		fx.Annotate(
 			func() engine.Service {
 				return s.engine
@@ -338,7 +333,6 @@ func (s *service) Run(ctx context.Context) error {
 	provide = append(provide, s.srv...)
 	{{ end }}
 	provide = append(provide, s.svc...)
-	provide = append(provide, s.ctrl...)
 	{{- range $type, $plugins := .Plugins }}
 		{{- range $name, $plugin := $plugins }}
 			provide = append(provide, s.{{ $plugin.Prefix | ToLower }})
@@ -349,14 +343,14 @@ func (s *service) Run(ctx context.Context) error {
 		fx.Options(
 			fx.Supply(s.cfg),
 			fx.Provide(provide...),
-
+			
 			{{ if not $.HasNotServer }}
 				{{ range $svc := .Services }}			
 					fx.Invoke(s.register{{ $svc.GetName }}Client),
 					fx.Invoke(s.register{{ $svc.GetName }}Server),
 				{{ end -}}
 			{{ end }}
-			fx.Invoke(s.registerController),
+			fx.Invoke(s.ctrl...),
 			fx.Invoke(s.runService),
 		),
 		fx.NopLogger,
@@ -420,18 +414,6 @@ func (s *service) Run(ctx context.Context) error {
 	}
 	{{ end }}
 {{ end }}
-
-func (s *service) registerController(ctrl engine.Controller) error {
-	if ctrl == nil {
-		return nil
-	}
-
-	// Register controllers
-	if err := s.engine.ControllerRegister(ctrl); err != nil {
-		return err
-	}
-	return nil
-}
 
 func (s *service) runService(lc fx.Lifecycle) error {
 	lc.Append(fx.Hook{
