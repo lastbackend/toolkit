@@ -329,10 +329,10 @@ func (s *service) Run(ctx context.Context) error {
 		{{ end }}
 	)
 
-	{{ if not .HasNotServer }}
-	provide = append(provide, s.srv...)
-	{{ end }}
 	provide = append(provide, s.svc...)
+	{{- if not .HasNotServer }}
+	provide = append(provide, s.srv...)
+	{{- end }}
 	{{- range $type, $plugins := .Plugins }}
 		{{- range $name, $plugin := $plugins }}
 			provide = append(provide, s.{{ $plugin.Prefix | ToLower }})
@@ -343,13 +343,12 @@ func (s *service) Run(ctx context.Context) error {
 		fx.Options(
 			fx.Supply(s.cfg),
 			fx.Provide(provide...),
-			
-			{{ if not $.HasNotServer }}
-				{{ range $svc := .Services }}			
+			{{- if not $.HasNotServer }}
+				{{- range $svc := .Services }}			
 					fx.Invoke(s.register{{ $svc.GetName }}Client),
 					fx.Invoke(s.register{{ $svc.GetName }}Server),
 				{{ end -}}
-			{{ end }}
+			{{ end -}}
 			fx.Invoke(s.ctrl...),
 			fx.Invoke(s.runService),
 		),
