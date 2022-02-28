@@ -17,50 +17,23 @@ limitations under the License.
 package generator
 
 import (
-	"flag"
-	"fmt"
 	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
 	"github.com/lastbackend/engine/protoc-gen-engine/genengine"
 	"github.com/lastbackend/engine/protoc-gen-engine/genscripts"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/types/pluginpb"
-	"io"
-)
 
-var (
-	DefaultVersion = "1.0.0"
-	DefaultName    = "engine"
+	"flag"
+	"fmt"
 )
 
 type Generator struct {
 	targets []*descriptor.File
-
-	out io.Writer
-
-	// TODO: Implement use version
-	version string
-	// TODO: Implement use name
-	name string
-	// TODO: Implement debug logs
-	debug bool
-
-	skipDockerfile bool
-	skipHelm       bool
 }
 
-func Init(opts ...Option) *Generator {
+func Init() *Generator {
 	g := new(Generator)
-
-	for _, opt := range opts {
-		opt(g)
-	}
-
-	if g.name == "" {
-		g.name = DefaultName
-	}
-
 	g.targets = make([]*descriptor.File, 0)
-
 	return g
 }
 

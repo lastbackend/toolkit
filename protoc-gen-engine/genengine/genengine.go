@@ -17,12 +17,13 @@ limitations under the License.
 package genengine
 
 import (
-	"fmt"
 	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
 	engine_annotattions "github.com/lastbackend/engine/protoc-gen-engine/engine/options"
 	"go/format"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/pluginpb"
+
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -35,9 +36,9 @@ const (
 )
 
 const (
-	StoragePluginType string = "Storage"
-	CachePluginType          = "Cache"
-	BrokerPluginType         = "Broker"
+	StoragePluginType = "Storage"
+	CachePluginType   = "Cache"
+	BrokerPluginType  = "Broker"
 )
 
 type Generator interface {
@@ -70,6 +71,7 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 	var (
 		files []*descriptor.ResponseFile
 	)
+
 	for _, file := range targets {
 		if len(file.Services) == 0 {
 			continue
@@ -96,23 +98,29 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 			},
 		})
 
-		// Generate rpc client
-		lbClientCode, err := g.generateClient(file)
-		if err != nil {
-			return nil, err
-		}
-		lbClientFormatted, err := format.Source([]byte(lbClientCode))
-		if err != nil {
-			return nil, err
-		}
+		if g.hasServiceMethods(file) {
+			// Generate rpc client
+			lbClientCode, err := g.generateClient(file)
+			if err != nil {
+				return nil, err
+			}
+			lbClientFormatted, err := format.Source([]byte(lbClientCode))
+			if err != nil {
+				return nil, err
+			}
 
-		files = append(files, &descriptor.ResponseFile{
-			GoPkg: file.GoPkg,
-			CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
-				Name:    proto.String(filepath.Join(dir, "client", name+".pb.lb.rpc.go")),
-				Content: proto.String(string(lbClientFormatted)),
-			},
-		})
+			files = append(files, &descriptor.ResponseFile{
+				GoPkg: file.GoPkg,
+				CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
+					Name:    proto.String(filepath.Join(dir, "client", name+".pb.lb.rpc.go")),
+					Content: proto.String(string(lbClientFormatted)),
+				},
+			})
+		} else {
+			if err := os.RemoveAll(filepath.Join(dir, "client")); err != nil {
+				return nil, err
+			}
+		}
 
 		// Generate mockery
 		if proto.HasExtension(file.Options, engine_annotattions.E_TestsSpec) {
@@ -146,17 +154,22 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 	var plugins = make(map[string]map[string]*Plugin, 0)
 	var clients = make(map[string]*Client, 0)
 	var imports = g.prepareImports([]string{
-		"context context",
 		"engine github.com/lastbackend/engine",
 		"logger github.com/lastbackend/engine/logger",
-		"server github.com/lastbackend/engine/server",
-		"github.com/lastbackend/engine/client/grpc",
-		fmt.Sprintf("proto %s/apis/proto", g.opts.SourcePackage),
 		"fx go.uber.org/fx",
+		"context",
+		"os",
+		"os/signal",
+		"syscall",
 	})
 
-	for _, pkg := range imports {
-		imports = append(imports, pkg)
+	// Add imports for server
+	if g.hasServiceMethods(file) {
+		imports = append(imports, g.prepareImports([]string{
+			"server github.com/lastbackend/engine/server",
+			"github.com/lastbackend/engine/client/grpc",
+			fmt.Sprintf("proto %s/apis/proto", g.opts.SourcePackage),
+		})...)
 	}
 
 	for _, svc := range file.Services {
@@ -236,10 +249,11 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 	}
 
 	to := tplServiceOptions{
-		File:    file,
-		Imports: imports,
-		Clients: clients,
-		Plugins: plugins,
+		HasNotServer: !g.hasServiceMethods(file),
+		File:         file,
+		Imports:      imports,
+		Clients:      clients,
+		Plugins:      plugins,
 	}
 
 	return applyServiceTemplate(to)
@@ -247,16 +261,13 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 
 func (g *generator) generateClient(file *descriptor.File) (string, error) {
 
-	var clients = make(map[string]*Client, 0)
-	var imports = g.prepareImports([]string{
+	pkgImports := []string{
 		"context context",
 		"github.com/lastbackend/engine/client/grpc",
-		fmt.Sprintf("proto %s/apis/proto", g.opts.SourcePackage),
-	})
-
-	for _, pkg := range imports {
-		imports = append(imports, pkg)
 	}
+
+	var clients = make(map[string]*Client, 0)
+	var imports = g.prepareImports(pkgImports)
 
 	for _, svc := range file.Services {
 		if svc.Options != nil && proto.HasExtension(svc.Options, engine_annotattions.E_Clients) {
@@ -370,6 +381,15 @@ func (g *generator) prepareImports(importList []string) []descriptor.GoPackage {
 	}
 
 	return imports
+}
+
+func (g *generator) hasServiceMethods(file *descriptor.File) bool {
+	for _, service := range file.Services {
+		if len(service.Methods) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func existsFileOrDir(path string) (bool, error) {

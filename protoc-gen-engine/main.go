@@ -23,9 +23,7 @@ import (
 )
 
 func main() {
-	g := generator.Init(
-		generator.DebugEnv("ENGINE_DEBUG"),
-	)
+	g := generator.Init()
 	if err := g.Run(); err != nil {
 		os.Exit(1)
 	}

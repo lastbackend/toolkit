@@ -16,12 +16,6 @@ limitations under the License.
 
 package genengine
 
-import (
-	"strings"
-)
-
-func unexport(s string) string { return strings.ToLower(s[:1]) + s[1:] }
-
 func camel(s string) string {
 	if s == "" {
 		return ""
