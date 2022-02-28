@@ -124,7 +124,10 @@ type plugin struct {
 
 func NewPlugin(app engine.Service, opts *Options) Plugin {
 	p := new(plugin)
-	p.Register(app, opts)
+	err := p.Register(app, opts)
+	if err != nil {
+		return nil
+	}
 	return p
 }
 

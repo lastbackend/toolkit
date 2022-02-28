@@ -10,12 +10,12 @@ type MD map[string]string
 type mdKey struct{}
 
 func (m MD) Get(key string) (string, bool) {
-	if val, ok := m[key]; ok {
-		return val, ok
-	} else {
-		val, ok = m[key]
+	val, ok := m[key]
+	if ok {
 		return val, ok
 	}
+	val, ok = m[key]
+	return val, ok
 }
 
 func (m MD) Set(key, val string) {
@@ -48,24 +48,24 @@ func SetToContext(ctx context.Context, k, v string) context.Context {
 }
 
 func FindInContext(ctx context.Context, key string) (string, bool) {
-	if md, ok := LoadFromContext(ctx); !ok {
+	md, ok := LoadFromContext(ctx)
+	if !ok {
 		return emptyString, ok
-	} else {
-		val, ok := md[key]
-		return val, ok
 	}
+	val, ok := md[key]
+	return val, ok
 }
 
 func LoadFromContext(ctx context.Context) (MD, bool) {
-	if md, ok := ctx.Value(mdKey{}).(MD); !ok {
+	md, ok := ctx.Value(mdKey{}).(MD)
+	if !ok {
 		return nil, ok
-	} else {
-		newMD := make(MD, len(md))
-		for k, v := range md {
-			newMD[k] = v
-		}
-		return newMD, ok
 	}
+	newMD := make(MD, len(md))
+	for k, v := range md {
+		newMD[k] = v
+	}
+	return newMD, ok
 }
 
 func MergeContext(ctx context.Context, metadata MD, overwrite bool) context.Context {

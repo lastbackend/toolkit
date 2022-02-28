@@ -25,25 +25,19 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
-	"sync"
 	"syscall"
 )
 
 type service struct {
 	*meta
-
-	context context.Context
-	once    sync.Once
-
-	cli cmd.CLI
-
-	logger logger.Logger
-
-	clients []Client
-	servers []Server
-	plugins []Plugin
-
-	signal bool
+	context     context.Context
+	cli         cmd.CLI
+	logger      logger.Logger
+	clients     []Client
+	servers     []Server
+	plugins     []Plugin
+	controllers []Controller
+	signal      bool
 }
 
 func newService(name string) Service {
@@ -115,6 +109,22 @@ func (s *service) ServerRegister(srv Server) error {
 	return nil
 }
 
+func (s *service) ControllerRegister(ctrl Controller) error {
+	valueIface := reflect.ValueOf(ctrl)
+
+	// Check if the passed interface is a pointer
+	if valueIface.Type().Kind() != reflect.Ptr {
+		return fmt.Errorf("the argument must be a pointer")
+	}
+	if valueIface.IsNil() {
+		return fmt.Errorf("the argument must not be nil")
+	}
+
+	s.controllers = append(s.controllers, ctrl)
+
+	return nil
+}
+
 func (s *service) Logger() logger.Logger {
 	return s.logger
 }
@@ -125,6 +135,26 @@ func (s *service) SetContext(ctx context.Context) {
 
 func (s *service) Run() error {
 
+	if err := s.Start(); err != nil {
+		return err
+	}
+	fmt.Println("1 >>>>>>")
+	ch := make(chan os.Signal, 1)
+	if s.signal {
+		signal.Notify(ch, shutdownSignals...)
+	}
+
+	select {
+	// wait on kill signal
+	case <-ch:
+	// wait on context cancel
+	case <-s.context.Done():
+	}
+
+	return s.Stop()
+}
+
+func (s *service) Start() error {
 	s.cli.SetName(s.meta.Name)
 	s.cli.SetEnvPrefix(s.meta.EnvPrefix)
 	s.cli.SetVersion(s.meta.Version)
@@ -137,46 +167,42 @@ func (s *service) Run() error {
 				return err
 			}
 		}
-
+		for _, t := range s.controllers {
+			if err := t.Start(s.context); err != nil {
+				return err
+			}
+		}
 		for _, t := range s.servers {
 			if err := t.Start(); err != nil {
 				return err
 			}
 		}
-
 		for _, t := range s.clients {
 			if err := t.Start(); err != nil {
 				return err
 			}
 		}
-
-		ch := make(chan os.Signal, 1)
-
-		if s.signal {
-			signal.Notify(ch, shutdownSignals...)
-		}
-
-		select {
-		// wait on kill signal
-		case <-ch:
-		// wait on context cancel
-		case <-s.context.Done():
-		}
-
-		for _, t := range s.servers {
-			if err := t.Stop(); err != nil {
-				return err
-			}
-		}
-
-		for _, t := range s.plugins {
-			if err := t.Stop(); err != nil {
-				return err
-			}
-		}
-
 		return nil
 	})
+}
+
+func (s *service) Stop() error {
+	for _, t := range s.controllers {
+		if err := t.Stop(); err != nil {
+			return err
+		}
+	}
+	for _, t := range s.servers {
+		if err := t.Stop(); err != nil {
+			return err
+		}
+	}
+	for _, t := range s.plugins {
+		if err := t.Stop(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 var shutdownSignals = []os.Signal{

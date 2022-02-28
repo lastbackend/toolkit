@@ -22,6 +22,7 @@ import (
 	"github.com/lastbackend/engine/util/backoff"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/encoding"
 	grpc_md "google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -51,27 +52,27 @@ const (
 	defaultMaxSendMsgSize = 1024 * 1024 * 16
 )
 
-type GrpcClient struct {
+type GRPCClient struct { // nolint
 	prefix string
 	opts   Options
 	pool   *pool
 }
 
-func newClient(prefix string) *GrpcClient {
-	return &GrpcClient{
+func newClient(prefix string) *GRPCClient {
+	return &GRPCClient{
 		opts:   defaultOptions(),
 		prefix: prefix,
 		pool:   newPool(),
 	}
 }
 
-func (c *GrpcClient) Init(opts Options) error {
+func (c *GRPCClient) Init(opts Options) error {
 	c.opts = opts
 	c.pool.Init(opts.Pool)
 	return nil
 }
 
-func (c *GrpcClient) Call(ctx context.Context, service, method string, body, resp interface{}, opts ...CallOption) error {
+func (c *GRPCClient) Call(ctx context.Context, service, method string, body, resp interface{}, opts ...CallOption) error {
 	if body == nil {
 		return status.Error(codes.Internal, "request is nil")
 	}
@@ -127,7 +128,7 @@ func (c *GrpcClient) Call(ctx context.Context, service, method string, body, res
 
 }
 
-func (c *GrpcClient) Stream(ctx context.Context, service, method string, body interface{}, opts ...CallOption) (Stream, error) {
+func (c *GRPCClient) Stream(ctx context.Context, service, method string, body interface{}, opts ...CallOption) (Stream, error) {
 
 	callOpts := c.opts.CallOptions
 	for _, opt := range opts {
@@ -173,11 +174,11 @@ func (c *GrpcClient) Stream(ctx context.Context, service, method string, body in
 	}
 }
 
-func (c *GrpcClient) Close() error {
+func (c *GRPCClient) Close() error {
 	return nil
 }
 
-func (c *GrpcClient) invoke(ctx context.Context, addr string, req *request, rsp interface{}, opts CallOptions) error {
+func (c *GRPCClient) invoke(ctx context.Context, addr string, req *request, rsp interface{}, opts CallOptions) error {
 
 	md := grpc_md.New(req.headers)
 	ctx = grpc_md.NewOutgoingContext(ctx, md)
@@ -204,7 +205,7 @@ func (c *GrpcClient) invoke(ctx context.Context, addr string, req *request, rsp 
 	return gErr
 }
 
-func (c *GrpcClient) stream(ctx context.Context, addr string, req *request, opts CallOptions) (Stream, error) {
+func (c *GRPCClient) stream(ctx context.Context, addr string, req *request, opts CallOptions) (Stream, error) {
 
 	md := grpc_md.New(req.Headers())
 	ctx = grpc_md.NewOutgoingContext(ctx, md)
@@ -253,15 +254,7 @@ func (c *GrpcClient) stream(ctx context.Context, addr string, req *request, opts
 	return s, nil
 }
 
-func (c *GrpcClient) withPrefix(name string) string {
-	return fmt.Sprintf("%s-%s", c.prefix, name)
-}
-
-func (c *GrpcClient) withEnvPrefix(name string) string {
-	return strings.ToUpper(fmt.Sprintf("%s_%s", c.prefix, name))
-}
-
-func (c *GrpcClient) makeGrpcCallOptions(opts CallOptions) []grpc.CallOption {
+func (c *GRPCClient) makeGrpcCallOptions(opts CallOptions) []grpc.CallOption {
 	grpcCallOptions := make([]grpc.CallOption, 0)
 
 	if opts.MaxCallRecvMsgSize > 0 {
@@ -280,11 +273,11 @@ func (c *GrpcClient) makeGrpcCallOptions(opts CallOptions) []grpc.CallOption {
 	return grpcCallOptions
 }
 
-func (c *GrpcClient) makeGrpcDialOptions() []grpc.DialOption {
+func (c *GRPCClient) makeGrpcDialOptions() []grpc.DialOption {
 	grpcDialOptions := make([]grpc.DialOption, 0)
 
 	// TODO: implement auths
-	grpcDialOptions = append(grpcDialOptions, grpc.WithInsecure())
+	grpcDialOptions = append(grpcDialOptions, grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	if c.opts.MaxRecvMsgSize != nil || c.opts.MaxSendMsgSize != nil {
 		var defaultCallOpts = make([]grpc.CallOption, 0)
@@ -318,7 +311,7 @@ func (c *GrpcClient) makeGrpcDialOptions() []grpc.DialOption {
 	return grpcDialOptions
 }
 
-func (c *GrpcClient) makeHeaders(ctx context.Context, service string, opts CallOptions) map[string]string {
+func (c *GRPCClient) makeHeaders(ctx context.Context, service string, opts CallOptions) map[string]string {
 	var headers = make(map[string]string, 0)
 
 	if md, ok := metadata.LoadFromContext(ctx); ok {

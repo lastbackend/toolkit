@@ -25,7 +25,7 @@ import (
 	"github.com/lastbackend/engine/cmd"
 	"github.com/pkg/errors"
 
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
 	_ "github.com/lib/pq"
 
 	"context"
@@ -122,7 +122,10 @@ type plugin struct {
 
 func NewPlugin(app engine.Service, opts *Options) Plugin {
 	db := new(plugin)
-	db.Register(app, opts)
+	err := db.Register(app, opts)
+	if err != nil {
+		return nil
+	}
 	return db
 }
 
@@ -321,6 +324,10 @@ func (p *plugin) addCommands(app engine.Service) {
 			}
 
 			driver, err := postgres.WithInstance(c.DB, &postgres.Config{})
+			if err != nil {
+				return err
+			}
+
 			m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", args[0]), opt.Database, driver)
 			if err != nil {
 				return err

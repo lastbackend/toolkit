@@ -27,7 +27,7 @@ import (
 
 type PoolOptions struct {
 	Size *int
-	Ttl  *time.Duration
+	TTL  *time.Duration
 }
 
 type pool struct {
@@ -79,8 +79,8 @@ func (p *pool) Init(opts PoolOptions) {
 	if opts.Size != nil {
 		p.size = *opts.Size
 	}
-	if opts.Ttl != nil {
-		p.ttl = int64(opts.Ttl.Seconds())
+	if opts.TTL != nil {
+		p.ttl = int64(opts.TTL.Seconds())
 	}
 }
 
@@ -196,7 +196,6 @@ func (p *pool) release(addr string, conn *poolConn, err error) {
 		sp.idle++
 	}
 	p.Unlock()
-	return
 }
 
 func (conn *poolConn) Close() {
@@ -214,7 +213,6 @@ func removeConn(conn *poolConn) {
 	conn.next = nil
 	conn.in = false
 	conn.sp.count--
-	return
 }
 
 func addConnAfter(conn *poolConn, after *poolConn) {
@@ -226,5 +224,4 @@ func addConnAfter(conn *poolConn, after *poolConn) {
 	after.next = conn
 	conn.in = true
 	conn.sp.count++
-	return
 }

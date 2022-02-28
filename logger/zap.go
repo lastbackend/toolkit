@@ -54,7 +54,7 @@ func newZapLogger(opts Options) *zapLogger {
 			Fields:          make(map[string]interface{}, 0),
 			Out:             os.Stdout,
 			CallerSkipCount: 1,
-			JsonFormat:      false,
+			JSONFormat:      false,
 		},
 	}
 	l.Init(opts)
@@ -62,7 +62,7 @@ func newZapLogger(opts Options) *zapLogger {
 }
 
 func (l *zapLogger) Init(opts Options) Logger {
-	l.opts.JsonFormat = opts.JsonFormat
+	l.opts.JSONFormat = opts.JSONFormat
 
 	if opts.Level != InfoLevel {
 		l.opts.Level = opts.Level
@@ -148,7 +148,7 @@ func (l *zapLogger) init(opts Options) Logger {
 	writer := zapcore.Lock(zapcore.NewMultiWriteSyncer(zapcore.AddSync(l.opts.Out)))
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	core := zapcore.NewCore(zapcore.NewConsoleEncoder(encoderConfig), writer, level)
-	if opts.JsonFormat {
+	if opts.JSONFormat {
 		core = zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), writer, level)
 	}
 

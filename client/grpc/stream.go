@@ -29,11 +29,9 @@ type stream struct {
 
 	grpc.ClientStream
 
-	closed   bool
-	err      error
-	request  *request
-	conn     *poolConn
-	close    func(err error)
+	request *request
+	conn    *poolConn
+	close   func(err error)
 }
 
 func (s *stream) Context() context.Context {
