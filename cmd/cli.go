@@ -172,7 +172,7 @@ func (c *cli) Run(fn func() error) error {
 			resolver.DefaultResolver = local.NewResolver()
 			addresses := strings.Split(resolverEndpointFlag, ",")
 			for _, addr := range addresses {
-				re := regexp.MustCompile(`([\\w]+):(.*)`)
+				re := regexp.MustCompile(`([\w]+):(.*)`)
 				match := re.FindStringSubmatch(addr)
 				if len(match) > 0 {
 					err = resolver.DefaultResolver.Table().Create(route.Route{
