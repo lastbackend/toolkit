@@ -130,7 +130,7 @@ func NewPlugin(app engine.Service, opts *Options) Plugin {
 	return db
 }
 
-// Register - registers the plug implements storage using Postgres as a database storage
+// Register - registers the plugin implements storage using Postgres as a database storage
 func (p *plugin) Register(app engine.Service, opts *Options) error {
 
 	p.prefix = opts.Name

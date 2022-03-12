@@ -21,6 +21,9 @@ require (
 	google.golang.org/protobuf v1.27.1
 	gorm.io/driver/postgres v1.2.3
 	gorm.io/gorm v1.22.5
+)
+
+require (
 	github.com/armon/go-metrics v0.3.10 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -54,6 +57,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/rs/cors v1.7.0 // indirect
+	github.com/streadway/amqp v1.0.0 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
 	github.com/vmihailenco/bufpool v0.1.11 // indirect
 	github.com/vmihailenco/go-tinylfu v0.2.2 // indirect

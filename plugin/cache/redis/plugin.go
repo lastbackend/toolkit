@@ -93,7 +93,7 @@ type options struct {
 	// Minimum number of idle connections which is useful when establishing
 	// new connection is slow.
 	MinIdleConns int
-	// Connection age at which client retires (closes) the connection.
+	// Endpoint age at which client retires (closes) the connection.
 	// Default is to not close aged connections.
 	MaxConnAge time.Duration
 	// Amount of time client waits for connection if all connections
@@ -131,7 +131,7 @@ func NewPlugin(app engine.Service, opts *Options) Plugin {
 	return p
 }
 
-// Register - registers the plug implements storage using Postgres as a database storage
+// Register - registers the plugin implements storage using Postgres as a database storage
 func (p *plugin) Register(app engine.Service, opts *Options) error {
 	p.prefix = opts.Name
 	if p.prefix == "" {
