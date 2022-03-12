@@ -275,6 +275,14 @@ func (s *service) AddController(ctrl interface{}) {
 	s.ctrl = append(s.ctrl, ctrl)
 }
 
+{{ range $type, $plugins := .Plugins }}
+	{{ range $name, $plugin := $plugins }}
+type {{ $plugin.Prefix | ToCapitalize }}{{ $type | ToCapitalize }} interface {
+	{{ $plugin.Plugin }}.Plugin
+}
+	{{ end }}
+{{ end }}
+
 func (s *service) Run(ctx context.Context) error {
 	
 	{{ range $type, $plugins := .Plugins }}
@@ -301,7 +309,7 @@ func (s *service) Run(ctx context.Context) error {
 		{{- range $type, $plugins := .Plugins }}
 			{{- range $name, $plugin := $plugins }}
 				fx.Annotate(
-					func() {{ $plugin.Plugin }}.Plugin {
+					func() {{ $plugin.Prefix | ToCapitalize }}{{ $type | ToCapitalize }} {
 						return {{ $type | ToLower }}{{ $plugin.Prefix | ToCapitalize }}
 					},
 				),
