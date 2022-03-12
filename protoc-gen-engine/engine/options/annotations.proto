@@ -27,10 +27,6 @@ message Plugins {
   map<string, Broker> broker = 3;
 }
 
-extend google.protobuf.ServiceOptions {
-  Plugins plugins = 50001;
-}
-
 message Client {
   string service = 1;
   string package = 2;
@@ -40,11 +36,9 @@ message Clients {
   repeated Client client = 1;
 }
 
-extend google.protobuf.ServiceOptions {
-  Clients clients = 50002;
-}
-
 extend google.protobuf.FileOptions {
+  Plugins plugins = 50001;
+  Clients clients = 50002;
   DockerfileSpec dockerfile_spec = 50003;
   TestSpec tests_spec = 50004;
 }

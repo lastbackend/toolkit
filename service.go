@@ -19,6 +19,7 @@ package engine
 import (
 	"github.com/lastbackend/engine/cmd"
 	"github.com/lastbackend/engine/logger"
+	"golang.org/x/sync/errgroup"
 
 	"context"
 	"fmt"
@@ -162,26 +163,37 @@ func (s *service) Start() error {
 	s.cli.SetLongDescription(s.meta.LongDescription)
 
 	return s.cli.Run(func() error {
+
 		for _, t := range s.plugins {
 			if err := t.Start(s.context); err != nil {
 				return err
 			}
 		}
+
+		group, _ := errgroup.WithContext(s.context)
+
 		for _, t := range s.controllers {
-			if err := t.Start(s.context); err != nil {
-				return err
-			}
+			group.Go(func() error {
+				return t.Start(s.context)
+			})
 		}
+
 		for _, t := range s.servers {
-			if err := t.Start(); err != nil {
-				return err
-			}
+			group.Go(func() error {
+				return t.Start()
+			})
 		}
+
+		if err := group.Wait(); err != nil {
+			return err
+		}
+
 		for _, t := range s.clients {
 			if err := t.Start(); err != nil {
 				return err
 			}
 		}
+
 		return nil
 	})
 }
