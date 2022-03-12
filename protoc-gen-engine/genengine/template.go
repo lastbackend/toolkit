@@ -205,12 +205,6 @@ type Service interface {
 
 	AddPackage(pkg interface{})
 	AddController(ctrl interface{})
-
-	{{ range $type, $plugins := .Plugins }}
-		{{- range $name, $plugin := $plugins }} 
-			Set{{ $name | ToCapitalize }}({{ $plugin.Prefix | ToLower }} interface{})
-		{{ end }}
-	{{ end }}
 }
 
 {{ range $svc := .Services }}
@@ -218,7 +212,7 @@ type {{ $svc.GetName }}RPC struct {
 	{{ if not $.HasNotServer }}
 	Grpc grpc.RPCClient
 	{{ end }}
-	{{ range $key, $value := $.Clients -}}
+	{{- range $key, $value := $.Clients -}}
 		{{ $value.Service | ToCapitalize }} {{ $key }}.{{ $value.Service | ToCapitalize }}RPCClient
 	{{ end }}
 }
@@ -227,12 +221,12 @@ type {{ $svc.GetName }}RPC struct {
 func NewService(name string) Service {
 	return &service{
 		engine: engine.NewService(name),
-		{{ if not .HasNotServer }}
+		{{- if not .HasNotServer }}
 		srv:     make([]interface{}, 0),
-		{{ end }}
+		{{- end }}
 		svc:     make([]interface{}, 0),
 		ctrl:    make([]interface{}, 0),
-		{{ range $svc := .Services -}}
+		{{- range $svc := .Services }}
 		rpc{{ $svc.GetName }}:    new({{ $svc.GetName }}RPC),
 		{{ end }}
 	}
@@ -240,14 +234,12 @@ func NewService(name string) Service {
 
 type service struct {
 	engine engine.Service
-
 	{{- range $svc := .Services }}
 	rpc{{ $svc.GetName }} *{{ $svc.GetName }}RPC
-	{{ end }}
-	
+	{{- end }}
 	{{- if not .HasNotServer }}
 	srv  []interface{}
-	{{ end }}
+	{{- end }}
 	svc  []interface{}
 	ctrl []interface{}
 	cfg  interface{}
@@ -283,7 +275,22 @@ func (s *service) AddController(ctrl interface{}) {
 	s.ctrl = append(s.ctrl, ctrl)
 }
 
+{{ range $type, $plugins := .Plugins }}
+	{{ range $name, $plugin := $plugins }}
+type {{ $plugin.Prefix | ToCapitalize }}{{ $type | ToCapitalize }} interface {
+	{{ $plugin.Plugin }}.Plugin
+}
+	{{ end }}
+{{ end }}
+
 func (s *service) Run(ctx context.Context) error {
+	
+	{{ range $type, $plugins := .Plugins }}
+		{{- range $name, $plugin := $plugins }}
+			{{ $type | ToLower }}{{ $plugin.Prefix | ToCapitalize }} := {{ $plugin.Plugin }}.NewPlugin(s.engine, &{{ $plugin.Plugin }}.Options{Name: "{{ $plugin.Prefix | ToLower }}"})
+		{{- end }}
+	{{- end }}
+
 	provide := make([]interface{}, 0)
 	provide = append(provide,
 		fx.Annotate(
@@ -298,16 +305,16 @@ func (s *service) Run(ctx context.Context) error {
 		func() *{{ $svc.GetName }}RPC {
 			return s.rpc{{ $svc.GetName }}
 		},
-		{{ end }}
+		{{- end }}
 		{{- range $type, $plugins := .Plugins }}
 			{{- range $name, $plugin := $plugins }}
 				fx.Annotate(
-					func() {{ $plugin.Plugin }}.Plugin {
-						return {{ $plugin.Plugin }}.NewPlugin(s.engine, &{{ $plugin.Plugin }}.Options{Name: "{{ $plugin.Prefix | ToLower }}"})
+					func() {{ $plugin.Prefix | ToCapitalize }}{{ $type | ToCapitalize }} {
+						return {{ $type | ToLower }}{{ $plugin.Prefix | ToCapitalize }}
 					},
 				),
-			{{ end }}
-		{{ end }}
+			{{- end }}
+		{{- end }}
 	)
 
 	provide = append(provide, s.svc...)
@@ -319,12 +326,12 @@ func (s *service) Run(ctx context.Context) error {
 		fx.Options(
 			fx.Supply(s.cfg),
 			fx.Provide(provide...),
-			{{ if not $.HasNotServer }}
+			{{- if not $.HasNotServer }}
 				{{- range $svc := .Services }}			
 					fx.Invoke(s.register{{ $svc.GetName }}Client),
 					fx.Invoke(s.register{{ $svc.GetName }}Server),
-				{{ end -}}
-			{{ end -}}
+				{{- end }}
+			{{- end }}
 			fx.Invoke(s.ctrl...),
 			fx.Invoke(s.runService),
 		),
