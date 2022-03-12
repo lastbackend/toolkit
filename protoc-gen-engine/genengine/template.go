@@ -235,11 +235,6 @@ func NewService(name string) Service {
 		{{ range $svc := .Services -}}
 		rpc{{ $svc.GetName }}:    new({{ $svc.GetName }}RPC),
 		{{ end }}
-		{{- range $type, $plugins := .Plugins }}
-			{{- range $name, $plugin := $plugins }} 
-				{{ $plugin.Prefix | ToLower }}: {{ $plugin.Plugin }}.NewPlugin,
-			{{ end }}
-		{{ end }}
 	}
 }
 
@@ -256,12 +251,6 @@ type service struct {
 	svc  []interface{}
 	ctrl []interface{}
 	cfg  interface{}
-
-	{{- range $type, $plugins := .Plugins }}
-		{{- range $name, $plugin := $plugins }} 
-			{{ $plugin.Prefix | ToLower }} interface{}
-		{{ end }}
-	{{ end }}
 }
 
 func (s *service) Meta() engine.Meta {
@@ -294,14 +283,6 @@ func (s *service) AddController(ctrl interface{}) {
 	s.ctrl = append(s.ctrl, ctrl)
 }
 
-{{ range $type, $plugins := .Plugins }}
-	{{- range $name, $plugin := $plugins }} 
-		func (s *service) Set{{ $name | ToCapitalize }}({{ $plugin.Prefix | ToLower }} interface{}) {
-			s.{{ $plugin.Prefix | ToLower }} = {{ $plugin.Prefix | ToLower }}
-		}
-	{{ end }}
-{{ end }}
-
 func (s *service) Run(ctx context.Context) error {
 	provide := make([]interface{}, 0)
 	provide = append(provide,
@@ -333,17 +314,12 @@ func (s *service) Run(ctx context.Context) error {
 	{{- if not .HasNotServer }}
 	provide = append(provide, s.srv...)
 	{{- end }}
-	{{- range $type, $plugins := .Plugins }}
-		{{- range $name, $plugin := $plugins }}
-			provide = append(provide, s.{{ $plugin.Prefix | ToLower }})
-		{{ end }}
-	{{ end }}
 
 	app := fx.New(
 		fx.Options(
 			fx.Supply(s.cfg),
 			fx.Provide(provide...),
-			{{- if not $.HasNotServer }}
+			{{ if not $.HasNotServer }}
 				{{- range $svc := .Services }}			
 					fx.Invoke(s.register{{ $svc.GetName }}Client),
 					fx.Invoke(s.register{{ $svc.GetName }}Server),
