@@ -276,6 +276,13 @@ func (s *service) AddController(ctrl interface{}) {
 }
 
 func (s *service) Run(ctx context.Context) error {
+	
+	{{ range $type, $plugins := .Plugins }}
+		{{- range $name, $plugin := $plugins }}
+			{{ $type | ToLower }}{{ $plugin.Prefix | ToCapitalize }} := {{ $plugin.Plugin }}.NewPlugin(s.engine, &{{ $plugin.Plugin }}.Options{Name: "{{ $plugin.Prefix | ToLower }}"})
+		{{- end }}
+	{{- end }}
+
 	provide := make([]interface{}, 0)
 	provide = append(provide,
 		fx.Annotate(
@@ -295,11 +302,11 @@ func (s *service) Run(ctx context.Context) error {
 			{{- range $name, $plugin := $plugins }}
 				fx.Annotate(
 					func() {{ $plugin.Plugin }}.Plugin {
-						return {{ $plugin.Plugin }}.NewPlugin(s.engine, &{{ $plugin.Plugin }}.Options{Name: "{{ $plugin.Prefix | ToLower }}"})
+						return {{ $type | ToLower }}{{ $plugin.Prefix | ToCapitalize }}
 					},
 				),
-			{{ end }}
-		{{ end }}
+			{{- end }}
+		{{- end }}
 	)
 
 	provide = append(provide, s.svc...)
