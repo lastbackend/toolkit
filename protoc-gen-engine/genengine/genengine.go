@@ -173,61 +173,6 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 	}
 
 	for _, svc := range file.Services {
-		if svc.Options != nil && proto.HasExtension(svc.Options, engine_annotattions.E_Plugins) {
-			ePlugins := proto.GetExtension(svc.Options, engine_annotattions.E_Plugins)
-			if ePlugins != nil {
-				plgs := ePlugins.(*engine_annotattions.Plugins)
-				if len(plgs.Storage) > 0 {
-					plugins[StoragePluginType] = make(map[string]*Plugin, 0)
-					for name, props := range plgs.Storage {
-						if _, ok := pluginImportsExists[props.Plugin]; !ok {
-							imports = append(imports, descriptor.GoPackage{
-								Path: fmt.Sprintf("%s/plugin/storage/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
-								Name: path.Base(fmt.Sprintf("%s/plugin/storage/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
-							})
-						}
-						plugins[StoragePluginType][name] = &Plugin{
-							Plugin: props.Plugin,
-							Prefix: props.Prefix,
-							Pkg:    fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), StoragePluginType),
-						}
-					}
-				}
-				if len(plgs.Cache) > 0 {
-					plugins[CachePluginType] = make(map[string]*Plugin, 0)
-					for name, props := range plgs.Cache {
-						if _, ok := pluginImportsExists[props.Plugin]; !ok {
-							imports = append(imports, descriptor.GoPackage{
-								Path: fmt.Sprintf("%s/plugin/cache/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
-								Name: path.Base(fmt.Sprintf("%s/plugin/cache/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
-							})
-						}
-						plugins[CachePluginType][name] = &Plugin{
-							Plugin: props.Plugin,
-							Prefix: props.Prefix,
-							Pkg:    fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), CachePluginType),
-						}
-					}
-				}
-				if len(plgs.Broker) > 0 {
-					plugins[BrokerPluginType] = make(map[string]*Plugin, 0)
-					for name, props := range plgs.Broker {
-						if _, ok := pluginImportsExists[props.Plugin]; !ok {
-							imports = append(imports, descriptor.GoPackage{
-								Path: fmt.Sprintf("%s/plugin/broker/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
-								Name: path.Base(fmt.Sprintf("%s/plugin/broker/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
-							})
-						}
-						plugins[BrokerPluginType][name] = &Plugin{
-							Plugin: props.Plugin,
-							Prefix: props.Prefix,
-							Pkg:    fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), BrokerPluginType),
-						}
-					}
-				}
-			}
-		}
-
 		if svc.Options != nil && proto.HasExtension(svc.Options, engine_annotattions.E_Clients) {
 			eClients := proto.GetExtension(svc.Options, engine_annotattions.E_Clients)
 			if eClients != nil {
@@ -242,6 +187,61 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 					clients[value.Service] = &Client{
 						Service: value.Service,
 						Pkg:     value.Package,
+					}
+				}
+			}
+		}
+	}
+
+	if file.Options != nil && proto.HasExtension(file.Options, engine_annotattions.E_Plugins) {
+		ePlugins := proto.GetExtension(file.Options, engine_annotattions.E_Plugins)
+		if ePlugins != nil {
+			plgs := ePlugins.(*engine_annotattions.Plugins)
+			if len(plgs.Storage) > 0 {
+				plugins[StoragePluginType] = make(map[string]*Plugin, 0)
+				for name, props := range plgs.Storage {
+					if _, ok := pluginImportsExists[props.Plugin]; !ok {
+						imports = append(imports, descriptor.GoPackage{
+							Path: fmt.Sprintf("%s/plugin/storage/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
+							Name: path.Base(fmt.Sprintf("%s/plugin/storage/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
+						})
+					}
+					plugins[StoragePluginType][name] = &Plugin{
+						Plugin: props.Plugin,
+						Prefix: props.Prefix,
+						Pkg:    fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), StoragePluginType),
+					}
+				}
+			}
+			if len(plgs.Cache) > 0 {
+				plugins[CachePluginType] = make(map[string]*Plugin, 0)
+				for name, props := range plgs.Cache {
+					if _, ok := pluginImportsExists[props.Plugin]; !ok {
+						imports = append(imports, descriptor.GoPackage{
+							Path: fmt.Sprintf("%s/plugin/cache/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
+							Name: path.Base(fmt.Sprintf("%s/plugin/cache/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
+						})
+					}
+					plugins[CachePluginType][name] = &Plugin{
+						Plugin: props.Plugin,
+						Prefix: props.Prefix,
+						Pkg:    fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), CachePluginType),
+					}
+				}
+			}
+			if len(plgs.Broker) > 0 {
+				plugins[BrokerPluginType] = make(map[string]*Plugin, 0)
+				for name, props := range plgs.Broker {
+					if _, ok := pluginImportsExists[props.Plugin]; !ok {
+						imports = append(imports, descriptor.GoPackage{
+							Path: fmt.Sprintf("%s/plugin/broker/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
+							Name: path.Base(fmt.Sprintf("%s/plugin/broker/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
+						})
+					}
+					plugins[BrokerPluginType][name] = &Plugin{
+						Plugin: props.Plugin,
+						Prefix: props.Prefix,
+						Pkg:    fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), BrokerPluginType),
 					}
 				}
 			}
