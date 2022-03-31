@@ -156,6 +156,7 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 	var imports = g.prepareImports([]string{
 		"engine github.com/lastbackend/engine",
 		"logger github.com/lastbackend/engine/logger",
+		"github.com/lastbackend/engine/client/grpc",
 		"fx go.uber.org/fx",
 		"context",
 		"os",
@@ -167,7 +168,6 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 	if g.hasServiceMethods(file) {
 		imports = append(imports, g.prepareImports([]string{
 			"server github.com/lastbackend/engine/server",
-			"github.com/lastbackend/engine/client/grpc",
 			fmt.Sprintf("proto %s/apis/proto", g.opts.SourcePackage),
 		})...)
 	}
