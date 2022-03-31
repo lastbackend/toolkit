@@ -207,16 +207,12 @@ type Service interface {
 	AddController(ctrl interface{})
 }
 
-{{ range $svc := .Services }}
-type {{ $svc.GetName }}RPC struct {
-	{{ if not $.HasNotServer }}
+type RPC struct {
 	Grpc grpc.RPCClient
-	{{ end }}
-	{{- range $key, $value := $.Clients -}}
+	{{- range $key, $value := .Clients }}
 		{{ $value.Service | ToCapitalize }} {{ $key }}.{{ $value.Service | ToCapitalize }}RPCClient
 	{{ end }}
 }
-{{ end }}
 
 func NewService(name string) Service {
 	return &service{
@@ -226,17 +222,13 @@ func NewService(name string) Service {
 		{{- end }}
 		svc:     make([]interface{}, 0),
 		ctrl:    make([]interface{}, 0),
-		{{- range $svc := .Services }}
-		rpc{{ $svc.GetName }}:    new({{ $svc.GetName }}RPC),
-		{{ end }}
+		rpc:     new(RPC),
 	}
 }
 
 type service struct {
 	engine engine.Service
-	{{- range $svc := .Services }}
-	rpc{{ $svc.GetName }} *{{ $svc.GetName }}RPC
-	{{- end }}
+	rpc    *RPC
 	{{- if not .HasNotServer }}
 	srv  []interface{}
 	{{- end }}
@@ -301,11 +293,9 @@ func (s *service) Run(ctx context.Context) error {
 		func() Service {
 			return s
 		},
-		{{- range $svc := .Services }}
-		func() *{{ $svc.GetName }}RPC {
-			return s.rpc{{ $svc.GetName }}
+		func() *RPC {
+			return s.rpc
 		},
-		{{- end }}
 		{{- range $type, $plugins := .Plugins }}
 			{{- range $name, $plugin := $plugins }}
 				fx.Annotate(
@@ -326,9 +316,9 @@ func (s *service) Run(ctx context.Context) error {
 		fx.Options(
 			fx.Supply(s.cfg),
 			fx.Provide(provide...),
+			fx.Invoke(s.registerClients),
 			{{- if not $.HasNotServer }}
 				{{- range $svc := .Services }}			
-					fx.Invoke(s.register{{ $svc.GetName }}Client),
 					fx.Invoke(s.register{{ $svc.GetName }}Server),
 				{{- end }}
 			{{- end }}
@@ -355,25 +345,26 @@ func (s *service) Run(ctx context.Context) error {
 	return app.Stop(ctx)
 }
 
+
+func (s *service) registerClients() error {
+
+	// Register clients
+	
+	s.rpc.Grpc = grpc.NewClient(s.engine, &grpc.ClientOptions{Name: "client-grpc"})
+
+	if err := s.engine.ClientRegister(s.rpc.Grpc); err != nil {
+		return err
+	}
+
+	{{ range $key, $value := .Clients }}
+		s.rpc.{{ $value.Service | ToCapitalize }} = {{ $value.Service | ToLower }}.New{{ $value.Service | ToCapitalize }}RPCClient("{{ $value.Service | ToLower }}", s.rpc.Grpc.Client())
+	{{ end }}
+
+	return nil
+}
+
 {{ if not .HasNotServer }}
 	{{ range $svc := .Services }}
-	func (s *service) register{{ $svc.GetName }}Client() error {
-	
-		// Register clients
-		
-		s.rpc{{ $svc.GetName }}.Grpc = grpc.NewClient(s.engine, &grpc.ClientOptions{Name: "client-{{ $svc.GetName | ToLower }}-grpc"})
-	
-		if err := s.engine.ClientRegister(s.rpc{{ $svc.GetName }}.Grpc); err != nil {
-			return err
-		}
-	
-		{{ range $key, $value := $.Clients }}
-			s.rpc{{ $svc.GetName }}.{{ $value.Service | ToCapitalize }} = {{ $value.Service | ToLower }}.New{{ $value.Service | ToCapitalize }}RPCClient("{{ $value.Service | ToLower }}", s.rpc{{ $svc.GetName }}.Grpc.Client())
-		{{ end }}
-	
-		return nil
-	}
-	
 	func (s *service) register{{ $svc.GetName }}Server(srv {{ $svc.GetName }}RpcServer) error {
 	
 		// Register servers
