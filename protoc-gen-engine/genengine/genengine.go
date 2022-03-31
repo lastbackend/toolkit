@@ -268,16 +268,14 @@ func (g *generator) generateClient(file *descriptor.File) (string, error) {
 	var clients = make(map[string]*Client, 0)
 	var imports = g.prepareImports(pkgImports)
 
-	for _, svc := range file.Services {
-		if svc.Options != nil && proto.HasExtension(svc.Options, engine_annotattions.E_Clients) {
-			eClients := proto.GetExtension(svc.Options, engine_annotattions.E_Clients)
-			if eClients != nil {
-				clnts := eClients.(*engine_annotattions.Clients)
-				for _, value := range clnts.Client {
-					clients[value.Service] = &Client{
-						Service: value.Service,
-						Pkg:     value.Package,
-					}
+	if file.Options != nil && proto.HasExtension(file.Options, engine_annotattions.E_Clients) {
+		eClients := proto.GetExtension(file.Options, engine_annotattions.E_Clients)
+		if eClients != nil {
+			clnts := eClients.(*engine_annotattions.Clients)
+			for _, value := range clnts.Client {
+				clients[value.Service] = &Client{
+					Service: value.Service,
+					Pkg:     value.Package,
 				}
 			}
 		}
