@@ -36,14 +36,11 @@ message Clients {
   repeated Client client = 1;
 }
 
-extend google.protobuf.ServiceOptions {
-  Clients clients = 50010;
-}
-
 extend google.protobuf.FileOptions {
   Plugins plugins = 50001;
-  DockerfileSpec dockerfile_spec = 50002;
-  TestSpec tests_spec = 50003;
+  Clients clients = 50002;
+  DockerfileSpec dockerfile_spec = 50003;
+  TestSpec tests_spec = 50004;
 }
 
 message DockerfileSpec {

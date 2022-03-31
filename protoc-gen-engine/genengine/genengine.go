@@ -172,22 +172,20 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 		})...)
 	}
 
-	for _, svc := range file.Services {
-		if svc.Options != nil && proto.HasExtension(svc.Options, engine_annotattions.E_Clients) {
-			eClients := proto.GetExtension(svc.Options, engine_annotattions.E_Clients)
-			if eClients != nil {
-				clnts := eClients.(*engine_annotattions.Clients)
-				for _, value := range clnts.Client {
-					if _, ok := clientImportsExists[value.Service]; !ok {
-						imports = append(imports, descriptor.GoPackage{
-							Alias: strings.ToLower(value.Service),
-							Path:  filepath.Join(value.Package, "client"),
-						})
-					}
-					clients[value.Service] = &Client{
-						Service: value.Service,
-						Pkg:     value.Package,
-					}
+	if file.Options != nil && proto.HasExtension(file.Options, engine_annotattions.E_Clients) {
+		eClients := proto.GetExtension(file.Options, engine_annotattions.E_Clients)
+		if eClients != nil {
+			clnts := eClients.(*engine_annotattions.Clients)
+			for _, value := range clnts.Client {
+				if _, ok := clientImportsExists[value.Service]; !ok {
+					imports = append(imports, descriptor.GoPackage{
+						Alias: strings.ToLower(value.Service),
+						Path:  filepath.Join(value.Package, "client"),
+					})
+				}
+				clients[value.Service] = &Client{
+					Service: value.Service,
+					Pkg:     value.Package,
 				}
 			}
 		}
