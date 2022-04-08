@@ -93,7 +93,7 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 		files = append(files, &descriptor.ResponseFile{
 			GoPkg: file.GoPkg,
 			CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
-				Name:    proto.String(filepath.Join(dir, "service", name+".pb.lb.service.go")),
+				Name:    proto.String(filepath.Join(dir, name+"_service.pb.lb.toolkit.go")),
 				Content: proto.String(string(lbServiceFormatted)),
 			},
 		})
@@ -112,14 +112,10 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 			files = append(files, &descriptor.ResponseFile{
 				GoPkg: file.GoPkg,
 				CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
-					Name:    proto.String(filepath.Join(dir, "client", name+".pb.lb.rpc.go")),
+					Name:    proto.String(filepath.Join(dir, name+"_client.pb.lb.toolkit.go")),
 					Content: proto.String(string(lbClientFormatted)),
 				},
 			})
-		} else {
-			if err := os.RemoveAll(filepath.Join(dir, "client")); err != nil {
-				return nil, err
-			}
 		}
 
 		// Generate mockery
@@ -137,7 +133,7 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 			files = append(files, &descriptor.ResponseFile{
 				GoPkg: file.GoPkg,
 				CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
-					Name:    proto.String(filepath.Join(dir, "tests", name+".pb.lb.mockery.go")),
+					Name:    proto.String(filepath.Join(strings.Replace(dir, filepath.Base(dir), "", 1), "tests", name+".pb.lb.mockery.go")),
 					Content: proto.String(string(formatted)),
 				},
 			})
@@ -168,7 +164,6 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 	if g.hasServiceMethods(file) {
 		imports = append(imports, g.prepareImports([]string{
 			"server github.com/lastbackend/engine/server",
-			fmt.Sprintf("proto %s/apis/proto", g.opts.SourcePackage),
 		})...)
 	}
 
@@ -180,7 +175,7 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 				if _, ok := clientImportsExists[value.Service]; !ok {
 					imports = append(imports, descriptor.GoPackage{
 						Alias: strings.ToLower(value.Service),
-						Path:  filepath.Join(value.Package, "client"),
+						Path:  value.Package,
 					})
 				}
 				clients[value.Service] = &Client{
@@ -261,7 +256,6 @@ func (g *generator) generateClient(file *descriptor.File) (string, error) {
 
 	pkgImports := []string{
 		"context context",
-		fmt.Sprintf("proto %s/apis/proto", g.opts.SourcePackage),
 		"github.com/lastbackend/engine/client/grpc",
 	}
 
@@ -298,8 +292,7 @@ func (g *generator) generateTestStubs(file *descriptor.File) (string, error) {
 		baseImports := []string{
 			"context context",
 			"grpc github.com/lastbackend/engine/client/grpc",
-			fmt.Sprintf("proto %s", filepath.Join(g.opts.SourcePackage, filepath.Dir(file.GeneratedFilenamePrefix))),
-			fmt.Sprintf("client %s/apis/proto/client", g.opts.SourcePackage),
+			fmt.Sprintf("servicepb %s", filepath.Dir(file.GeneratedFilenamePrefix)),
 		}
 
 		if len(opts.Mockery.Package) == 0 {

@@ -370,12 +370,12 @@ func (s *service) registerClients() error {
 		// Register servers
 	
 		type {{ $svc.GetName }}GrpcRpcServer struct {
-				proto.{{ $svc.GetName }}Server
+				{{ $svc.GetName }}Server
 		}
 	
 		h := &{{ $svc.GetName | ToLower }}GrpcRpcServer{srv.({{ $svc.GetName }}RpcServer)}
 		grpcServer := server.NewServer(s.engine, &server.ServerOptions{Name: "server-{{ $svc.GetName | ToLower }}-grpc"})
-		if err := grpcServer.Register(&proto.{{ $svc.GetName }}_ServiceDesc, &{{ $svc.GetName }}GrpcRpcServer{h}); err != nil {
+		if err := grpcServer.Register(&{{ $svc.GetName }}_ServiceDesc, &{{ $svc.GetName }}GrpcRpcServer{h}); err != nil {
 			return err
 		}
 	
@@ -414,11 +414,11 @@ var shutdownSignals = []os.Signal{
 	type {{ $svc.GetName }}RpcServer interface {
 		{{ range $m := $svc.Methods }}
     {{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
-			{{ $m.GetName }}(ctx context.Context, req *proto.{{ $m.RequestType.GoName }}) (*proto.{{ $m.ResponseType.GoName }}, error)
+			{{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoName }}) (*{{ $m.ResponseType.GoName }}, error)
     {{ else }}{{ if not $m.GetClientStreaming }}
-			{{ $m.GetName }}(req *proto.{{ $m.RequestType.GoName }}, stream proto.{{ $svc.GetName }}_{{ $m.GetName }}Server) error
+			{{ $m.GetName }}(req *{{ $m.RequestType.GoName }}, stream {{ $svc.GetName }}_{{ $m.GetName }}Server) error
     {{ else }}
-			{{ $m.GetName }}(stream proto.{{ $svc.GetName }}_{{ $m.GetName }}Server) error
+			{{ $m.GetName }}(stream {{ $svc.GetName }}_{{ $m.GetName }}Server) error
     {{ end }}{{ end }}
 	{{ end }}
 	}
@@ -431,15 +431,15 @@ var shutdownSignals = []os.Signal{
 
 	{{ range $m := $svc.Methods }}
     {{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
-  		func (h *{{ $svc.GetName | ToLower }}GrpcRpcServer) {{ $m.GetName }}(ctx context.Context, req *proto.{{ $m.RequestType.GoName }}) (*proto.{{ $m.ResponseType.GoName }}, error) {
+  		func (h *{{ $svc.GetName | ToLower }}GrpcRpcServer) {{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoName }}) (*{{ $m.ResponseType.GoName }}, error) {
 				return h.{{ $svc.GetName }}RpcServer.{{ $m.GetName }}(ctx, req)
 			}
     {{ else }}{{ if not $m.GetClientStreaming }}
-			func (h *{{ $svc.GetName | ToLower }}GrpcRpcServer) {{ $m.GetName }}(req *proto.{{ $m.RequestType.GoName }}, stream proto.{{ $svc.GetName }}_{{ $m.GetName }}Server) error {
+			func (h *{{ $svc.GetName | ToLower }}GrpcRpcServer) {{ $m.GetName }}(req *{{ $m.RequestType.GoName }}, stream {{ $svc.GetName }}_{{ $m.GetName }}Server) error {
 				return h.{{ $svc.GetName }}RpcServer.{{ $m.GetName }}(req, stream)
 			}
     {{ else }}
-			func (h *{{ $svc.GetName | ToLower }}GrpcRpcServer) {{ $m.GetName }}(stream proto.{{ $svc.GetName }}_{{ $m.GetName }}Server) error {
+			func (h *{{ $svc.GetName | ToLower }}GrpcRpcServer) {{ $m.GetName }}(stream {{ $svc.GetName }}_{{ $m.GetName }}Server) error {
 				return h.{{ $svc.GetName }}RpcServer.{{ $m.GetName }}(stream)
 			}
     {{ end }}{{ end }}
@@ -476,10 +476,10 @@ var _ context.Context
 	type {{ $svc.GetName }}RPCClient interface {
 		{{ range $m := $svc.Methods }}
 			{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
-				{{ $m.GetName }}(ctx context.Context, req *proto.{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) (*proto.{{ $m.ResponseType.GoName }}, error)
+				{{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) (*{{ $m.ResponseType.GoName }}, error)
 			{{ else }}
 				{{ if not $m.GetClientStreaming }}
-					{{ $m.GetName }}(ctx context.Context, req *proto.{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error)
+					{{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error)
 				{{ else }}
 					{{ $m.GetName }}(ctx context.Context, opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error)
 				{{ end }}
@@ -496,8 +496,8 @@ var _ context.Context
 
 	{{ range $m := $svc.Methods }}
 		{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
-			func (c *{{ $svc.GetName | ToLower }}GrpcRPCClient) {{ $m.GetName }}(ctx context.Context, req *proto.{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) (*proto.{{ $m.ResponseType.GoName }}, error) {
-				resp := new(proto.{{ $m.ResponseType.GoName }})
+			func (c *{{ $svc.GetName | ToLower }}GrpcRPCClient) {{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) (*{{ $m.ResponseType.GoName }}, error) {
+				resp := new({{ $m.ResponseType.GoName }})
 				if err := c.cli.Call(ctx, c.service, {{ $svc.GetName }}_{{ $m.GetName }}Method, req, resp, opts...); err != nil {
 					return nil, err
 				}
@@ -505,7 +505,7 @@ var _ context.Context
 			}
 		{{ else }}
 			{{ if not $m.GetClientStreaming }}
-				func (c *{{ $svc.GetName | ToLower }}GrpcRPCClient) {{ $m.GetName }}(ctx context.Context, req *proto.{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error) {
+				func (c *{{ $svc.GetName | ToLower }}GrpcRPCClient) {{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error) {
 					stream, err := c.cli.Stream(ctx, c.service, {{ $svc.GetName }}_{{ $m.GetName }}Method, req, opts...)
 					if err != nil {
 						return nil, err
@@ -529,8 +529,8 @@ var _ context.Context
 				SendMsg(interface{}) error
 				RecvMsg(interface{}) error
 				Close() error
-				Recv() (*proto.{{ $m.ResponseType.GoName }}, error)
-				{{ if $m.GetClientStreaming }}Send(*proto.{{ $m.RequestType.GoName }}) error{{ end }}
+				Recv() (*{{ $m.ResponseType.GoName }}, error)
+				{{ if $m.GetClientStreaming }}Send(*{{ $m.RequestType.GoName }}) error{{ end }}
 			}
 
 			type {{ $svc.GetName | ToLower }}{{ $m.GetName }}Service struct {
@@ -549,8 +549,8 @@ var _ context.Context
 				return x.stream.RecvMsg(m)
 			}
 
-			func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) Recv() (*proto.{{ $m.ResponseType.GoName }}, error) {
-				m := new(proto.{{ $m.ResponseType.GoName }})
+			func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) Recv() (*{{ $m.ResponseType.GoName }}, error) {
+				m := new({{ $m.ResponseType.GoName }})
 				err := x.stream.RecvMsg(m)
 				if err != nil {
 					return nil, err
@@ -559,7 +559,7 @@ var _ context.Context
 			}
 
 			{{ if $m.GetClientStreaming }}
-			func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) Send(m *proto.{{ $m.RequestType.GoName }}) error {
+			func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) Send(m *{{ $m.RequestType.GoName }}) error {
 				return x.stream.SendMsg(m)
 			}
 			{{ end }}
@@ -607,7 +607,7 @@ var _ context.Context
 		return stubs
 	}
 
-	func With{{ $svc.GetName }}Stubs(stubs *{{ $svc.GetName }}Stubs) client.{{ $svc.GetName }}RPCClient{
+	func With{{ $svc.GetName }}Stubs(stubs *{{ $svc.GetName }}Stubs) servicepb.{{ $svc.GetName }}RPCClient{
 
 		rpc_mock := new(service_mocks.{{ $svc.GetName }}RPCClient)
 
@@ -617,18 +617,18 @@ var _ context.Context
 					resp := st.Response
 					err := st.Error
 					rpc_mock.On("{{ $m.GetName }}", st.Context, st.Request).Return(
-						func(ctx context.Context, req *proto.{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) *proto.{{ $m.ResponseType.GoName }} {
+						func(ctx context.Context, req *servicepb.{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) *servicepb.{{ $m.ResponseType.GoName }} {
 							return resp
 						},
-						func(ctx context.Context, req *proto.{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) error {
+						func(ctx context.Context, req *servicepb.{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) error {
 							return err
 						},
 					)
 					rpc_mock.On("{{ $m.GetName }}", st.Context, st.Request, st.CallOptions).Return(
-						func(ctx context.Context, req *proto.{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) *proto.{{ $m.ResponseType.GoName }} {
+						func(ctx context.Context, req *servicepb.{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) *servicepb.{{ $m.ResponseType.GoName }} {
 							return resp
 						},
-						func(ctx context.Context, req *proto.{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) error {
+						func(ctx context.Context, req *servicepb.{{ $m.RequestType.GoName }}, opts ...grpc.CallOption) error {
 							return err
 						},
 					)
@@ -645,8 +645,8 @@ var _ context.Context
 			type {{ $m.GetName }}Stub struct {
 			{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
 				Context     context.Context
-				Request     *proto.{{ $m.RequestType.GoName }}
-				Response    *proto.{{ $m.ResponseType.GoName }}
+				Request     *servicepb.{{ $m.RequestType.GoName }}
+				Response    *servicepb.{{ $m.ResponseType.GoName }}
 				CallOptions []grpc.CallOption				
 				Error 	    error
 			{{ end }}
