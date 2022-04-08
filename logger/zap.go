@@ -25,11 +25,11 @@ import (
 )
 
 func init() {
-	lvl, err := GetLevel(os.Getenv("ENGINE_LOG_LEVEL"))
+	lvl, err := GetLevel(os.Getenv("TOOLKIT_LOG_LEVEL"))
 	if err != nil {
 		lvl = InfoLevel
 	}
-	verbose, err := GetLevel(os.Getenv("ENGINE_VERBOSE_LOG_LEVEL"))
+	verbose, err := GetLevel(os.Getenv("TOOLKIT_VERBOSE_LOG_LEVEL"))
 	if err != nil {
 		lvl = ErrorLevel
 	}
