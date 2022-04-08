@@ -108,7 +108,6 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 			if err != nil {
 				return nil, err
 			}
-
 			files = append(files, &descriptor.ResponseFile{
 				GoPkg: file.GoPkg,
 				CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
@@ -116,32 +115,27 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 					Content: proto.String(string(lbClientFormatted)),
 				},
 			})
-		} else {
-			if err := os.RemoveAll(filepath.Join(dir, "client")); err != nil {
-				return nil, err
+
+			// Generate mockery
+			if proto.HasExtension(file.Options, toolkit_annotattions.E_TestsSpec) {
+				code, err := g.generateTestStubs(file)
+				if err != nil {
+					return nil, err
+				}
+				formatted, err := format.Source([]byte(code))
+				if err != nil {
+					return nil, err
+				}
+				files = append(files, &descriptor.ResponseFile{
+					GoPkg: file.GoPkg,
+					CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
+						Name:    proto.String(filepath.Join(dir, "tests", name+".pb.toolkit.mockery.go")),
+						Content: proto.String(string(formatted)),
+					},
+				})
 			}
 		}
 
-		// Generate mockery
-		if proto.HasExtension(file.Options, toolkit_annotattions.E_TestsSpec) {
-			code, err := g.generateTestStubs(file)
-			if err != nil {
-				return nil, err
-			}
-
-			formatted, err := format.Source([]byte(code))
-			if err != nil {
-				return nil, err
-			}
-
-			files = append(files, &descriptor.ResponseFile{
-				GoPkg: file.GoPkg,
-				CodeGeneratorResponse_File: &pluginpb.CodeGeneratorResponse_File{
-					Name:    proto.String(filepath.Join(dir, "tests", name+".pb.toolkit.mockery.go")),
-					Content: proto.String(string(formatted)),
-				},
-			})
-		}
 	}
 
 	return files, nil
