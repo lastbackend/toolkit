@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package genengine
+package gentoolkit
 
 func camel(s string) string {
 	if s == "" {

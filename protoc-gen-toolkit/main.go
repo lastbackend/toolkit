@@ -17,7 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"github.com/lastbackend/engine/protoc-gen-engine/generator"
+	"github.com/lastbackend/toolkit/protoc-gen-toolkit/generator"
 
 	"os"
 )

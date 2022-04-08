@@ -18,9 +18,9 @@ package consul
 
 import (
 	"github.com/hashicorp/consul/api"
-	"github.com/lastbackend/engine/logger"
-	"github.com/lastbackend/engine/network/resolver"
-	"github.com/lastbackend/engine/network/resolver/route"
+	"github.com/lastbackend/toolkit/logger"
+	"github.com/lastbackend/toolkit/network/resolver"
+	"github.com/lastbackend/toolkit/network/resolver/route"
 	"time"
 
 	"fmt"

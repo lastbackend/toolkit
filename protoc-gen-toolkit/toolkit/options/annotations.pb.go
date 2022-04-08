@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.27.1
 // 	protoc        v3.19.4
-// source: protoc-gen-engine/engine/options/annotations.proto
+// source: protoc-gen-toolkit/toolkit/options/annotations.proto
 
 package annotations
 
@@ -33,7 +33,7 @@ type Cache struct {
 func (x *Cache) Reset() {
 	*x = Cache{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[0]
+		mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -46,7 +46,7 @@ func (x *Cache) String() string {
 func (*Cache) ProtoMessage() {}
 
 func (x *Cache) ProtoReflect() protoreflect.Message {
-	mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[0]
+	mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +59,7 @@ func (x *Cache) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cache.ProtoReflect.Descriptor instead.
 func (*Cache) Descriptor() ([]byte, []int) {
-	return file_protoc_gen_engine_engine_options_annotations_proto_rawDescGZIP(), []int{0}
+	return file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Cache) GetPlugin() string {
@@ -88,7 +88,7 @@ type Storage struct {
 func (x *Storage) Reset() {
 	*x = Storage{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[1]
+		mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -101,7 +101,7 @@ func (x *Storage) String() string {
 func (*Storage) ProtoMessage() {}
 
 func (x *Storage) ProtoReflect() protoreflect.Message {
-	mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[1]
+	mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -114,7 +114,7 @@ func (x *Storage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Storage.ProtoReflect.Descriptor instead.
 func (*Storage) Descriptor() ([]byte, []int) {
-	return file_protoc_gen_engine_engine_options_annotations_proto_rawDescGZIP(), []int{1}
+	return file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Storage) GetPlugin() string {
@@ -143,7 +143,7 @@ type Broker struct {
 func (x *Broker) Reset() {
 	*x = Broker{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[2]
+		mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -156,7 +156,7 @@ func (x *Broker) String() string {
 func (*Broker) ProtoMessage() {}
 
 func (x *Broker) ProtoReflect() protoreflect.Message {
-	mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[2]
+	mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -169,7 +169,7 @@ func (x *Broker) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Broker.ProtoReflect.Descriptor instead.
 func (*Broker) Descriptor() ([]byte, []int) {
-	return file_protoc_gen_engine_engine_options_annotations_proto_rawDescGZIP(), []int{2}
+	return file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Broker) GetPlugin() string {
@@ -199,7 +199,7 @@ type Plugins struct {
 func (x *Plugins) Reset() {
 	*x = Plugins{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[3]
+		mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -212,7 +212,7 @@ func (x *Plugins) String() string {
 func (*Plugins) ProtoMessage() {}
 
 func (x *Plugins) ProtoReflect() protoreflect.Message {
-	mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[3]
+	mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -225,7 +225,7 @@ func (x *Plugins) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Plugins.ProtoReflect.Descriptor instead.
 func (*Plugins) Descriptor() ([]byte, []int) {
-	return file_protoc_gen_engine_engine_options_annotations_proto_rawDescGZIP(), []int{3}
+	return file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Plugins) GetStorage() map[string]*Storage {
@@ -261,7 +261,7 @@ type Client struct {
 func (x *Client) Reset() {
 	*x = Client{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[4]
+		mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -274,7 +274,7 @@ func (x *Client) String() string {
 func (*Client) ProtoMessage() {}
 
 func (x *Client) ProtoReflect() protoreflect.Message {
-	mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[4]
+	mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -287,7 +287,7 @@ func (x *Client) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Client.ProtoReflect.Descriptor instead.
 func (*Client) Descriptor() ([]byte, []int) {
-	return file_protoc_gen_engine_engine_options_annotations_proto_rawDescGZIP(), []int{4}
+	return file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Client) GetService() string {
@@ -315,7 +315,7 @@ type Clients struct {
 func (x *Clients) Reset() {
 	*x = Clients{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[5]
+		mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -328,7 +328,7 @@ func (x *Clients) String() string {
 func (*Clients) ProtoMessage() {}
 
 func (x *Clients) ProtoReflect() protoreflect.Message {
-	mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[5]
+	mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -341,7 +341,7 @@ func (x *Clients) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Clients.ProtoReflect.Descriptor instead.
 func (*Clients) Descriptor() ([]byte, []int) {
-	return file_protoc_gen_engine_engine_options_annotations_proto_rawDescGZIP(), []int{5}
+	return file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Clients) GetClient() []*Client {
@@ -364,7 +364,7 @@ type DockerfileSpec struct {
 func (x *DockerfileSpec) Reset() {
 	*x = DockerfileSpec{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[6]
+		mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -377,7 +377,7 @@ func (x *DockerfileSpec) String() string {
 func (*DockerfileSpec) ProtoMessage() {}
 
 func (x *DockerfileSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[6]
+	mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -390,7 +390,7 @@ func (x *DockerfileSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DockerfileSpec.ProtoReflect.Descriptor instead.
 func (*DockerfileSpec) Descriptor() ([]byte, []int) {
-	return file_protoc_gen_engine_engine_options_annotations_proto_rawDescGZIP(), []int{6}
+	return file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *DockerfileSpec) GetExpose() []int32 {
@@ -425,7 +425,7 @@ type TestSpec struct {
 func (x *TestSpec) Reset() {
 	*x = TestSpec{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[7]
+		mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -438,7 +438,7 @@ func (x *TestSpec) String() string {
 func (*TestSpec) ProtoMessage() {}
 
 func (x *TestSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[7]
+	mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -451,7 +451,7 @@ func (x *TestSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestSpec.ProtoReflect.Descriptor instead.
 func (*TestSpec) Descriptor() ([]byte, []int) {
-	return file_protoc_gen_engine_engine_options_annotations_proto_rawDescGZIP(), []int{7}
+	return file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *TestSpec) GetMockery() *MockeryTestsSpec {
@@ -472,7 +472,7 @@ type MockeryTestsSpec struct {
 func (x *MockeryTestsSpec) Reset() {
 	*x = MockeryTestsSpec{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[8]
+		mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -485,7 +485,7 @@ func (x *MockeryTestsSpec) String() string {
 func (*MockeryTestsSpec) ProtoMessage() {}
 
 func (x *MockeryTestsSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[8]
+	mi := &file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -498,7 +498,7 @@ func (x *MockeryTestsSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MockeryTestsSpec.ProtoReflect.Descriptor instead.
 func (*MockeryTestsSpec) Descriptor() ([]byte, []int) {
-	return file_protoc_gen_engine_engine_options_annotations_proto_rawDescGZIP(), []int{8}
+	return file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *MockeryTestsSpec) GetPackage() string {
@@ -508,56 +508,56 @@ func (x *MockeryTestsSpec) GetPackage() string {
 	return ""
 }
 
-var file_protoc_gen_engine_engine_options_annotations_proto_extTypes = []protoimpl.ExtensionInfo{
+var file_protoc_gen_toolkit_toolkit_options_annotations_proto_extTypes = []protoimpl.ExtensionInfo{
 	{
 		ExtendedType:  (*descriptorpb.FileOptions)(nil),
 		ExtensionType: (*Plugins)(nil),
 		Field:         50001,
-		Name:          "engine.plugins",
+		Name:          "toolkit.plugins",
 		Tag:           "bytes,50001,opt,name=plugins",
-		Filename:      "protoc-gen-engine/engine/options/annotations.proto",
+		Filename:      "protoc-gen-toolkit/toolkit/options/annotations.proto",
 	},
 	{
 		ExtendedType:  (*descriptorpb.FileOptions)(nil),
 		ExtensionType: (*Clients)(nil),
 		Field:         50002,
-		Name:          "engine.clients",
+		Name:          "toolkit.clients",
 		Tag:           "bytes,50002,opt,name=clients",
-		Filename:      "protoc-gen-engine/engine/options/annotations.proto",
+		Filename:      "protoc-gen-toolkit/toolkit/options/annotations.proto",
 	},
 	{
 		ExtendedType:  (*descriptorpb.FileOptions)(nil),
 		ExtensionType: (*DockerfileSpec)(nil),
 		Field:         50003,
-		Name:          "engine.dockerfile_spec",
+		Name:          "toolkit.dockerfile_spec",
 		Tag:           "bytes,50003,opt,name=dockerfile_spec",
-		Filename:      "protoc-gen-engine/engine/options/annotations.proto",
+		Filename:      "protoc-gen-toolkit/toolkit/options/annotations.proto",
 	},
 	{
 		ExtendedType:  (*descriptorpb.FileOptions)(nil),
 		ExtensionType: (*TestSpec)(nil),
 		Field:         50004,
-		Name:          "engine.tests_spec",
+		Name:          "toolkit.tests_spec",
 		Tag:           "bytes,50004,opt,name=tests_spec",
-		Filename:      "protoc-gen-engine/engine/options/annotations.proto",
+		Filename:      "protoc-gen-toolkit/toolkit/options/annotations.proto",
 	},
 }
 
 // Extension fields to descriptorpb.FileOptions.
 var (
-	// optional engine.Plugins plugins = 50001;
-	E_Plugins = &file_protoc_gen_engine_engine_options_annotations_proto_extTypes[0]
-	// optional engine.Clients clients = 50002;
-	E_Clients = &file_protoc_gen_engine_engine_options_annotations_proto_extTypes[1]
-	// optional engine.DockerfileSpec dockerfile_spec = 50003;
-	E_DockerfileSpec = &file_protoc_gen_engine_engine_options_annotations_proto_extTypes[2]
-	// optional engine.TestSpec tests_spec = 50004;
-	E_TestsSpec = &file_protoc_gen_engine_engine_options_annotations_proto_extTypes[3]
+	// optional toolkit.Plugins plugins = 50001;
+	E_Plugins = &file_protoc_gen_toolkit_toolkit_options_annotations_proto_extTypes[0]
+	// optional toolkit.Clients clients = 50002;
+	E_Clients = &file_protoc_gen_toolkit_toolkit_options_annotations_proto_extTypes[1]
+	// optional toolkit.DockerfileSpec dockerfile_spec = 50003;
+	E_DockerfileSpec = &file_protoc_gen_toolkit_toolkit_options_annotations_proto_extTypes[2]
+	// optional toolkit.TestSpec tests_spec = 50004;
+	E_TestsSpec = &file_protoc_gen_toolkit_toolkit_options_annotations_proto_extTypes[3]
 )
 
-var File_protoc_gen_engine_engine_options_annotations_proto protoreflect.FileDescriptor
+var File_protoc_gen_toolkit_toolkit_options_annotations_proto protoreflect.FileDescriptor
 
-var file_protoc_gen_engine_engine_options_annotations_proto_rawDesc = []byte{
+var file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDesc = []byte{
 	0x0a, 0x32, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x2d, 0x67, 0x65, 0x6e, 0x2d, 0x65, 0x6e, 0x67,
 	0x69, 0x6e, 0x65, 0x2f, 0x65, 0x6e, 0x67, 0x69, 0x6e, 0x65, 0x2f, 0x6f, 0x70, 0x74, 0x69, 0x6f,
 	0x6e, 0x73, 0x2f, 0x61, 0x6e, 0x6e, 0x6f, 0x74, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x2e, 0x70,
@@ -650,50 +650,50 @@ var file_protoc_gen_engine_engine_options_annotations_proto_rawDesc = []byte{
 }
 
 var (
-	file_protoc_gen_engine_engine_options_annotations_proto_rawDescOnce sync.Once
-	file_protoc_gen_engine_engine_options_annotations_proto_rawDescData = file_protoc_gen_engine_engine_options_annotations_proto_rawDesc
+	file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescOnce sync.Once
+	file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescData = file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDesc
 )
 
-func file_protoc_gen_engine_engine_options_annotations_proto_rawDescGZIP() []byte {
-	file_protoc_gen_engine_engine_options_annotations_proto_rawDescOnce.Do(func() {
-		file_protoc_gen_engine_engine_options_annotations_proto_rawDescData = protoimpl.X.CompressGZIP(file_protoc_gen_engine_engine_options_annotations_proto_rawDescData)
+func file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescGZIP() []byte {
+	file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescOnce.Do(func() {
+		file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescData = protoimpl.X.CompressGZIP(file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescData)
 	})
-	return file_protoc_gen_engine_engine_options_annotations_proto_rawDescData
+	return file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDescData
 }
 
-var file_protoc_gen_engine_engine_options_annotations_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
-var file_protoc_gen_engine_engine_options_annotations_proto_goTypes = []interface{}{
-	(*Cache)(nil),                    // 0: engine.Cache
-	(*Storage)(nil),                  // 1: engine.Storage
-	(*Broker)(nil),                   // 2: engine.Broker
-	(*Plugins)(nil),                  // 3: engine.Plugins
-	(*Client)(nil),                   // 4: engine.Client
-	(*Clients)(nil),                  // 5: engine.Clients
-	(*DockerfileSpec)(nil),           // 6: engine.DockerfileSpec
-	(*TestSpec)(nil),                 // 7: engine.TestSpec
-	(*MockeryTestsSpec)(nil),         // 8: engine.MockeryTestsSpec
-	nil,                              // 9: engine.Plugins.StorageEntry
-	nil,                              // 10: engine.Plugins.CacheEntry
-	nil,                              // 11: engine.Plugins.BrokerEntry
+var file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_protoc_gen_toolkit_toolkit_options_annotations_proto_goTypes = []interface{}{
+	(*Cache)(nil),                    // 0: toolkit.Cache
+	(*Storage)(nil),                  // 1: toolkit.Storage
+	(*Broker)(nil),                   // 2: toolkit.Broker
+	(*Plugins)(nil),                  // 3: toolkit.Plugins
+	(*Client)(nil),                   // 4: toolkit.Client
+	(*Clients)(nil),                  // 5: toolkit.Clients
+	(*DockerfileSpec)(nil),           // 6: toolkit.DockerfileSpec
+	(*TestSpec)(nil),                 // 7: toolkit.TestSpec
+	(*MockeryTestsSpec)(nil),         // 8: toolkit.MockeryTestsSpec
+	nil,                              // 9: toolkit.Plugins.StorageEntry
+	nil,                              // 10: toolkit.Plugins.CacheEntry
+	nil,                              // 11: toolkit.Plugins.BrokerEntry
 	(*descriptorpb.FileOptions)(nil), // 12: google.protobuf.FileOptions
 }
-var file_protoc_gen_engine_engine_options_annotations_proto_depIdxs = []int32{
-	9,  // 0: engine.Plugins.storage:type_name -> engine.Plugins.StorageEntry
-	10, // 1: engine.Plugins.cache:type_name -> engine.Plugins.CacheEntry
-	11, // 2: engine.Plugins.broker:type_name -> engine.Plugins.BrokerEntry
-	4,  // 3: engine.Clients.client:type_name -> engine.Client
-	8,  // 4: engine.TestSpec.mockery:type_name -> engine.MockeryTestsSpec
-	1,  // 5: engine.Plugins.StorageEntry.value:type_name -> engine.Storage
-	0,  // 6: engine.Plugins.CacheEntry.value:type_name -> engine.Cache
-	2,  // 7: engine.Plugins.BrokerEntry.value:type_name -> engine.Broker
-	12, // 8: engine.plugins:extendee -> google.protobuf.FileOptions
-	12, // 9: engine.clients:extendee -> google.protobuf.FileOptions
-	12, // 10: engine.dockerfile_spec:extendee -> google.protobuf.FileOptions
-	12, // 11: engine.tests_spec:extendee -> google.protobuf.FileOptions
-	3,  // 12: engine.plugins:type_name -> engine.Plugins
-	5,  // 13: engine.clients:type_name -> engine.Clients
-	6,  // 14: engine.dockerfile_spec:type_name -> engine.DockerfileSpec
-	7,  // 15: engine.tests_spec:type_name -> engine.TestSpec
+var file_protoc_gen_toolkit_toolkit_options_annotations_proto_depIdxs = []int32{
+	9,  // 0: toolkit.Plugins.storage:type_name -> toolkit.Plugins.StorageEntry
+	10, // 1: toolkit.Plugins.cache:type_name -> toolkit.Plugins.CacheEntry
+	11, // 2: toolkit.Plugins.broker:type_name -> toolkit.Plugins.BrokerEntry
+	4,  // 3: toolkit.Clients.client:type_name -> toolkit.Client
+	8,  // 4: toolkit.TestSpec.mockery:type_name -> toolkit.MockeryTestsSpec
+	1,  // 5: toolkit.Plugins.StorageEntry.value:type_name -> toolkit.Storage
+	0,  // 6: toolkit.Plugins.CacheEntry.value:type_name -> toolkit.Cache
+	2,  // 7: toolkit.Plugins.BrokerEntry.value:type_name -> toolkit.Broker
+	12, // 8: toolkit.plugins:extendee -> google.protobuf.FileOptions
+	12, // 9: toolkit.clients:extendee -> google.protobuf.FileOptions
+	12, // 10: toolkit.dockerfile_spec:extendee -> google.protobuf.FileOptions
+	12, // 11: toolkit.tests_spec:extendee -> google.protobuf.FileOptions
+	3,  // 12: toolkit.plugins:type_name -> toolkit.Plugins
+	5,  // 13: toolkit.clients:type_name -> toolkit.Clients
+	6,  // 14: toolkit.dockerfile_spec:type_name -> toolkit.DockerfileSpec
+	7,  // 15: toolkit.tests_spec:type_name -> toolkit.TestSpec
 	16, // [16:16] is the sub-list for method output_type
 	16, // [16:16] is the sub-list for method input_type
 	12, // [12:16] is the sub-list for extension type_name
@@ -701,13 +701,13 @@ var file_protoc_gen_engine_engine_options_annotations_proto_depIdxs = []int32{
 	0,  // [0:8] is the sub-list for field type_name
 }
 
-func init() { file_protoc_gen_engine_engine_options_annotations_proto_init() }
-func file_protoc_gen_engine_engine_options_annotations_proto_init() {
-	if File_protoc_gen_engine_engine_options_annotations_proto != nil {
+func init() { file_protoc_gen_toolkit_toolkit_options_annotations_proto_init() }
+func file_protoc_gen_toolkit_toolkit_options_annotations_proto_init() {
+	if File_protoc_gen_toolkit_toolkit_options_annotations_proto != nil {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Cache); i {
 			case 0:
 				return &v.state
@@ -719,7 +719,7 @@ func file_protoc_gen_engine_engine_options_annotations_proto_init() {
 				return nil
 			}
 		}
-		file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+		file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Storage); i {
 			case 0:
 				return &v.state
@@ -731,7 +731,7 @@ func file_protoc_gen_engine_engine_options_annotations_proto_init() {
 				return nil
 			}
 		}
-		file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+		file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Broker); i {
 			case 0:
 				return &v.state
@@ -743,7 +743,7 @@ func file_protoc_gen_engine_engine_options_annotations_proto_init() {
 				return nil
 			}
 		}
-		file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+		file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Plugins); i {
 			case 0:
 				return &v.state
@@ -755,7 +755,7 @@ func file_protoc_gen_engine_engine_options_annotations_proto_init() {
 				return nil
 			}
 		}
-		file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+		file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Client); i {
 			case 0:
 				return &v.state
@@ -767,7 +767,7 @@ func file_protoc_gen_engine_engine_options_annotations_proto_init() {
 				return nil
 			}
 		}
-		file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Clients); i {
 			case 0:
 				return &v.state
@@ -779,7 +779,7 @@ func file_protoc_gen_engine_engine_options_annotations_proto_init() {
 				return nil
 			}
 		}
-		file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+		file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*DockerfileSpec); i {
 			case 0:
 				return &v.state
@@ -791,7 +791,7 @@ func file_protoc_gen_engine_engine_options_annotations_proto_init() {
 				return nil
 			}
 		}
-		file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+		file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*TestSpec); i {
 			case 0:
 				return &v.state
@@ -803,7 +803,7 @@ func file_protoc_gen_engine_engine_options_annotations_proto_init() {
 				return nil
 			}
 		}
-		file_protoc_gen_engine_engine_options_annotations_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+		file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*MockeryTestsSpec); i {
 			case 0:
 				return &v.state
@@ -820,19 +820,19 @@ func file_protoc_gen_engine_engine_options_annotations_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: file_protoc_gen_engine_engine_options_annotations_proto_rawDesc,
+			RawDescriptor: file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDesc,
 			NumEnums:      0,
 			NumMessages:   12,
 			NumExtensions: 4,
 			NumServices:   0,
 		},
-		GoTypes:           file_protoc_gen_engine_engine_options_annotations_proto_goTypes,
-		DependencyIndexes: file_protoc_gen_engine_engine_options_annotations_proto_depIdxs,
-		MessageInfos:      file_protoc_gen_engine_engine_options_annotations_proto_msgTypes,
-		ExtensionInfos:    file_protoc_gen_engine_engine_options_annotations_proto_extTypes,
+		GoTypes:           file_protoc_gen_toolkit_toolkit_options_annotations_proto_goTypes,
+		DependencyIndexes: file_protoc_gen_toolkit_toolkit_options_annotations_proto_depIdxs,
+		MessageInfos:      file_protoc_gen_toolkit_toolkit_options_annotations_proto_msgTypes,
+		ExtensionInfos:    file_protoc_gen_toolkit_toolkit_options_annotations_proto_extTypes,
 	}.Build()
-	File_protoc_gen_engine_engine_options_annotations_proto = out.File
-	file_protoc_gen_engine_engine_options_annotations_proto_rawDesc = nil
-	file_protoc_gen_engine_engine_options_annotations_proto_goTypes = nil
-	file_protoc_gen_engine_engine_options_annotations_proto_depIdxs = nil
+	File_protoc_gen_toolkit_toolkit_options_annotations_proto = out.File
+	file_protoc_gen_toolkit_toolkit_options_annotations_proto_rawDesc = nil
+	file_protoc_gen_toolkit_toolkit_options_annotations_proto_goTypes = nil
+	file_protoc_gen_toolkit_toolkit_options_annotations_proto_depIdxs = nil
 }

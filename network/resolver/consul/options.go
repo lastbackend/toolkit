@@ -16,7 +16,7 @@ limitations under the License.
 
 package consul
 
-import "github.com/lastbackend/engine/network/resolver"
+import "github.com/lastbackend/toolkit/network/resolver"
 
 func WithEndpoint(endpoint string) resolver.Option {
 	return func(o *resolver.Options) {

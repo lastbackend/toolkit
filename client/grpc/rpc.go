@@ -19,7 +19,7 @@ package grpc
 import (
 	"context"
 	"fmt"
-	"github.com/lastbackend/engine"
+	"github.com/lastbackend/toolkit"
 	"strings"
 )
 
@@ -28,7 +28,7 @@ const (
 )
 
 type RPCClient interface {
-	engine.Client
+	toolkit.Client
 
 	Client() *GRPCClient
 }
@@ -60,7 +60,7 @@ type ClientOptions struct {
 }
 
 // NewClient - client the plugin implements rpc client using gRPC as a transport
-func NewClient(app engine.Service, opts *ClientOptions) RPCClient {
+func NewClient(app toolkit.Service, opts *ClientOptions) RPCClient {
 	c := new(rpcClient)
 	if len(opts.Name) == 0 {
 		c.prefix = defaultPrefix
@@ -86,7 +86,7 @@ func (s *rpcClient) Stop() error {
 	return s.client.Close()
 }
 
-func (s *rpcClient) addFlags(app engine.Service) {
+func (s *rpcClient) addFlags(app toolkit.Service) {
 
 	app.CLI().AddIntFlag(s.withPrefix("pool-size"), s.opts.Pool.Size).
 		Env(s.withEnvPrefix("POOL_SIZE")).

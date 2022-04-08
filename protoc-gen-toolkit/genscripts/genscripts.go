@@ -17,8 +17,8 @@ limitations under the License.
 package genscripts
 
 import (
-	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
-	annotations "github.com/lastbackend/engine/protoc-gen-engine/engine/options"
+	"github.com/lastbackend/toolkit/protoc-gen-toolkit/descriptor"
+	annotations "github.com/lastbackend/toolkit/protoc-gen-toolkit/toolkit/options"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/pluginpb"
 )

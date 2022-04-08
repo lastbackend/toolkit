@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package engine
+package toolkit
 
 import (
-	"github.com/lastbackend/engine/cmd"
-	"github.com/lastbackend/engine/logger"
+	"github.com/lastbackend/toolkit/cmd"
+	"github.com/lastbackend/toolkit/logger"
 	"golang.org/x/sync/errgroup"
 
 	"context"

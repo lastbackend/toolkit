@@ -17,9 +17,9 @@ limitations under the License.
 package grpc
 
 import (
-	"github.com/lastbackend/engine/context/metadata"
-	"github.com/lastbackend/engine/network/resolver"
-	"github.com/lastbackend/engine/util/backoff"
+	"github.com/lastbackend/toolkit/context/metadata"
+	"github.com/lastbackend/toolkit/network/resolver"
+	"github.com/lastbackend/toolkit/util/backoff"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"

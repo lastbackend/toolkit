@@ -17,7 +17,7 @@ limitations under the License.
 package consul
 
 import (
-	rt "github.com/lastbackend/engine/network/resolver/route"
+	rt "github.com/lastbackend/toolkit/network/resolver/route"
 
 	"sync"
 	"time"

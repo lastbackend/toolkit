@@ -17,8 +17,8 @@ limitations under the License.
 package local
 
 import (
-	"github.com/lastbackend/engine/network/resolver"
-	"github.com/lastbackend/engine/network/resolver/route"
+	"github.com/lastbackend/toolkit/network/resolver"
+	"github.com/lastbackend/toolkit/network/resolver/route"
 )
 
 type Resolver struct {

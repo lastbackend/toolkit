@@ -20,7 +20,7 @@ import (
 	"crypto/tls"
 	"github.com/go-redis/cache/v8"
 	"github.com/go-redis/redis/v8"
-	"github.com/lastbackend/engine"
+	"github.com/lastbackend/toolkit"
 	"time"
 
 	"context"
@@ -35,10 +35,10 @@ const (
 )
 
 type Plugin interface {
-	engine.Plugin
+	toolkit.Plugin
 
 	DB() *cache.Cache
-	Register(app engine.Service, opts *Options) error
+	Register(app toolkit.Service, opts *Options) error
 }
 
 type Options struct {
@@ -122,7 +122,7 @@ type plugin struct {
 	db *cache.Cache
 }
 
-func NewPlugin(app engine.Service, opts *Options) Plugin {
+func NewPlugin(app toolkit.Service, opts *Options) Plugin {
 	p := new(plugin)
 	err := p.Register(app, opts)
 	if err != nil {
@@ -132,7 +132,7 @@ func NewPlugin(app engine.Service, opts *Options) Plugin {
 }
 
 // Register - registers the plugin implements storage using Postgres as a database storage
-func (p *plugin) Register(app engine.Service, opts *Options) error {
+func (p *plugin) Register(app toolkit.Service, opts *Options) error {
 	p.prefix = opts.Name
 	if p.prefix == "" {
 		p.prefix = defaultPrefix
@@ -172,7 +172,7 @@ func (p *plugin) withEnvPrefix(name string) string {
 	return strings.ToUpper(fmt.Sprintf("%s_%s", p.prefix, name))
 }
 
-func (p *plugin) addFlags(app engine.Service) {
+func (p *plugin) addFlags(app toolkit.Service) {
 	app.CLI().AddStringFlag(p.withPrefix("endpoints"), &p.opts.Endpoints).
 		Env(p.withEnvPrefix("ENDPOINTS")).
 		Usage("Set endpoints for connecting to the server as <host(optional)>:<port>,<host(optional)>:<port>,<etc.> string. (Default: :6379)")

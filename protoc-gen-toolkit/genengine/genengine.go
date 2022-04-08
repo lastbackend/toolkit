@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package genengine
+package gentoolkit
 
 import (
-	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
-	engine_annotattions "github.com/lastbackend/engine/protoc-gen-engine/engine/options"
+	"github.com/lastbackend/toolkit/protoc-gen-toolkit/descriptor"
+	toolkit_annotattions "github.com/lastbackend/toolkit/protoc-gen-toolkit/toolkit/options"
 	"go/format"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/pluginpb"
@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	defaultRepoRootPath = "github.com/lastbackend/engine"
+	defaultRepoRootPath = "github.com/lastbackend/toolkit"
 )
 
 const (
@@ -119,7 +119,7 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*descriptor.Response
 		}
 
 		// Generate mockery
-		if proto.HasExtension(file.Options, engine_annotattions.E_TestsSpec) {
+		if proto.HasExtension(file.Options, toolkit_annotattions.E_TestsSpec) {
 			code, err := g.generateTestStubs(file)
 			if err != nil {
 				return nil, err
@@ -150,9 +150,9 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 	var plugins = make(map[string]map[string]*Plugin, 0)
 	var clients = make(map[string]*Client, 0)
 	var imports = g.prepareImports([]string{
-		"engine github.com/lastbackend/engine",
-		"logger github.com/lastbackend/engine/logger",
-		"github.com/lastbackend/engine/client/grpc",
+		"toolkit github.com/lastbackend/toolkit",
+		"logger github.com/lastbackend/toolkit/logger",
+		"github.com/lastbackend/toolkit/client/grpc",
 		"fx go.uber.org/fx",
 		"context",
 		"os",
@@ -163,14 +163,14 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 	// Add imports for server
 	if g.hasServiceMethods(file) {
 		imports = append(imports, g.prepareImports([]string{
-			"server github.com/lastbackend/engine/server",
+			"server github.com/lastbackend/toolkit/server",
 		})...)
 	}
 
-	if file.Options != nil && proto.HasExtension(file.Options, engine_annotattions.E_Clients) {
-		eClients := proto.GetExtension(file.Options, engine_annotattions.E_Clients)
+	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Clients) {
+		eClients := proto.GetExtension(file.Options, toolkit_annotattions.E_Clients)
 		if eClients != nil {
-			clnts := eClients.(*engine_annotattions.Clients)
+			clnts := eClients.(*toolkit_annotattions.Clients)
 			for _, value := range clnts.Client {
 				if _, ok := clientImportsExists[value.Service]; !ok {
 					imports = append(imports, descriptor.GoPackage{
@@ -186,10 +186,10 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 		}
 	}
 
-	if file.Options != nil && proto.HasExtension(file.Options, engine_annotattions.E_Plugins) {
-		ePlugins := proto.GetExtension(file.Options, engine_annotattions.E_Plugins)
+	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Plugins) {
+		ePlugins := proto.GetExtension(file.Options, toolkit_annotattions.E_Plugins)
 		if ePlugins != nil {
-			plgs := ePlugins.(*engine_annotattions.Plugins)
+			plgs := ePlugins.(*toolkit_annotattions.Plugins)
 			if len(plgs.Storage) > 0 {
 				plugins[StoragePluginType] = make(map[string]*Plugin, 0)
 				for name, props := range plgs.Storage {
@@ -256,16 +256,16 @@ func (g *generator) generateClient(file *descriptor.File) (string, error) {
 
 	pkgImports := []string{
 		"context context",
-		"github.com/lastbackend/engine/client/grpc",
+		"github.com/lastbackend/toolkit/client/grpc",
 	}
 
 	var clients = make(map[string]*Client, 0)
 	var imports = g.prepareImports(pkgImports)
 
-	if file.Options != nil && proto.HasExtension(file.Options, engine_annotattions.E_Clients) {
-		eClients := proto.GetExtension(file.Options, engine_annotattions.E_Clients)
+	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Clients) {
+		eClients := proto.GetExtension(file.Options, toolkit_annotattions.E_Clients)
 		if eClients != nil {
-			clnts := eClients.(*engine_annotattions.Clients)
+			clnts := eClients.(*toolkit_annotattions.Clients)
 			for _, value := range clnts.Client {
 				clients[value.Service] = &Client{
 					Service: value.Service,
@@ -285,13 +285,13 @@ func (g *generator) generateClient(file *descriptor.File) (string, error) {
 }
 
 func (g *generator) generateTestStubs(file *descriptor.File) (string, error) {
-	ext := proto.GetExtension(file.Options, engine_annotattions.E_TestsSpec)
-	opts, ok := ext.(*engine_annotattions.TestSpec)
+	ext := proto.GetExtension(file.Options, toolkit_annotattions.E_TestsSpec)
+	opts, ok := ext.(*toolkit_annotattions.TestSpec)
 	if ok {
 
 		baseImports := []string{
 			"context context",
-			"grpc github.com/lastbackend/engine/client/grpc",
+			"grpc github.com/lastbackend/toolkit/client/grpc",
 			fmt.Sprintf("servicepb %s", filepath.Dir(file.GeneratedFilenamePrefix)),
 		}
 

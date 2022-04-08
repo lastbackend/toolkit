@@ -17,9 +17,9 @@ limitations under the License.
 package generator
 
 import (
-	"github.com/lastbackend/engine/protoc-gen-engine/descriptor"
-	"github.com/lastbackend/engine/protoc-gen-engine/genengine"
-	"github.com/lastbackend/engine/protoc-gen-engine/genscripts"
+	"github.com/lastbackend/toolkit/protoc-gen-toolkit/descriptor"
+	"github.com/lastbackend/toolkit/protoc-gen-toolkit/gentoolkit"
+	"github.com/lastbackend/toolkit/protoc-gen-toolkit/genscripts"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/types/pluginpb"
 
@@ -54,8 +54,8 @@ func (g *Generator) Run() error {
 
 		desc := descriptor.NewDescriptor()
 
-		// Generate engine files
-		generatorEngine := genengine.New(desc, &genengine.Options{SourcePackage: sourcePkg.String()})
+		// Generate toolkit files
+		generatorEngine := gentoolkit.New(desc, &gentoolkit.Options{SourcePackage: sourcePkg.String()})
 
 		if err := desc.LoadFromPlugin(gen); err != nil {
 			return err
@@ -69,12 +69,12 @@ func (g *Generator) Run() error {
 			g.targets = append(g.targets, f)
 		}
 
-		engineFiles, err := generatorEngine.Generate(g.targets)
+		toolkitFiles, err := generatorEngine.Generate(g.targets)
 		if err != nil {
 			return err
 		}
 
-		for _, f := range engineFiles {
+		for _, f := range toolkitFiles {
 			genFile := gen.NewGeneratedFile(f.GetName(), protogen.GoImportPath(f.GoPkg.Path))
 			if _, err := genFile.Write([]byte(f.GetContent())); err != nil {
 				return err
