@@ -52,6 +52,7 @@ func (d *Descriptor) LoadFromPlugin(gen *protogen.Plugin) error {
 		}
 
 		file := d.fileMap[filePath]
+
 		if err := d.loadServices(file); err != nil {
 			return err
 		}
@@ -82,6 +83,7 @@ func (d *Descriptor) loadFile(filePath string, file *protogen.File) {
 	}
 
 	d.fileMap[filePath] = f
+
 	d.registerMsg(f, nil, file.Proto.MessageType)
 	d.registerEnum(f, nil, file.Proto.EnumType)
 }
