@@ -575,7 +575,7 @@ var _ context.Context
 		// Client methods for {{ $svc.GetName }} service
 		const (
 			{{ range $m := $svc.Methods }}
-				{{ $svc.GetName }}_{{ $m.GetName }}Method = "/{{ $svc.GetName | ToLower }}.{{ $svc.GetName }}/{{ $m.GetName }}"
+				{{ $svc.GetName }}_{{ $m.GetName }}Method = "/{{ $svc.FullyName }}/{{ $m.GetName }}"
 			{{ end }}
 		)
 	{{ end }}

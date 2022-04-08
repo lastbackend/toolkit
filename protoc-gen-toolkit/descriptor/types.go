@@ -122,7 +122,7 @@ type Service struct {
 }
 
 func (s *Service) FullyName() string {
-	components := []string{""}
+	var components []string
 	if s.File.Package != nil {
 		components = append(components, s.File.GetPackage())
 	}
