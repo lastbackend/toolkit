@@ -1,3 +1,3 @@
-package engine
+package toolkit
 
 //go:generate ./hack/generate.sh

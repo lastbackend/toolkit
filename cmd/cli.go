@@ -17,11 +17,11 @@ limitations under the License.
 package cmd
 
 import (
-	"github.com/lastbackend/engine/logger"
-	"github.com/lastbackend/engine/network/resolver"
-	"github.com/lastbackend/engine/network/resolver/consul"
-	"github.com/lastbackend/engine/network/resolver/local"
-	"github.com/lastbackend/engine/network/resolver/route"
+	"github.com/lastbackend/toolkit/logger"
+	"github.com/lastbackend/toolkit/network/resolver"
+	"github.com/lastbackend/toolkit/network/resolver/consul"
+	"github.com/lastbackend/toolkit/network/resolver/local"
+	"github.com/lastbackend/toolkit/network/resolver/route"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	defaultShortDescription = "a engine service"
+	defaultShortDescription = "a toolkit service"
 )
 
 var EnvPrefix = "ENGINE"

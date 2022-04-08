@@ -20,8 +20,8 @@ import (
 	"github.com/go-pg/pg/v10"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
-	"github.com/lastbackend/engine"
-	"github.com/lastbackend/engine/cmd"
+	"github.com/lastbackend/toolkit"
+	"github.com/lastbackend/toolkit/cmd"
 	"github.com/pkg/errors"
 	psql "gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -45,10 +45,10 @@ const (
 )
 
 type Plugin interface {
-	engine.Plugin
+	toolkit.Plugin
 
 	DB() *gorm.DB
-	Register(app engine.Service, opts *Options) error
+	Register(app toolkit.Service, opts *Options) error
 }
 
 type Options struct {
@@ -67,7 +67,7 @@ type plugin struct {
 	db *gorm.DB
 }
 
-func NewPlugin(app engine.Service, opts *Options) Plugin {
+func NewPlugin(app toolkit.Service, opts *Options) Plugin {
 	p := new(plugin)
 	err := p.Register(app, opts)
 	if err != nil {
@@ -77,7 +77,7 @@ func NewPlugin(app engine.Service, opts *Options) Plugin {
 }
 
 // Register - registers the plugin implements storage using Postgres as a database storage
-func (p *plugin) Register(app engine.Service, opts *Options) error {
+func (p *plugin) Register(app toolkit.Service, opts *Options) error {
 	p.prefix = opts.Name
 	if p.prefix == "" {
 		p.prefix = defaultPrefix
@@ -133,7 +133,7 @@ func (p *plugin) withEnvPrefix(name string) string {
 	return strings.ToUpper(fmt.Sprintf("%s_%s", p.prefix, name))
 }
 
-func (p *plugin) addFlags(app engine.Service) {
+func (p *plugin) addFlags(app toolkit.Service) {
 	app.CLI().AddStringFlag(p.withPrefix("connection"), &p.opts.Connection).
 		Env(p.withEnvPrefix("CONNECTION")).
 		Usage("PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name)").
@@ -144,7 +144,7 @@ func (p *plugin) addFlags(app engine.Service) {
 		Usage("PostgreSQL migration dir path")
 }
 
-func (p *plugin) addCommands(app engine.Service) {
+func (p *plugin) addCommands(app toolkit.Service) {
 	migrateCmd := &cmd.Command{
 		Use:       "migrate [SOURCE_PATH]",
 		ShortDesc: "Database migrations",

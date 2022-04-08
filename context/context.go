@@ -1,7 +1,7 @@
 package context
 
 import (
-	"github.com/lastbackend/engine/context/metadata"
+	"github.com/lastbackend/toolkit/context/metadata"
 
 	"context"
 )

@@ -18,8 +18,8 @@ package server
 
 import (
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
-	"github.com/lastbackend/engine"
-	"github.com/lastbackend/engine/logger"
+	"github.com/lastbackend/toolkit"
+	"github.com/lastbackend/toolkit/logger"
 	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -53,7 +53,7 @@ type grpcServer struct {
 	exit chan chan error
 }
 
-func NewServer(app engine.Service, opts *ServerOptions) *grpcServer { //nolint
+func NewServer(app toolkit.Service, opts *ServerOptions) *grpcServer { //nolint
 	name := opts.Name
 	if name == "" {
 		name = serviceName
@@ -175,7 +175,7 @@ func (g *grpcServer) Stop() error {
 	return err
 }
 
-func (g *grpcServer) addFlags(app engine.Service) {
+func (g *grpcServer) addFlags(app toolkit.Service) {
 
 	app.CLI().AddStringFlag(g.withPrefix("address"), &g.opts.Address).
 		Env(g.withEnvPrefix("ADDRESS")).

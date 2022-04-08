@@ -19,7 +19,7 @@ package rabbitmq
 import (
 	"context"
 	"fmt"
-	"github.com/lastbackend/engine"
+	"github.com/lastbackend/toolkit"
 	"github.com/streadway/amqp"
 	"strings"
 )
@@ -29,10 +29,10 @@ const (
 )
 
 type Plugin interface {
-	engine.Plugin
+	toolkit.Plugin
 
 	Channel() (*amqp.Channel, error)
-	Register(app engine.Service, opts *Options) error
+	Register(app toolkit.Service, opts *Options) error
 }
 
 type Options struct {
@@ -46,7 +46,7 @@ type plugin struct {
 	broker *broker
 }
 
-func NewPlugin(app engine.Service, opts *Options) Plugin {
+func NewPlugin(app toolkit.Service, opts *Options) Plugin {
 	p := new(plugin)
 	err := p.Register(app, opts)
 	if err != nil {
@@ -56,7 +56,7 @@ func NewPlugin(app engine.Service, opts *Options) Plugin {
 }
 
 // Register - registers the plugin implements storage using Rabbitmq as a broker service
-func (p *plugin) Register(app engine.Service, opts *Options) error {
+func (p *plugin) Register(app toolkit.Service, opts *Options) error {
 	p.prefix = opts.Name
 	if p.prefix == "" {
 		p.prefix = defaultPrefix
@@ -95,7 +95,7 @@ func (p *plugin) withEnvPrefix(name string) string {
 	return strings.ToUpper(fmt.Sprintf("%s_%s", p.prefix, name))
 }
 
-func (p *plugin) addFlags(app engine.Service) {
+func (p *plugin) addFlags(app toolkit.Service) {
 	app.CLI().AddStringFlag(p.withPrefix("endpoint"), &p.opts.Endpoint).
 		Env(p.withEnvPrefix("ENDPOINT")).
 		Usage("Rabbitmq connection string (Ex: amqp://guest:guest@127.0.0.1:5672)").

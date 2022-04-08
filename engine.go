@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package engine
+package toolkit
 
 import (
 	"context"
 
-	"github.com/lastbackend/engine/cmd"
-	"github.com/lastbackend/engine/logger"
+	"github.com/lastbackend/toolkit/cmd"
+	"github.com/lastbackend/toolkit/logger"
 )
 
 type ServiceType uint8

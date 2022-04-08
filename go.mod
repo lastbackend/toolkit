@@ -1,4 +1,4 @@
-module github.com/lastbackend/engine
+module github.com/lastbackend/toolkit
 
 go 1.17
 

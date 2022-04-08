@@ -27,7 +27,7 @@ import (
 
 const (
 	defaultAddress          = ":50005"
-	defaultName             = "go.engine.server"
+	defaultName             = "go.toolkit.server"
 	defaultRegisterInterval = time.Second * 30
 	defaultRegisterTTL      = time.Second * 90
 	// DefaultMaxRecvMsgSize maximum message that client can receive (16 MB).
