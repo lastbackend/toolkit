@@ -18,8 +18,8 @@ package generator
 
 import (
 	"github.com/lastbackend/toolkit/protoc-gen-toolkit/descriptor"
-	"github.com/lastbackend/toolkit/protoc-gen-toolkit/gentoolkit"
 	"github.com/lastbackend/toolkit/protoc-gen-toolkit/genscripts"
+	"github.com/lastbackend/toolkit/protoc-gen-toolkit/gentoolkit"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/types/pluginpb"
 
