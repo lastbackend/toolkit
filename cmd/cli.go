@@ -36,7 +36,7 @@ const (
 	defaultShortDescription = "a toolkit service"
 )
 
-var EnvPrefix = "ENGINE"
+var EnvPrefix = "TOOLKIT"
 
 type CLI interface {
 	FlagSet
