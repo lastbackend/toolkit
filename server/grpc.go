@@ -69,6 +69,11 @@ func (g *grpcServer) Register(sd *grpc.ServiceDesc, ss interface{}) error {
 }
 
 func (g *grpcServer) Start() error {
+
+	if g.opts.IsDisable {
+		return nil
+	}
+
 	g.init()
 
 	g.RLock()
@@ -200,6 +205,10 @@ func (g *grpcServer) addFlags(app toolkit.Service) {
 	app.CLI().AddIntFlag(g.withPrefix("max-conn-size"), &g.opts.MaxConnSize).
 		Env(g.withEnvPrefix("MAX_CONN_SIZE")).
 		Usage("Sets the max simultaneous connections for server (default unlimited)")
+
+	app.CLI().AddBoolFlag(g.withPrefix("disable"), &g.opts.IsDisable).
+		Env(g.withEnvPrefix("DISABLE")).
+		Usage("Sets the disable server")
 }
 
 func newServer(prefix string) *grpcServer {

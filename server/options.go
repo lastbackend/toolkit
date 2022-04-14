@@ -45,6 +45,8 @@ type Options struct {
 	MaxRecvMsgSize int
 	MaxSendMsgSize int
 
+	IsDisable bool
+
 	GrpcOptions []grpc.ServerOption
 	TLSConfig   *tls.Config
 
