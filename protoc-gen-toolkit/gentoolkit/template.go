@@ -17,10 +17,9 @@ limitations under the License.
 package gentoolkit
 
 import (
-	"github.com/lastbackend/toolkit/protoc-gen-toolkit/descriptor"
-
 	"bytes"
-	"strings"
+	"github.com/lastbackend/toolkit/protoc-gen-toolkit/descriptor"
+	"github.com/lastbackend/toolkit/util/strings"
 	"text/template"
 )
 
@@ -189,6 +188,7 @@ import (
 		"ToUpper":      strings.ToUpper,
 		"ToLower":      strings.ToLower,
 		"ToCapitalize": strings.Title,
+		"ToCamel":      strings.ToCamel,
 	}
 
 	_ = template.Must(contentServiceTemplate.New("services-content").Parse(`
@@ -210,7 +210,7 @@ type Service interface {
 type RPC struct {
 	Grpc grpc.RPCClient
 	{{- range $key, $value := .Clients }}
-		{{ $value.Service | ToCapitalize }} {{ $key }}.{{ $value.Service | ToCapitalize }}RPCClient
+		{{ $value.Service | ToCamel }} {{ $key }}.{{ $value.Service | ToCamel }}RPCClient
 	{{ end }}
 }
 
@@ -357,7 +357,7 @@ func (s *service) registerClients() error {
 	}
 
 	{{ range $key, $value := .Clients }}
-		s.rpc.{{ $value.Service | ToCapitalize }} = {{ $value.Service | ToLower }}.New{{ $value.Service | ToCapitalize }}RPCClient("{{ $value.Service | ToLower }}", s.rpc.Grpc.Client())
+		s.rpc.{{ $value.Service | ToCamel }} = {{ $value.Service | ToLower }}.New{{ $value.Service | ToCamel }}RPCClient("{{ $value.Service | ToLower }}", s.rpc.Grpc.Client())
 	{{ end }}
 
 	return nil
