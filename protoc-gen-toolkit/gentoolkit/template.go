@@ -211,7 +211,7 @@ type RPC struct {
 	Grpc grpc.RPCClient
 	{{- range $key, $value := .Clients }}
 		{{ $value.Service | ToCamel }} {{ $key }}.{{ $value.Service | ToCamel }}RPCClient
-	{{ end }}
+	{{- end }}
 }
 
 func NewService(name string) Service {
