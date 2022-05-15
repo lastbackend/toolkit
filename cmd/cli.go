@@ -213,8 +213,9 @@ func (c *cli) Run(fn func() error) error {
 	}
 
 	for _, cmd := range c.Commands {
-		c.rootCmd.AddCommand(convertCommandToCobraCommand(cmd))
+		c.rootCmd.AddCommand(cmd.convertCommandToCobraCommand())
 	}
+
 
 	return c.rootCmd.Execute()
 }

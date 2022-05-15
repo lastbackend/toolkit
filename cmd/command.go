@@ -108,11 +108,11 @@ func (c *Command) InitDefaultHelpFlag() {
 }
 
 func (c *Command) SetHelpCommand(cmd *Command) {
-	c.cobraCommand.SetHelpCommand(convertCommandToCobraCommand(cmd))
+	c.cobraCommand.SetHelpCommand(cmd.convertCommandToCobraCommand())
 }
 
 func (c *Command) AddCommand(cmd *Command) {
-	c.cobraCommand.AddCommand(convertCommandToCobraCommand(cmd))
+	c.cobraCommand.AddCommand(cmd.convertCommandToCobraCommand())
 }
 
 func (c *Command) PersistentFlags() *pflag.FlagSet {
@@ -154,71 +154,58 @@ func (c *Command) flagsInit() {
 	}
 }
 
-func convertCommandToCobraCommand(cmd *Command) *cobra.Command {
-	cb := new(cobra.Command)
-	cb.Use = cmd.Use
-	cb.Aliases = cmd.Aliases
-	cb.Short = cmd.ShortDesc
-	cb.Long = cmd.Desc
-	cb.Example = cmd.Example
-	cb.ArgAliases = cmd.ArgAliases
-	cb.Deprecated = cmd.Deprecated
-	cb.Annotations = cmd.Annotations
-	cb.Version = cmd.Version
-	cb.Hidden = cmd.Hidden
+func (c *Command) convertCommandToCobraCommand() *cobra.Command {
+	cmd := new(cobra.Command)
+	cmd.Use = c.Use
+	cmd.Aliases = c.Aliases
+	cmd.Short = c.ShortDesc
+	cmd.Long = c.Desc
+	cmd.Example = c.Example
+	cmd.ArgAliases = c.ArgAliases
+	cmd.Deprecated = c.Deprecated
+	cmd.Annotations = c.Annotations
+	cmd.Version = c.Version
+	cmd.Hidden = c.Hidden
 
-	if cmd.Args != nil {
-		cb.Args = func(cbCmd *cobra.Command, args []string) error {
-			return cmd.Args(convertCobraCommandToCommand(cbCmd), args)
-		}
-	}
-
-	if cmd.PersistentPreRun != nil {
-		cb.PersistentPreRunE = func(cbCmd *cobra.Command, args []string) error {
-			return cmd.PersistentPreRun(convertCobraCommandToCommand(cbCmd), args)
-		}
-	}
-	if cmd.PreRun != nil {
-		cb.PreRunE = func(cbCmd *cobra.Command, args []string) error {
-			return cmd.PreRun(convertCobraCommandToCommand(cbCmd), args)
-		}
-	}
-	if cmd.Run != nil {
-		cb.RunE = func(cbCmd *cobra.Command, args []string) error {
-			return cmd.Run(convertCobraCommandToCommand(cbCmd), args)
-		}
-	}
-	if cmd.PostRun != nil {
-		cb.PostRunE = func(cbCmd *cobra.Command, args []string) error {
-			return cmd.PostRun(convertCobraCommandToCommand(cbCmd), args)
-		}
-	}
-	if cmd.PersistentPostRun != nil {
-		cb.PersistentPostRunE = func(cbCmd *cobra.Command, args []string) error {
-			return cmd.PersistentPostRun(convertCobraCommandToCommand(cbCmd), args)
+	if c.Args != nil {
+		cmd.Args = func(cbCmd *cobra.Command, args []string) error {
+			return c.Args(c, args)
 		}
 	}
 
-	for _, f := range cmd.flags {
-		if err := (f.(flag)).apply(cb.Flags()); err != nil {
+	if c.PersistentPreRun != nil {
+		cmd.PersistentPreRunE = func(cbCmd *cobra.Command, args []string) error {
+			return c.PersistentPreRun(c, args)
+		}
+	}
+	if c.PreRun != nil {
+		cmd.PreRunE = func(cbCmd *cobra.Command, args []string) error {
+			return c.PreRun(c, args)
+		}
+	}
+	if c.Run != nil {
+		cmd.RunE = func(cbCmd *cobra.Command, args []string) error {
+			return c.Run(c, args)
+		}
+	}
+	if c.PostRun != nil {
+		cmd.PostRunE = func(cbCmd *cobra.Command, args []string) error {
+			return c.PostRun(c, args)
+		}
+	}
+	if c.PersistentPostRun != nil {
+		cmd.PersistentPostRunE = func(cbCmd *cobra.Command, args []string) error {
+			return c.PersistentPostRun(c, args)
+		}
+	}
+
+	for _, f := range c.flags {
+		if err := (f.(flag)).apply(cmd.Flags()); err != nil {
 			panic(err)
 		}
 	}
 
-	return cb
-}
+	c.cobraCommand = *cmd
 
-func convertCobraCommandToCommand(cmd *cobra.Command) *Command {
-	c := new(Command)
-	c.Use = cmd.Use
-	c.Aliases = cmd.Aliases
-	c.ShortDesc = cmd.Short
-	c.Desc = cmd.Long
-	c.Example = cmd.Example
-	c.ArgAliases = cmd.ArgAliases
-	c.Deprecated = cmd.Deprecated
-	c.Annotations = cmd.Annotations
-	c.Version = cmd.Version
-	c.Hidden = cmd.Hidden
-	return c
+	return cmd
 }
