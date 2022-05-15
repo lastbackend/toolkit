@@ -29,6 +29,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
 	_ "github.com/lib/pq"
 
+	"os"
 	"context"
 	"fmt"
 	"strings"
@@ -246,12 +247,15 @@ func (p *plugin) addCommands(app toolkit.Service) {
 			if err != nil {
 				return fmt.Errorf("failed to db open: %w", err)
 			}
+			defer c.Close()
 
 			if err = p.migration(c.DB, args[0], connection); err != nil {
 				return err
 			}
 
-			return c.Close()
+			os.Exit(0)
+
+			return nil
 		},
 	}
 

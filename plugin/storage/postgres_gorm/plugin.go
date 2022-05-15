@@ -17,6 +17,8 @@ limitations under the License.
 package postgres_gorm
 
 import (
+	"os"
+
 	"github.com/go-pg/pg/v10"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -159,16 +161,19 @@ func (p *plugin) addCommands(app toolkit.Service) {
 				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct", p.withPrefix("connection"))
 			}
 
-			sqlDB, err := sql.Open(driverName, p.opts.Connection)
+			sqlDB, err := sql.Open(driverName, connection)
 			if err != nil {
 				return fmt.Errorf("failed to db open: %w", err)
 			}
+			defer sqlDB.Close()
 
 			if err = p.migration(sqlDB, args[0], connection); err != nil {
 				return err
 			}
 
-			return sqlDB.Close()
+			os.Exit(0)
+
+			return nil
 		},
 	}
 
