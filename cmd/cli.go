@@ -216,7 +216,6 @@ func (c *cli) Run(fn func() error) error {
 		c.rootCmd.AddCommand(cmd.convertCommandToCobraCommand())
 	}
 
-
 	return c.rootCmd.Execute()
 }
 
