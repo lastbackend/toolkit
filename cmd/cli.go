@@ -139,9 +139,22 @@ func (c *cli) Run(fn func() error) error {
 	c.rootCmd.SetHelpCommand(&cobra.Command{Use: "no-help", Hidden: true})
 	c.rootCmd.AddCommand(c.versionCommand())
 
-	c.rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
-	c.rootCmd.Flags().StringP("resolver", "", resolver.LocalResolver, "Sets the value for initial resolver (default: local)")
-	c.rootCmd.Flags().StringP("resolver-endpoint", "", resolver.LocalResolver, "Sets the value for initial resolver endpoint")
+	isDebug := false
+	if val, ok := getEnv("DEBUG"); ok {
+		isDebug = len(val) > 0
+	}
+	resolverType := resolver.LocalResolver
+	if val, ok := getEnv("RESOLVER"); ok {
+		resolverType = resolver.ResolveType(val)
+	}
+	resolverEndpoints := ""
+	if val, ok := getEnv("RESOLVER_ENDPOINT"); ok {
+		resolverEndpoints = val
+	}
+
+	c.rootCmd.PersistentFlags().BoolP("debug", "d", isDebug, "Enable debug mode")
+	c.rootCmd.Flags().StringP("resolver", "", resolverType.String(), "Sets the value for initial resolver (default: local)")
+	c.rootCmd.Flags().StringP("resolver-endpoint", "", resolverEndpoints, "Sets the value for initial resolver endpoint")
 
 	if len(c.opts.Name) > 0 {
 		c.rootCmd.Use = c.opts.Name
@@ -168,7 +181,7 @@ func (c *cli) Run(fn func() error) error {
 		}
 
 		switch resolverFlag {
-		case resolver.LocalResolver:
+		case resolver.LocalResolver.String():
 			resolver.DefaultResolver = local.NewResolver()
 			addresses := strings.Split(resolverEndpointFlag, ",")
 			for _, addr := range addresses {
@@ -184,7 +197,7 @@ func (c *cli) Run(fn func() error) error {
 					}
 				}
 			}
-		case resolver.ConsulResolver:
+		case resolver.ConsulResolver.String():
 			resolver.DefaultResolver = consul.NewResolver(consul.WithEndpoint(resolverEndpointFlag))
 		}
 		return nil
