@@ -21,9 +21,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+type ResolveType string
+
+func (r ResolveType) String() string {
+	return string(r)
+}
+
 const (
-	LocalResolver  = "local"
-	ConsulResolver = "consul"
+	LocalResolver  ResolveType = "local"
+	ConsulResolver ResolveType = "consul"
 )
 
 var (
