@@ -43,6 +43,16 @@ const (
 )
 
 const (
+	dbhost     = "HOST"
+	dbport     = "PORT"
+	dbuser     = "USERNAME"
+	dbpass     = "PASSWORD"
+	dbname     = "DATABASE"
+	dbsslmode  = "SSL_MODE"
+	dbtimezone = "TIMEZONE"
+)
+
+const (
 	errMissingConnectionString = "Missing connection string"
 )
 
@@ -100,6 +110,15 @@ func (p *plugin) DB() *gorm.DB {
 }
 
 func (p *plugin) Start(ctx context.Context) (err error) {
+
+	if p.opts.Connection == "" {
+		config := p.dbConfig()
+		if _, ok := config[dbhost]; !ok {
+			return fmt.Errorf("%s flag or %s environment variable required but not set", p.withPrefix("connection"), p.withEnvPrefix(dbhost))
+		}
+		p.opts.Connection = config.getConnectionString()
+	}
+
 	sqlDB, err := sql.Open(driverName, p.opts.Connection)
 	if err != nil {
 		return err
@@ -138,8 +157,17 @@ func (p *plugin) withEnvPrefix(name string) string {
 func (p *plugin) addFlags(app toolkit.Service) {
 	app.CLI().AddStringFlag(p.withPrefix("connection"), &p.opts.Connection).
 		Env(p.withEnvPrefix("CONNECTION")).
-		Usage("PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name)").
-		Required()
+		Usage(fmt.Sprintf(`PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name) 
+			or use environment variables: 
+			%s - The host to connect to (required), 
+			%s - The port to bind to (default: 5432), 
+			%s - The username to connect with. Not required if using IntegratedSecurity., 
+			%s - The password to connect with. Not required if using IntegratedSecurity., 
+			%s - The database to connect to, 
+			%s - Whether or not to use SSL, 
+			%s - Sets the session timezone`,
+			p.withEnvPrefix(dbhost), p.withEnvPrefix(dbport), p.withEnvPrefix(dbuser),
+			p.withEnvPrefix(dbpass), p.withEnvPrefix(dbname), p.withEnvPrefix(dbsslmode), p.withEnvPrefix(dbtimezone)))
 
 	app.CLI().AddStringFlag(p.withPrefix("migration-dir"), &p.opts.MigrationsDir).
 		Env(p.withEnvPrefix("MIGRATION_DIR")).
@@ -161,6 +189,14 @@ func (p *plugin) addCommands(app toolkit.Service) {
 				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct", p.withPrefix("connection"))
 			}
 
+			if connection == "" {
+				config := p.dbConfig()
+				if _, ok := config[dbhost]; !ok {
+					return fmt.Errorf("%s flag or %s environment variable required but not set", p.withPrefix("connection"), p.withEnvPrefix(dbhost))
+				}
+				p.opts.Connection = config.getConnectionString()
+			}
+
 			sqlDB, err := sql.Open(driverName, connection)
 			if err != nil {
 				return fmt.Errorf("failed to db open: %w", err)
@@ -179,8 +215,11 @@ func (p *plugin) addCommands(app toolkit.Service) {
 
 	migrateCmd.AddStringFlag(p.withPrefix("connection"), nil).
 		Env(p.withEnvPrefix("CONNECTION")).
-		Usage("PostgreSQL connection string Ex: postgres://user:pass@localhost:5432/db_name)").
-		Required()
+		Usage(fmt.Sprintf(`PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name) 
+		or use environment variables: %s, %s, %s, %s, %s, %s, %s`,
+			p.withEnvPrefix(dbhost), p.withEnvPrefix(dbport), p.withEnvPrefix(dbuser),
+			p.withEnvPrefix(dbpass), p.withEnvPrefix(dbname), p.withEnvPrefix(dbsslmode),
+			p.withEnvPrefix(dbtimezone)))
 
 	app.CLI().AddCommand(migrateCmd)
 }
@@ -220,4 +259,58 @@ func (p *plugin) migration(db *sql.DB, migrateDir, connectionString string) erro
 	}
 
 	return nil
+}
+
+type dbConfig map[string]string
+
+func (d dbConfig) getConnectionString() string {
+	var connection = ""
+	if v, ok := d[dbhost]; ok {
+		connection += fmt.Sprintf("host=%s", v)
+	}
+	if v, ok := d[dbport]; ok {
+		connection += fmt.Sprintf(" port=%s", v)
+	}
+	if v, ok := d[dbuser]; ok {
+		connection += fmt.Sprintf(" user=%s", v)
+	}
+	if v, ok := d[dbpass]; ok {
+		connection += fmt.Sprintf(" password=%s", v)
+	}
+	if v, ok := d[dbname]; ok {
+		connection += fmt.Sprintf(" dbname=%s", v)
+	}
+	if v, ok := d[dbsslmode]; ok {
+		connection += fmt.Sprintf(" sslmode=%s", v)
+	}
+	if v, ok := d[dbtimezone]; ok {
+		connection += fmt.Sprintf(" TimeZone=%s", v)
+	}
+	return connection
+}
+
+func (p *plugin) dbConfig() dbConfig {
+	conf := make(map[string]string)
+	if host, ok := os.LookupEnv(p.withEnvPrefix(dbhost)); ok {
+		conf[dbhost] = host
+	}
+	if port, ok := os.LookupEnv(p.withEnvPrefix(dbport)); ok {
+		conf[dbport] = port
+	}
+	if user, ok := os.LookupEnv(p.withEnvPrefix(dbuser)); ok {
+		conf[dbuser] = user
+	}
+	if password, ok := os.LookupEnv(p.withEnvPrefix(dbpass)); ok {
+		conf[dbpass] = password
+	}
+	if name, ok := os.LookupEnv(p.withEnvPrefix(dbname)); ok {
+		conf[dbname] = name
+	}
+	if sslMode, ok := os.LookupEnv(p.withEnvPrefix(dbsslmode)); ok {
+		conf[dbsslmode] = sslMode
+	}
+	if timeZone, ok := os.LookupEnv(p.withEnvPrefix(dbtimezone)); ok {
+		conf[dbtimezone] = timeZone
+	}
+	return dbConfig(conf)
 }
