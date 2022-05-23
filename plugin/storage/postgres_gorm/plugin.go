@@ -149,14 +149,6 @@ func (p *plugin) Stop() error {
 	return nil
 }
 
-func (p *plugin) withPrefix(name string) string {
-	return fmt.Sprintf("%s-%s", p.prefix, name)
-}
-
-func (p *plugin) withEnvPrefix(name string) string {
-	return strings.ToUpper(fmt.Sprintf("%s_%s", p.prefix, name))
-}
-
 func (p *plugin) addFlags(app toolkit.Service) {
 	app.CLI().AddStringFlag(p.withPrefix("connection"), &p.opts.Connection).
 		Env(p.withEnvPrefix("CONNECTION")).
@@ -294,30 +286,34 @@ func (d dbConfig) getConnectionString() string {
 
 func (p *plugin) dbConfig() dbConfig {
 	conf := make(map[string]string)
-	if host, ok := os.LookupEnv(p.envName(p.withEnvPrefix(dbhost))); ok {
+	if host, ok := os.LookupEnv(p.withEnvPrefix(dbhost)); ok {
 		conf[dbhost] = host
 	}
-	if port, ok := os.LookupEnv(p.envName(p.withEnvPrefix(dbport))); ok {
+	if port, ok := os.LookupEnv(p.withEnvPrefix(dbport)); ok {
 		conf[dbport] = port
 	}
-	if user, ok := os.LookupEnv(p.envName(p.withEnvPrefix(dbuser))); ok {
+	if user, ok := os.LookupEnv(p.withEnvPrefix(dbuser)); ok {
 		conf[dbuser] = user
 	}
-	if password, ok := os.LookupEnv(p.envName(p.withEnvPrefix(dbpass))); ok {
+	if password, ok := os.LookupEnv(p.withEnvPrefix(dbpass)); ok {
 		conf[dbpass] = password
 	}
-	if name, ok := os.LookupEnv(p.envName(p.withEnvPrefix(dbname))); ok {
+	if name, ok := os.LookupEnv(p.withEnvPrefix(dbname)); ok {
 		conf[dbname] = name
 	}
-	if sslMode, ok := os.LookupEnv(p.envName(p.withEnvPrefix(dbsslmode))); ok {
+	if sslMode, ok := os.LookupEnv(p.withEnvPrefix(dbsslmode)); ok {
 		conf[dbsslmode] = sslMode
 	}
-	if timeZone, ok := os.LookupEnv(p.envName(p.withEnvPrefix(dbtimezone))); ok {
+	if timeZone, ok := os.LookupEnv(p.withEnvPrefix(dbtimezone)); ok {
 		conf[dbtimezone] = timeZone
 	}
 	return dbConfig(conf)
 }
 
-func (p *plugin) envName(name string) string {
-	return fmt.Sprintf("%s_%s", p.envPrefix, strings.Replace(strings.ToUpper(name), "-", "_", -1))
+func (p *plugin) withPrefix(name string) string {
+	return fmt.Sprintf("%s-%s", p.prefix, name)
+}
+
+func (p *plugin) withEnvPrefix(name string) string {
+	return strings.ToUpper(fmt.Sprintf("%s_%s_%s", p.envPrefix, p.prefix, strings.Replace(name, "-", "_", -1)))
 }
