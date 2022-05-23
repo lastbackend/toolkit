@@ -189,7 +189,7 @@ func (p *plugin) addCommands(app toolkit.Service) {
 				if _, ok := config[dbhost]; !ok {
 					return fmt.Errorf("%s flag or %s environment variable required but not set", p.withPrefix("connection"), p.withEnvPrefix(dbhost))
 				}
-				p.opts.Connection = config.getConnectionString()
+				connection = config.getConnectionString()
 			}
 
 			sqlDB, err := sql.Open(driverName, connection)
