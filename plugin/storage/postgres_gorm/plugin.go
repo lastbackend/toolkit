@@ -114,12 +114,11 @@ func (p *plugin) DB() *gorm.DB {
 }
 
 func (p *plugin) Start(ctx context.Context) (err error) {
-
 	if p.opts.Connection == "" {
 		config := p.dbConfig()
 		if config.Host == "" {
 			return fmt.Errorf("%s flag or %s environment variable required but not set",
-			 p.withPrefix("connection"), p.withEnvPrefix(envHostName))
+			 p.withPrefix("connection"), p.generatetWithEnvPrefix(envHostName))
 		}
 		p.opts.Connection = config.getConnectionString()
 	}
@@ -161,18 +160,18 @@ or use environment variables:
 %s - The database to connect to, 
 %s - Whether or not to use SSL, 
 %s - Sets the session timezone`,
-		p.withEnvPrefix(envHostName), p.withEnvPrefix(envPortName), p.withEnvPrefix(envUserName),
-		p.withEnvPrefix(envPasswordName), p.withEnvPrefix(envDatabaseName), p.withEnvPrefix(envSslmodeName),
-		p.withEnvPrefix(envTimezoneName))
+		p.generatetWithEnvPrefix(envHostName), p.generatetWithEnvPrefix(envPortName), p.generatetWithEnvPrefix(envUserName),
+		p.generatetWithEnvPrefix(envPasswordName), p.generatetWithEnvPrefix(envDatabaseName), p.generatetWithEnvPrefix(envSslmodeName),
+		p.generatetWithEnvPrefix(envTimezoneName))
 }
 
 func (p *plugin) addFlags(app toolkit.Service) {
 	app.CLI().AddStringFlag(p.withPrefix("connection"), &p.opts.Connection).
-		Env(p.withEnvPrefix("CONNECTION")).
+		Env(p.generateEnvName("CONNECTION")).
 		Usage(p.genUsage())
 
 	app.CLI().AddStringFlag(p.withPrefix("migration-dir"), &p.opts.MigrationsDir).
-		Env(p.withEnvPrefix("MIGRATION_DIR")).
+		Env(p.generateEnvName("MIGRATION_DIR")).
 		Usage("PostgreSQL migration dir path")
 }
 
@@ -196,7 +195,7 @@ func (p *plugin) addCommands(app toolkit.Service) {
 				config := p.dbConfig()
 				if config.Host == "" {
 					return fmt.Errorf("%s flag or %s environment variable required but not set", 
-					p.withPrefix("connection"), p.withEnvPrefix(envHostName))
+					p.withPrefix("connection"), p.generatetWithEnvPrefix(envHostName))
 				}
 				connection = config.getConnectionString()
 			}
@@ -222,7 +221,7 @@ func (p *plugin) addCommands(app toolkit.Service) {
 	}
 
 	migrateCmd.AddStringFlag(p.withPrefix("connection"), nil).
-		Env(p.withEnvPrefix("CONNECTION")).
+		Env(p.generatetWithEnvPrefix("CONNECTION")).
 		Usage(p.genUsage())
 
 	app.CLI().AddCommand(migrateCmd)
@@ -297,27 +296,27 @@ func (d *dbConfig) getConnectionString() string {
 func (p *plugin) dbConfig() dbConfig {
 	config:= dbConfig{Port: 5432}
 
-	if host, ok := os.LookupEnv(p.withEnvPrefix(envHostName)); ok {
+	if host, ok := os.LookupEnv(p.generatetWithEnvPrefix(envHostName)); ok {
 		config.Host = host
 	}
-	if port, ok := os.LookupEnv(p.withEnvPrefix(envPortName)); ok {
+	if port, ok := os.LookupEnv(p.generatetWithEnvPrefix(envPortName)); ok {
 		if value, err := strconv.ParseInt(port, 10, 32); err == nil {
 			config.Port = int32(value)
 		} 
 	} 
-	if user, ok := os.LookupEnv(p.withEnvPrefix(envUserName)); ok {
+	if user, ok := os.LookupEnv(p.generatetWithEnvPrefix(envUserName)); ok {
 		config.Username = user
 	}
-	if password, ok := os.LookupEnv(p.withEnvPrefix(envPasswordName)); ok {
+	if password, ok := os.LookupEnv(p.generatetWithEnvPrefix(envPasswordName)); ok {
 		config.Password = password
 	}
-	if name, ok := os.LookupEnv(p.withEnvPrefix(envDatabaseName)); ok {
+	if name, ok := os.LookupEnv(p.generatetWithEnvPrefix(envDatabaseName)); ok {
 		config.Database = name
 	}
-	if sslMode, ok := os.LookupEnv(p.withEnvPrefix(envSslmodeName)); ok {
+	if sslMode, ok := os.LookupEnv(p.generatetWithEnvPrefix(envSslmodeName)); ok {
 		config.SSLMode = sslMode
 	}
-	if timeZone, ok := os.LookupEnv(p.withEnvPrefix(envTimezoneName)); ok {
+	if timeZone, ok := os.LookupEnv(p.generatetWithEnvPrefix(envTimezoneName)); ok {
 		config.TimeZone = timeZone
 	}
 
@@ -328,6 +327,10 @@ func (p *plugin) withPrefix(name string) string {
 	return fmt.Sprintf("%s-%s", p.prefix, name)
 }
 
-func (p *plugin) withEnvPrefix(name string) string {
-	return strings.ToUpper(fmt.Sprintf("%s_%s_%s", p.envPrefix, p.prefix, strings.Replace(name, "-", "_", -1)))
+func (p *plugin) generateEnvName(name string) string {
+	return strings.ToUpper(fmt.Sprintf("%s_%s", p.prefix, strings.Replace(name, "-", "_", -1)))
+}
+
+func (p *plugin) generatetWithEnvPrefix(name string) string {
+	return strings.ToUpper(fmt.Sprintf("%s_%s", p.envPrefix, p.generateEnvName(name)))
 }
