@@ -211,10 +211,16 @@ func (p *plugin) addCommands(app toolkit.Service) {
 	migrateCmd.AddStringFlag(p.withPrefix("connection"), nil).
 		Env(p.withEnvPrefix("CONNECTION")).
 		Usage(fmt.Sprintf(`PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name) 
-		or use environment variables: %s, %s, %s, %s, %s, %s, %s`,
+			or use environment variables: 
+			%s - The host to connect to (required), 
+			%s - The port to bind to (default: 5432), 
+			%s - The username to connect with. Not required if using IntegratedSecurity, 
+			%s - The password to connect with. Not required if using IntegratedSecurity, 
+			%s - The database to connect to, 
+			%s - Whether or not to use SSL, 
+			%s - Sets the session timezone`,
 			p.withEnvPrefix(dbhost), p.withEnvPrefix(dbport), p.withEnvPrefix(dbuser),
-			p.withEnvPrefix(dbpass), p.withEnvPrefix(dbname), p.withEnvPrefix(dbsslmode),
-			p.withEnvPrefix(dbtimezone)))
+			p.withEnvPrefix(dbpass), p.withEnvPrefix(dbname), p.withEnvPrefix(dbsslmode), p.withEnvPrefix(dbtimezone)))
 
 	app.CLI().AddCommand(migrateCmd)
 }
