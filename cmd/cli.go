@@ -47,6 +47,7 @@ type CLI interface {
 	SetShortDescription(string)
 	SetLongDescription(string)
 	SetEnvPrefix(string)
+	GetEnvPrefix() string
 	Run(f func() error) error
 }
 
@@ -76,6 +77,7 @@ type cli struct {
 	Flags
 	Commands
 
+	envPrefix string
 	opts    Options
 	rootCmd *cobra.Command
 }
@@ -94,7 +96,7 @@ func New(opts ...Option) CLI {
 	}
 
 	c := new(cli)
-
+	c.envPrefix = EnvPrefix
 	c.opts = options
 
 	// Set default services
@@ -120,7 +122,11 @@ func (c *cli) SetLongDescription(s string) {
 }
 
 func (c *cli) SetEnvPrefix(s string) {
-	EnvPrefix = s
+	c.envPrefix = s
+}
+
+func (c *cli) GetEnvPrefix() string {
+	return c.envPrefix
 }
 
 func (c *cli) AddFlag(flags Flag) {
