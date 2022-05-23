@@ -18,6 +18,7 @@ package postgres_gorm
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/go-pg/pg/v10"
 	"github.com/golang-migrate/migrate/v4"
@@ -43,13 +44,13 @@ const (
 )
 
 const (
-	dbhost     = "HOST"
-	dbport     = "PORT"
-	dbuser     = "USERNAME"
-	dbpass     = "PASSWORD"
-	dbname     = "DATABASE"
-	dbsslmode  = "SSL_MODE"
-	dbtimezone = "TIMEZONE"
+	envHostName     = "HOST"
+	envPortName     = "PORT"
+	envUserName     = "USERNAME"
+	envPasswordName = "PASSWORD"
+	envDatabaseName = "DATABASE"
+	envSslmodeName  = "SSL_MODE"
+	envTimezoneName = "TIMEZONE"
 )
 
 const (
@@ -75,8 +76,8 @@ type options struct {
 type plugin struct {
 	prefix    string
 	envPrefix string
-	
-	opts      options
+
+	opts options
 
 	db *gorm.DB
 }
@@ -116,8 +117,9 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 
 	if p.opts.Connection == "" {
 		config := p.dbConfig()
-		if _, ok := config[dbhost]; !ok {
-			return fmt.Errorf("%s flag or %s environment variable required but not set", p.withPrefix("connection"), p.withEnvPrefix(dbhost))
+		if config.Host == "" {
+			return fmt.Errorf("%s flag or %s environment variable required but not set",
+			 p.withPrefix("connection"), p.withEnvPrefix(envHostName))
 		}
 		p.opts.Connection = config.getConnectionString()
 	}
@@ -149,20 +151,25 @@ func (p *plugin) Stop() error {
 	return nil
 }
 
+func (p *plugin) genUsage() string {
+	return fmt.Sprintf(`PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name) 
+or use environment variables: 
+%s - The host to connect to (required), 
+%s - The port to bind to (default: 5432), 
+%s - The username to connect with. Not required if using IntegratedSecurity, 
+%s - The password to connect with. Not required if using IntegratedSecurity, 
+%s - The database to connect to, 
+%s - Whether or not to use SSL, 
+%s - Sets the session timezone`,
+		p.withEnvPrefix(envHostName), p.withEnvPrefix(envPortName), p.withEnvPrefix(envUserName),
+		p.withEnvPrefix(envPasswordName), p.withEnvPrefix(envDatabaseName), p.withEnvPrefix(envSslmodeName),
+		p.withEnvPrefix(envTimezoneName))
+}
+
 func (p *plugin) addFlags(app toolkit.Service) {
 	app.CLI().AddStringFlag(p.withPrefix("connection"), &p.opts.Connection).
 		Env(p.withEnvPrefix("CONNECTION")).
-		Usage(fmt.Sprintf(`PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name) 
-			or use environment variables: 
-			%s - The host to connect to (required), 
-			%s - The port to bind to (default: 5432), 
-			%s - The username to connect with. Not required if using IntegratedSecurity, 
-			%s - The password to connect with. Not required if using IntegratedSecurity, 
-			%s - The database to connect to, 
-			%s - Whether or not to use SSL, 
-			%s - Sets the session timezone`,
-			p.withEnvPrefix(dbhost), p.withEnvPrefix(dbport), p.withEnvPrefix(dbuser),
-			p.withEnvPrefix(dbpass), p.withEnvPrefix(dbname), p.withEnvPrefix(dbsslmode), p.withEnvPrefix(dbtimezone)))
+		Usage(p.genUsage())
 
 	app.CLI().AddStringFlag(p.withPrefix("migration-dir"), &p.opts.MigrationsDir).
 		Env(p.withEnvPrefix("MIGRATION_DIR")).
@@ -181,13 +188,15 @@ func (p *plugin) addCommands(app toolkit.Service) {
 
 			connection, err := cmd.Flags().GetString(p.withPrefix("connection"))
 			if err != nil {
-				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct", p.withPrefix("connection"))
+				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct", 
+				p.withPrefix("connection"))
 			}
 
 			if connection == "" {
 				config := p.dbConfig()
-				if _, ok := config[dbhost]; !ok {
-					return fmt.Errorf("%s flag or %s environment variable required but not set", p.withPrefix("connection"), p.withEnvPrefix(dbhost))
+				if config.Host == "" {
+					return fmt.Errorf("%s flag or %s environment variable required but not set", 
+					p.withPrefix("connection"), p.withEnvPrefix(envHostName))
 				}
 				connection = config.getConnectionString()
 			}
@@ -198,9 +207,13 @@ func (p *plugin) addCommands(app toolkit.Service) {
 			}
 			defer sqlDB.Close()
 
+			fmt.Println("Start migration")
+
 			if err = p.migration(sqlDB, args[0], connection); err != nil {
 				return err
 			}
+
+			fmt.Println("Migration is completed successfully!")
 
 			os.Exit(0)
 
@@ -210,17 +223,7 @@ func (p *plugin) addCommands(app toolkit.Service) {
 
 	migrateCmd.AddStringFlag(p.withPrefix("connection"), nil).
 		Env(p.withEnvPrefix("CONNECTION")).
-		Usage(fmt.Sprintf(`PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name) 
-			or use environment variables: 
-			%s - The host to connect to (required), 
-			%s - The port to bind to (default: 5432), 
-			%s - The username to connect with. Not required if using IntegratedSecurity, 
-			%s - The password to connect with. Not required if using IntegratedSecurity, 
-			%s - The database to connect to, 
-			%s - Whether or not to use SSL, 
-			%s - Sets the session timezone`,
-			p.withEnvPrefix(dbhost), p.withEnvPrefix(dbport), p.withEnvPrefix(dbuser),
-			p.withEnvPrefix(dbpass), p.withEnvPrefix(dbname), p.withEnvPrefix(dbsslmode), p.withEnvPrefix(dbtimezone)))
+		Usage(p.genUsage())
 
 	app.CLI().AddCommand(migrateCmd)
 }
@@ -262,58 +265,63 @@ func (p *plugin) migration(db *sql.DB, migrateDir, connectionString string) erro
 	return nil
 }
 
-type dbConfig map[string]string
+type dbConfig struct {
+	Host     string
+	Port     int32
+	Database string
+	Username string
+	Password string
+	SSLMode  string
+	TimeZone string
+}
 
-func (d dbConfig) getConnectionString() string {
-	var connection = ""
-	if v, ok := d[dbhost]; ok {
-		connection += fmt.Sprintf("host=%s", v)
+func (d *dbConfig) getConnectionString() string {
+	var connection = fmt.Sprintf("postgres://%s:%s@%s:%d/%s",
+		d.Username, d.Password, d.Host, d.Port, d.Database)
+
+	var qs = make([]string, 0)
+
+	if d.TimeZone != "" {
+		qs = append(qs, fmt.Sprintf("TimeZone=%s", d.TimeZone))
 	}
-	if v, ok := d[dbport]; ok {
-		connection += fmt.Sprintf(" port=%s", v)
+	if d.SSLMode != "" {
+		qs = append(qs, fmt.Sprintf("sslmode=%s", d.SSLMode))
 	}
-	if v, ok := d[dbuser]; ok {
-		connection += fmt.Sprintf(" user=%s", v)
+	if len(qs) > 0 {
+		connection += "?" + strings.Join(qs, "&")
 	}
-	if v, ok := d[dbpass]; ok {
-		connection += fmt.Sprintf(" password=%s", v)
-	}
-	if v, ok := d[dbname]; ok {
-		connection += fmt.Sprintf(" dbname=%s", v)
-	}
-	if v, ok := d[dbsslmode]; ok {
-		connection += fmt.Sprintf(" sslmode=%s", v)
-	}
-	if v, ok := d[dbtimezone]; ok {
-		connection += fmt.Sprintf(" TimeZone=%s", v)
-	}
+
 	return connection
 }
 
 func (p *plugin) dbConfig() dbConfig {
-	conf := make(map[string]string)
-	if host, ok := os.LookupEnv(p.withEnvPrefix(dbhost)); ok {
-		conf[dbhost] = host
+	config:= dbConfig{Port: 5432}
+
+	if host, ok := os.LookupEnv(p.withEnvPrefix(envHostName)); ok {
+		config.Host = host
 	}
-	if port, ok := os.LookupEnv(p.withEnvPrefix(dbport)); ok {
-		conf[dbport] = port
+	if port, ok := os.LookupEnv(p.withEnvPrefix(envPortName)); ok {
+		if value, err := strconv.ParseInt(port, 10, 32); err == nil {
+			config.Port = int32(value)
+		} 
+	} 
+	if user, ok := os.LookupEnv(p.withEnvPrefix(envUserName)); ok {
+		config.Username = user
 	}
-	if user, ok := os.LookupEnv(p.withEnvPrefix(dbuser)); ok {
-		conf[dbuser] = user
+	if password, ok := os.LookupEnv(p.withEnvPrefix(envPasswordName)); ok {
+		config.Password = password
 	}
-	if password, ok := os.LookupEnv(p.withEnvPrefix(dbpass)); ok {
-		conf[dbpass] = password
+	if name, ok := os.LookupEnv(p.withEnvPrefix(envDatabaseName)); ok {
+		config.Database = name
 	}
-	if name, ok := os.LookupEnv(p.withEnvPrefix(dbname)); ok {
-		conf[dbname] = name
+	if sslMode, ok := os.LookupEnv(p.withEnvPrefix(envSslmodeName)); ok {
+		config.SSLMode = sslMode
 	}
-	if sslMode, ok := os.LookupEnv(p.withEnvPrefix(dbsslmode)); ok {
-		conf[dbsslmode] = sslMode
+	if timeZone, ok := os.LookupEnv(p.withEnvPrefix(envTimezoneName)); ok {
+		config.TimeZone = timeZone
 	}
-	if timeZone, ok := os.LookupEnv(p.withEnvPrefix(dbtimezone)); ok {
-		conf[dbtimezone] = timeZone
-	}
-	return dbConfig(conf)
+
+	return config
 }
 
 func (p *plugin) withPrefix(name string) string {
