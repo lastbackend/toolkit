@@ -19,9 +19,10 @@ package rabbitmq
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/lastbackend/toolkit"
 	"github.com/streadway/amqp"
-	"strings"
 )
 
 const (
@@ -81,6 +82,24 @@ func (p *plugin) Start(context.Context) (err error) {
 
 func (p *plugin) Stop() error {
 	return p.broker.Disconnect()
+}
+
+// Call - send message with delivery guarantee
+func (p *plugin) Call() error {
+	return nil
+}
+
+// Cast - send message without delivery guarantee
+func (p *plugin) Cast() error {
+	return nil
+}
+
+func (p *plugin) Publish() error {
+	return nil
+}
+
+func (p *plugin) Subscribe() error {
+	return nil
 }
 
 func (p *plugin) Channel() (*amqp.Channel, error) {

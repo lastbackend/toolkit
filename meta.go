@@ -48,3 +48,7 @@ func (m *meta) SetLongDescription(s string) Meta {
 	m.LongDescription = s
 	return m
 }
+
+func (m *meta) GetEnvPrefix() string {
+	return m.EnvPrefix
+}

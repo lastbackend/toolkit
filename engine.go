@@ -50,6 +50,7 @@ type Meta interface {
 	SetEnvPrefix(prefix string) Meta
 	SetShortDescription(desc string) Meta
 	SetLongDescription(desc string) Meta
+	GetEnvPrefix() string
 }
 
 type CLI interface {
