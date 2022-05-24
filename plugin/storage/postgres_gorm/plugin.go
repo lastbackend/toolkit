@@ -154,13 +154,13 @@ func (p *plugin) Stop() error {
 func (p *plugin) genUsage() string {
 	return fmt.Sprintf(`PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name) 
 or use environment variables: 
-%s - The host to connect to (required), 
-%s - The port to bind to (default: 5432), 
-%s - The username to connect with. Not required if using IntegratedSecurity, 
-%s - The password to connect with. Not required if using IntegratedSecurity, 
-%s - The database to connect to, 
-%s - Whether or not to use SSL, 
-%s - Sets the session timezone`,
+	%s - The host to connect to (required), 
+	%s - The port to bind to (default: 5432), 
+	%s - The username to connect with. Not required if using IntegratedSecurity, 
+	%s - The password to connect with. Not required if using IntegratedSecurity, 
+	%s - The database to connect to, 
+	%s - Whether or not to use SSL, 
+	%s - Sets the session timezone`,
 		p.generatetWithEnvPrefix(envHostName), p.generatetWithEnvPrefix(envPortName), p.generatetWithEnvPrefix(envUserName),
 		p.generatetWithEnvPrefix(envPasswordName), p.generatetWithEnvPrefix(envDatabaseName), p.generatetWithEnvPrefix(envSslmodeName),
 		p.generatetWithEnvPrefix(envTimezoneName))
