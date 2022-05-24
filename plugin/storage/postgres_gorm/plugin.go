@@ -41,6 +41,7 @@ import (
 const (
 	defaultPrefix = "psql"
 	driverName    = "postgres"
+	defaultPort   = 5432
 )
 
 const (
@@ -115,10 +116,10 @@ func (p *plugin) DB() *gorm.DB {
 
 func (p *plugin) Start(ctx context.Context) (err error) {
 	if p.opts.Connection == "" {
-		config := p.dbConfig()
+		config := p.getDBConfig()
 		if config.Host == "" {
 			return fmt.Errorf("%s flag or %s environment variable required but not set",
-			 p.withPrefix("connection"), p.generatetWithEnvPrefix(envHostName))
+				p.withPrefix("connection"), p.generatetWithEnvPrefix(envHostName))
 		}
 		p.opts.Connection = config.getConnectionString()
 	}
@@ -187,15 +188,15 @@ func (p *plugin) addCommands(app toolkit.Service) {
 
 			connection, err := cmd.Flags().GetString(p.withPrefix("connection"))
 			if err != nil {
-				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct", 
-				p.withPrefix("connection"))
+				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct",
+					p.withPrefix("connection"))
 			}
 
 			if connection == "" {
-				config := p.dbConfig()
+				config := p.getDBConfig()
 				if config.Host == "" {
-					return fmt.Errorf("%s flag or %s environment variable required but not set", 
-					p.withPrefix("connection"), p.generatetWithEnvPrefix(envHostName))
+					return fmt.Errorf("%s flag or %s environment variable required but not set",
+						p.withPrefix("connection"), p.generatetWithEnvPrefix(envHostName))
 				}
 				connection = config.getConnectionString()
 			}
@@ -293,8 +294,8 @@ func (d *dbConfig) getConnectionString() string {
 	return connection
 }
 
-func (p *plugin) dbConfig() dbConfig {
-	config:= dbConfig{Port: 5432}
+func (p *plugin) getDBConfig() dbConfig {
+	config := dbConfig{Port: defaultPort}
 
 	if host, ok := os.LookupEnv(p.generatetWithEnvPrefix(envHostName)); ok {
 		config.Host = host
@@ -302,8 +303,8 @@ func (p *plugin) dbConfig() dbConfig {
 	if port, ok := os.LookupEnv(p.generatetWithEnvPrefix(envPortName)); ok {
 		if value, err := strconv.ParseInt(port, 10, 32); err == nil {
 			config.Port = int32(value)
-		} 
-	} 
+		}
+	}
 	if user, ok := os.LookupEnv(p.generatetWithEnvPrefix(envUserName)); ok {
 		config.Username = user
 	}
