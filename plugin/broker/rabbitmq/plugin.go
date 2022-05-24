@@ -134,8 +134,8 @@ func (p *plugin) genUsage() string {
 or use environment variables: 
 	%s - The host to connect to (required), 
 	%s - The port to bind to (default: 5672), 
-	%s - The username to connect with (not required), 
-	%s - The password to connect with (not required)`,
+	%s - The username to connect with (not required, guest by default), 
+	%s - The password to connect with (not required, guest by default)`,
 		p.generatetWithEnvPrefix(envHostName), p.generatetWithEnvPrefix(envPortName),
 		p.generatetWithEnvPrefix(envUserName), p.generatetWithEnvPrefix(envPasswordName))
 }
@@ -166,8 +166,13 @@ type amqpConfig struct {
 }
 
 func (c *amqpConfig) getConnectionString() string {
-	return fmt.Sprintf("amqp://%s:%s@%s:%d",
-		c.Username, c.Password, c.Host, c.Port)
+	if c.Username == "" {
+		c.Username = "guest"
+	}
+	if c.Password == "" {
+		c.Password = "guest"
+	}
+	return fmt.Sprintf("amqp://%s:%s@%s:%d", c.Username, c.Password, c.Host, c.Port)
 }
 
 func (p *plugin) getAMQPConfig() amqpConfig {

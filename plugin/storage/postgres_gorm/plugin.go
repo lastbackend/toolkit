@@ -275,17 +275,17 @@ type dbConfig struct {
 	TimeZone string
 }
 
-func (d *dbConfig) getConnectionString() string {
+func (c *dbConfig) getConnectionString() string {
 	var connection = fmt.Sprintf("postgres://%s:%s@%s:%d/%s",
-		d.Username, d.Password, d.Host, d.Port, d.Database)
+		c.Username, c.Password, c.Host, c.Port, c.Database)
 
 	var qs = make([]string, 0)
 
-	if d.TimeZone != "" {
-		qs = append(qs, fmt.Sprintf("TimeZone=%s", d.TimeZone))
+	if c.TimeZone != "" {
+		qs = append(qs, fmt.Sprintf("TimeZone=%s", c.TimeZone))
 	}
-	if d.SSLMode != "" {
-		qs = append(qs, fmt.Sprintf("sslmode=%s", d.SSLMode))
+	if c.SSLMode != "" {
+		qs = append(qs, fmt.Sprintf("sslmode=%s", c.SSLMode))
 	}
 	if len(qs) > 0 {
 		connection += "?" + strings.Join(qs, "&")
