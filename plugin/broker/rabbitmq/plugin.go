@@ -132,10 +132,10 @@ func (p *plugin) Channel() (*amqp.Channel, error) {
 func (p *plugin) genUsage() string {
 	return fmt.Sprintf(`Rabbitmq connection string (Ex: amqp://guest:guest@127.0.0.1:5672)
 or use environment variables: 
-%s - The host to connect to (required), 
-%s - The port to bind to (default: 5672), 
-%s - The username to connect with (not required), 
-%s - The password to connect with (not required)`,
+	%s - The host to connect to (required), 
+	%s - The port to bind to (default: 5672), 
+	%s - The username to connect with (not required), 
+	%s - The password to connect with (not required)`,
 		p.generatetWithEnvPrefix(envHostName), p.generatetWithEnvPrefix(envPortName),
 		p.generatetWithEnvPrefix(envUserName), p.generatetWithEnvPrefix(envPasswordName))
 }
