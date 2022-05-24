@@ -143,8 +143,7 @@ or use environment variables:
 func (p *plugin) addFlags(app toolkit.Service) {
 	app.CLI().AddStringFlag(p.withPrefix("endpoint"), &p.opts.Endpoint).
 		Env(p.generateEnvName("ENDPOINT")).
-		Usage(p.genUsage()).
-		Required()
+		Usage(p.genUsage())
 
 	app.CLI().AddBoolFlag(p.withPrefix("tls-verify"), &p.opts.TLSVerify).
 		Env(p.generateEnvName("TLS_VERIFY")).
