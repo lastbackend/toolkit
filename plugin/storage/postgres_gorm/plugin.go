@@ -222,7 +222,7 @@ func (p *plugin) addCommands(app toolkit.Service) {
 	}
 
 	migrateCmd.AddStringFlag(p.withPrefix("connection"), nil).
-		Env(p.generatetWithEnvPrefix("CONNECTION")).
+		Env(p.generateEnvName("CONNECTION")).
 		Usage(p.genUsage())
 
 	app.CLI().AddCommand(migrateCmd)
