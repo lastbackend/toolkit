@@ -453,7 +453,7 @@ var shutdownSignals = []os.Signal{
 // Suppress "imported and not used" errors
 var _ context.Context
 var _ logger.Logger
-var _ empty.Empty
+var _ emptypb.Empty
 {{- if not .HasNotServer }}
 var _ server.Server
 {{ end }}
@@ -467,7 +467,7 @@ var _ server.Server
 	contentClientTemplate = template.Must(template.New("client-content").Funcs(funcMap).Parse(`
 // Suppress "imported and not used" errors
 var _ context.Context
-var _ empty.Empty
+var _ emptypb.Empty
 
 {{ range $svc := .Services }}
 	// Client gRPC API for {{ $svc.GetName }} service
@@ -588,7 +588,7 @@ var _ empty.Empty
 	contentTestStubTemplate = template.Must(template.New("stub-content-mockery").Parse(`
 // Suppress "imported and not used" errors
 var _ context.Context
-var _ empty.Empty
+var _ emptypb.Empty
 
 {{ range $svc := .Services }}
 	// Server API for Api service
