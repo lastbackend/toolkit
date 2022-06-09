@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/consul/api v1.12.0
 	github.com/improbable-eng/grpc-web v0.15.0
-	github.com/jmoiron/sqlx v1.3.4
+	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.10.5
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.4.0
