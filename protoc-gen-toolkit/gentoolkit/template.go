@@ -313,19 +313,24 @@ func (s *service) Run(ctx context.Context) error {
 	provide = append(provide, s.srv...)
 	{{- end }}
 
+	opts := make([]fx.Option, 0)
+	
+	if s.cfg != nil {
+		opts = append(opts, fx.Supply(s.cfg))	
+	}
+
+	opts = append(opts, fx.Provide(provide...))
+	opts = append(opts, fx.Invoke(s.registerClients))
+	{{- if not $.HasNotServer }}
+		{{- range $svc := .Services }}			
+			opts = append(opts, fx.Invoke(s.register{{ $svc.GetName }}Server))
+		{{- end }}
+	{{- end }}
+	opts = append(opts, fx.Invoke(s.ctrl...))
+	opts = append(opts, fx.Invoke(s.runService))
+
 	app := fx.New(
-		fx.Options(
-			fx.Supply(s.cfg),
-			fx.Provide(provide...),
-			fx.Invoke(s.registerClients),
-			{{- if not $.HasNotServer }}
-				{{- range $svc := .Services }}			
-					fx.Invoke(s.register{{ $svc.GetName }}Server),
-				{{- end }}
-			{{- end }}
-			fx.Invoke(s.ctrl...),
-			fx.Invoke(s.runService),
-		),
+		fx.Options(opts...),
 		fx.NopLogger,
 	)
 
