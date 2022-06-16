@@ -205,7 +205,6 @@ type Service interface {
 	{{ end }}
 
 	AddPackage(pkg interface{})
-	AddController(ctrl interface{})
 }
 
 type RPC struct {
@@ -221,8 +220,7 @@ func NewService(name string) Service {
 		{{- if not .HasNotServer }}
 		srv:     make([]interface{}, 0),
 		{{- end }}
-		svc:     make([]interface{}, 0),
-		ctrl:    make([]interface{}, 0),
+		pkg:     make([]interface{}, 0),
 		rpc:     new(RPC),
 	}
 }
@@ -233,8 +231,7 @@ type service struct {
 	{{- if not .HasNotServer }}
 	srv  []interface{}
 	{{- end }}
-	svc  []interface{}
-	ctrl []interface{}
+	pkg  []interface{}
 	cfg  interface{}
 }
 
@@ -261,11 +258,7 @@ func (s *service) SetServer(srv interface{}) {
 {{ end }}
 
 func (s *service) AddPackage(pkg interface{}) {
-	s.svc = append(s.svc, pkg)
-}
-
-func (s *service) AddController(ctrl interface{}) {
-	s.ctrl = append(s.ctrl, ctrl)
+	s.pkg = append(s.pkg, pkg)
 }
 
 {{ range $type, $plugins := .Plugins }}
@@ -308,7 +301,7 @@ func (s *service) Run(ctx context.Context) error {
 		{{- end }}
 	)
 
-	provide = append(provide, s.svc...)
+	provide = append(provide, s.pkg...)
 	{{- if not .HasNotServer }}
 	provide = append(provide, s.srv...)
 	{{- end }}
@@ -326,7 +319,7 @@ func (s *service) Run(ctx context.Context) error {
 			opts = append(opts, fx.Invoke(s.register{{ $svc.GetName }}Server))
 		{{- end }}
 	{{- end }}
-	opts = append(opts, fx.Invoke(s.ctrl...))
+	opts = append(opts, fx.Invoke(s.pkg...))
 	opts = append(opts, fx.Invoke(s.runService))
 
 	app := fx.New(

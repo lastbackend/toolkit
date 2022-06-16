@@ -38,6 +38,8 @@ const (
 
 var EnvPrefix = "TOOLKIT"
 
+type Func func() error
+
 type CLI interface {
 	FlagSet
 	CommandSet
@@ -48,7 +50,10 @@ type CLI interface {
 	SetLongDescription(string)
 	SetEnvPrefix(string)
 	GetEnvPrefix() string
-	Run(f func() error) error
+	PreRun(Func) error
+	Run(Func) error
+	PostRun(Func) error
+	Execute() error
 }
 
 type CommandSet interface {
@@ -100,6 +105,25 @@ func New(opts ...Option) CLI {
 	// Set default services
 	resolver.DefaultResolver = local.NewResolver()
 
+	c.rootCmd = &cobra.Command{}
+	c.rootCmd.SetGlobalNormalizationFunc(wordSepNormalizeFunc)
+	c.rootCmd.InitDefaultHelpFlag()
+	c.rootCmd.SetHelpCommand(&cobra.Command{Use: "no-help", Hidden: true})
+	c.rootCmd.AddCommand(c.versionCommand())
+
+	if len(c.opts.Name) > 0 {
+		c.rootCmd.Use = c.opts.Name
+	}
+	if len(c.opts.ShortDesc) > 0 {
+		c.rootCmd.Short = c.opts.ShortDesc
+	}
+	if len(c.opts.ShortDesc) > 0 {
+		c.rootCmd.Long = c.opts.LongDesc
+	}
+	if len(c.opts.Version) > 0 {
+		c.rootCmd.Version = c.opts.Version
+	}
+
 	return c
 }
 
@@ -135,18 +159,13 @@ func (c *cli) AddCommand(cmd *Command) {
 	c.Commands = append(c.Commands, cmd)
 }
 
-func (c *cli) Run(fn func() error) error {
-
-	c.rootCmd = &cobra.Command{}
-	c.rootCmd.SetGlobalNormalizationFunc(wordSepNormalizeFunc)
-	c.rootCmd.InitDefaultHelpFlag()
-	c.rootCmd.SetHelpCommand(&cobra.Command{Use: "no-help", Hidden: true})
-	c.rootCmd.AddCommand(c.versionCommand())
+func (c *cli) PreRun(fn Func) error {
 
 	isDebug := false
 	if val, ok := getEnv("DEBUG"); ok {
 		isDebug = len(val) > 0
 	}
+
 	resolverType := resolver.LocalResolver
 	if val, ok := getEnv("RESOLVER"); ok {
 		resolverType = resolver.ResolveType(val)
@@ -157,21 +176,8 @@ func (c *cli) Run(fn func() error) error {
 	}
 
 	c.rootCmd.PersistentFlags().BoolP("debug", "d", isDebug, "Enable debug mode")
-	c.rootCmd.Flags().StringP("resolver", "", resolverType.String(), "Sets the value for initial resolver (default: local)")
-	c.rootCmd.Flags().StringP("resolver-endpoint", "", resolverEndpoints, "Sets the value for initial resolver endpoint")
-
-	if len(c.opts.Name) > 0 {
-		c.rootCmd.Use = c.opts.Name
-	}
-	if len(c.opts.ShortDesc) > 0 {
-		c.rootCmd.Short = c.opts.ShortDesc
-	}
-	if len(c.opts.ShortDesc) > 0 {
-		c.rootCmd.Long = c.opts.LongDesc
-	}
-	if len(c.opts.Version) > 0 {
-		c.rootCmd.Version = c.opts.Version
-	}
+	c.rootCmd.PersistentFlags().StringP("resolver", "", resolverType.String(), "Sets the value for initial resolver (default: local)")
+	c.rootCmd.PersistentFlags().StringP("resolver-endpoint", "", resolverEndpoints, "Sets the value for initial resolver endpoint")
 
 	c.rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		resolverFlag, err := cmd.Flags().GetString("resolver")
@@ -189,7 +195,7 @@ func (c *cli) Run(fn func() error) error {
 			resolver.DefaultResolver = local.NewResolver()
 			addresses := strings.Split(resolverEndpointFlag, ",")
 			for _, addr := range addresses {
-				re := regexp.MustCompile(`([\w]+):(.*)`)
+				re := regexp.MustCompile(`(\w+):(.*)`)
 				match := re.FindStringSubmatch(addr)
 				if len(match) > 0 {
 					err = resolver.DefaultResolver.Table().Create(route.Route{
@@ -204,9 +210,24 @@ func (c *cli) Run(fn func() error) error {
 		case resolver.ConsulResolver.String():
 			resolver.DefaultResolver = consul.NewResolver(consul.WithEndpoint(resolverEndpointFlag))
 		}
-		return nil
+
+		return fn()
 	}
 
+	for _, f := range c.Flags {
+		if err := (f.(flag)).apply(c.rootCmd.Flags()); err != nil {
+			return nil
+		}
+	}
+
+	for _, cmd := range c.Commands {
+		c.rootCmd.AddCommand(cmd.convertCommandToCobraCommand())
+	}
+
+	return nil
+}
+
+func (c *cli) Run(fn Func) error {
 	c.rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
 		debugFlag, err := cmd.Flags().GetBool("debug")
 		if err != nil {
@@ -223,16 +244,18 @@ func (c *cli) Run(fn func() error) error {
 		return fn()
 	}
 
-	for _, f := range c.Flags {
-		if err := (f.(flag)).apply(c.rootCmd.Flags()); err != nil {
-			return err
-		}
+	return nil
+}
+
+func (c *cli) PostRun(fn Func) error {
+	c.rootCmd.PostRunE = func(cmd *cobra.Command, args []string) error {
+		return fn()
 	}
 
-	for _, cmd := range c.Commands {
-		c.rootCmd.AddCommand(cmd.convertCommandToCobraCommand())
-	}
+	return nil
+}
 
+func (c *cli) Execute() error {
 	return c.rootCmd.Execute()
 }
 
@@ -251,7 +274,7 @@ func (c *cli) versionCommand() *cobra.Command {
 }
 
 // wordSepNormalizeFunc normalizes cli flags
-func wordSepNormalizeFunc(f *pflag.FlagSet, name string) pflag.NormalizedName {
+func wordSepNormalizeFunc(_ *pflag.FlagSet, name string) pflag.NormalizedName {
 	if strings.Contains(name, "_") {
 		return pflag.NormalizedName(strings.Replace(name, "_", "-", -1))
 	}
