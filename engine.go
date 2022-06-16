@@ -38,7 +38,7 @@ type Service interface {
 	PluginRegister(plug Plugin) error
 	ServerRegister(srv Server) error
 	ClientRegister(cli Client) error
-	ControllerRegister(ctrl Controller) error
+	PackageRegister(ctrl Package) error
 	Run() error
 	Start() error
 	Stop() error
@@ -73,8 +73,10 @@ type Plugin interface {
 	Stop() error
 }
 
-type Controller interface {
+type Package interface {
+	PreStart(ctx context.Context) error
 	Start(ctx context.Context) error
+	PostStart(ctx context.Context) error
 	Stop() error
 }
 

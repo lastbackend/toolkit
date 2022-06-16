@@ -31,14 +31,14 @@ import (
 
 type service struct {
 	*meta
-	context     context.Context
-	cli         cmd.CLI
-	logger      logger.Logger
-	clients     []Client
-	servers     []Server
-	plugins     []Plugin
-	controllers []Controller
-	signal      bool
+	context  context.Context
+	cli      cmd.CLI
+	logger   logger.Logger
+	clients  []Client
+	servers  []Server
+	plugins  []Plugin
+	packages []Package
+	signal   bool
 }
 
 func newService(name string) Service {
@@ -51,6 +51,7 @@ func newService(name string) Service {
 	s.clients = make([]Client, 0)
 	s.servers = make([]Server, 0)
 	s.plugins = make([]Plugin, 0)
+	s.packages = make([]Package, 0)
 	return s
 }
 
@@ -67,10 +68,10 @@ func (s *service) PluginRegister(plug Plugin) error {
 
 	// Check if the passed interface is a pointer
 	if valueIface.Type().Kind() != reflect.Ptr {
-		return fmt.Errorf("the argument must be a pointer")
+		return fmt.Errorf("the plugin must be a pointer")
 	}
 	if valueIface.IsNil() {
-		return fmt.Errorf("the argument must not be nil")
+		return fmt.Errorf("the plugin must not be nil")
 	}
 
 	s.plugins = append(s.plugins, plug)
@@ -83,10 +84,10 @@ func (s *service) ClientRegister(cli Client) error {
 
 	// Check if the passed interface is a pointer
 	if valueIface.Type().Kind() != reflect.Ptr {
-		return fmt.Errorf("the argument must be a pointer")
+		return fmt.Errorf("the client must be a pointer")
 	}
 	if valueIface.IsNil() {
-		return fmt.Errorf("the argument must not be nil")
+		return fmt.Errorf("the client must not be nil")
 	}
 
 	s.clients = append(s.clients, cli)
@@ -99,10 +100,10 @@ func (s *service) ServerRegister(srv Server) error {
 
 	// Check if the passed interface is a pointer
 	if valueIface.Type().Kind() != reflect.Ptr {
-		return fmt.Errorf("the argument must be a pointer")
+		return fmt.Errorf("the server must be a pointer")
 	}
 	if valueIface.IsNil() {
-		return fmt.Errorf("the argument must not be nil")
+		return fmt.Errorf("the server must not be nil")
 	}
 
 	s.servers = append(s.servers, srv)
@@ -110,18 +111,18 @@ func (s *service) ServerRegister(srv Server) error {
 	return nil
 }
 
-func (s *service) ControllerRegister(ctrl Controller) error {
+func (s *service) PackageRegister(ctrl Package) error {
 	valueIface := reflect.ValueOf(ctrl)
 
 	// Check if the passed interface is a pointer
 	if valueIface.Type().Kind() != reflect.Ptr {
-		return fmt.Errorf("the argument must be a pointer")
+		return fmt.Errorf("the package must be a pointer")
 	}
 	if valueIface.IsNil() {
-		return fmt.Errorf("the argument must not be nil")
+		return fmt.Errorf("the package must not be nil")
 	}
 
-	s.controllers = append(s.controllers, ctrl)
+	s.packages = append(s.packages, ctrl)
 
 	return nil
 }
@@ -162,7 +163,26 @@ func (s *service) Start() error {
 	s.cli.SetShortDescription(s.meta.ShorDescription)
 	s.cli.SetLongDescription(s.meta.LongDescription)
 
-	return s.cli.Run(func() error {
+	err := s.cli.PreRun(func() error {
+		for _, t := range s.packages {
+			_, ok := reflect.TypeOf(t).MethodByName("PreStart")
+			if ok {
+				args := []reflect.Value{reflect.ValueOf(s.context)}
+				res := reflect.ValueOf(t).MethodByName("PreStart").Call(args)
+				if len(res) == 1 {
+					if v := res[0].Interface(); v != nil {
+						return v.(error)
+					}
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	err = s.cli.Run(func() error {
 
 		for _, t := range s.plugins {
 			if err := t.Start(s.context); err != nil {
@@ -172,7 +192,7 @@ func (s *service) Start() error {
 
 		group, _ := errgroup.WithContext(s.context)
 
-		for _, t := range s.controllers {
+		for _, t := range s.packages {
 			group.Go(func() error {
 				return t.Start(s.context)
 			})
@@ -196,10 +216,34 @@ func (s *service) Start() error {
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	err = s.cli.PostRun(func() error {
+		for _, t := range s.packages {
+			_, ok := reflect.TypeOf(t).MethodByName("PostStart")
+			if ok {
+				args := []reflect.Value{reflect.ValueOf(s.context)}
+				res := reflect.ValueOf(t).MethodByName("PostStart").Call(args)
+				if len(res) == 1 {
+					if v := res[0].Interface(); v != nil {
+						return v.(error)
+					}
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return s.cli.Execute()
 }
 
 func (s *service) Stop() error {
-	for _, t := range s.controllers {
+	for _, t := range s.packages {
 		if err := t.Stop(); err != nil {
 			return err
 		}
