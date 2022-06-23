@@ -1,5 +1,5 @@
 /*
-Copyright [2014] - [2021] The Last.Backend authors.
+Copyright [2014] - [2022] The Last.Backend authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -119,7 +119,7 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 		config := p.getDBConfig()
 		if config.Host == "" {
 			return fmt.Errorf("%s flag or %s environment variable required but not set",
-				p.withPrefix("connection"), p.generatetWithEnvPrefix(envHostName))
+				p.withPrefix("connection"), p.generateWithEnvPrefix(envHostName))
 		}
 		p.opts.Connection = config.getConnectionString()
 	}
@@ -161,9 +161,9 @@ or use environment variables:
 	%s - The database to connect to, 
 	%s - Whether or not to use SSL, 
 	%s - Sets the session timezone`,
-		p.generatetWithEnvPrefix(envHostName), p.generatetWithEnvPrefix(envPortName), p.generatetWithEnvPrefix(envUserName),
-		p.generatetWithEnvPrefix(envPasswordName), p.generatetWithEnvPrefix(envDatabaseName), p.generatetWithEnvPrefix(envSslmodeName),
-		p.generatetWithEnvPrefix(envTimezoneName))
+		p.generateWithEnvPrefix(envHostName), p.generateWithEnvPrefix(envPortName), p.generateWithEnvPrefix(envUserName),
+		p.generateWithEnvPrefix(envPasswordName), p.generateWithEnvPrefix(envDatabaseName), p.generateWithEnvPrefix(envSslmodeName),
+		p.generateWithEnvPrefix(envTimezoneName))
 }
 
 func (p *plugin) addFlags(app toolkit.Service) {
@@ -196,7 +196,7 @@ func (p *plugin) addCommands(app toolkit.Service) {
 				config := p.getDBConfig()
 				if config.Host == "" {
 					return fmt.Errorf("%s flag or %s environment variable required but not set",
-						p.withPrefix("connection"), p.generatetWithEnvPrefix(envHostName))
+						p.withPrefix("connection"), p.generateWithEnvPrefix(envHostName))
 				}
 				connection = config.getConnectionString()
 			}
@@ -297,27 +297,27 @@ func (c *dbConfig) getConnectionString() string {
 func (p *plugin) getDBConfig() dbConfig {
 	config := dbConfig{Port: defaultPort}
 
-	if host, ok := os.LookupEnv(p.generatetWithEnvPrefix(envHostName)); ok {
+	if host, ok := os.LookupEnv(p.generateWithEnvPrefix(envHostName)); ok {
 		config.Host = host
 	}
-	if port, ok := os.LookupEnv(p.generatetWithEnvPrefix(envPortName)); ok {
+	if port, ok := os.LookupEnv(p.generateWithEnvPrefix(envPortName)); ok {
 		if value, err := strconv.ParseInt(port, 10, 32); err == nil {
 			config.Port = int32(value)
 		}
 	}
-	if user, ok := os.LookupEnv(p.generatetWithEnvPrefix(envUserName)); ok {
+	if user, ok := os.LookupEnv(p.generateWithEnvPrefix(envUserName)); ok {
 		config.Username = user
 	}
-	if password, ok := os.LookupEnv(p.generatetWithEnvPrefix(envPasswordName)); ok {
+	if password, ok := os.LookupEnv(p.generateWithEnvPrefix(envPasswordName)); ok {
 		config.Password = password
 	}
-	if name, ok := os.LookupEnv(p.generatetWithEnvPrefix(envDatabaseName)); ok {
+	if name, ok := os.LookupEnv(p.generateWithEnvPrefix(envDatabaseName)); ok {
 		config.Database = name
 	}
-	if sslMode, ok := os.LookupEnv(p.generatetWithEnvPrefix(envSslmodeName)); ok {
+	if sslMode, ok := os.LookupEnv(p.generateWithEnvPrefix(envSslmodeName)); ok {
 		config.SSLMode = sslMode
 	}
-	if timeZone, ok := os.LookupEnv(p.generatetWithEnvPrefix(envTimezoneName)); ok {
+	if timeZone, ok := os.LookupEnv(p.generateWithEnvPrefix(envTimezoneName)); ok {
 		config.TimeZone = timeZone
 	}
 
@@ -332,6 +332,6 @@ func (p *plugin) generateEnvName(name string) string {
 	return strings.ToUpper(fmt.Sprintf("%s_%s", p.prefix, strings.Replace(name, "-", "_", -1)))
 }
 
-func (p *plugin) generatetWithEnvPrefix(name string) string {
+func (p *plugin) generateWithEnvPrefix(name string) string {
 	return strings.ToUpper(fmt.Sprintf("%s_%s", p.envPrefix, p.generateEnvName(name)))
 }

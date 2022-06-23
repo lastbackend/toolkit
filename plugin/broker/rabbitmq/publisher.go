@@ -14,14 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package server
+package rabbitmq
 
-import (
-	"google.golang.org/grpc"
-)
+import "github.com/streadway/amqp"
 
-type Server interface {
-	Register(sd *grpc.ServiceDesc, ss interface{}) error
-	Start() error
-	Stop() error
+type publisher struct {
+	delivery amqp.Delivery
+	message  *Message
+	topic    string
+	err      error
+}
+
+func (p *publisher) Ack() error {
+	return p.delivery.Ack(false)
+}
+
+func (p *publisher) Error() error {
+	return p.err
+}
+
+func (p *publisher) Name() string {
+	return p.topic
+}
+
+func (p *publisher) Message() *Message {
+	return p.message
 }

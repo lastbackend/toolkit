@@ -14,14 +14,36 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package server
+package rabbitmq
 
-import (
-	"google.golang.org/grpc"
-)
+import "context"
 
-type Server interface {
-	Register(sd *grpc.ServiceDesc, ss interface{}) error
-	Start() error
-	Stop() error
+type Handler func(context.Context, []byte) error
+
+type Event interface {
+	Message() *Message
+	Name() string
+	Ack() error
+	Error() error
+}
+
+type Message struct {
+	Header map[string]string
+	Body   []byte
+}
+
+type PublishOptions struct {
+	Headers map[string]interface{}
+}
+
+type SubscribeOptions struct {
+	AutoAck        bool
+	DurableQueue   bool
+	RequeueOnError bool
+	Headers        map[string]interface{}
+}
+
+type Subscriber interface {
+	Name() string
+	Unsubscribe() error
 }

@@ -1,5 +1,5 @@
 /*
-Copyright [2014] - [2021] The Last.Backend authors.
+Copyright [2014] - [2022] The Last.Backend authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,7 +30,6 @@ import (
 )
 
 type service struct {
-	*meta
 	context  context.Context
 	cli      cmd.CLI
 	logger   logger.Logger
@@ -43,11 +42,9 @@ type service struct {
 
 func newService(name string) Service {
 	s := new(service)
-	s.meta = new(meta)
-	s.meta.SetName(name)
 	s.context = context.Background()
 	s.logger = logger.DefaultLogger
-	s.cli = cmd.New()
+	s.cli = cmd.New(name)
 	s.clients = make([]Client, 0)
 	s.servers = make([]Server, 0)
 	s.plugins = make([]Plugin, 0)
@@ -56,7 +53,7 @@ func newService(name string) Service {
 }
 
 func (s *service) Meta() Meta {
-	return s.meta
+	return s.cli.GetMeta()
 }
 
 func (s *service) CLI() CLI {
@@ -157,11 +154,6 @@ func (s *service) Run() error {
 }
 
 func (s *service) Start() error {
-	s.cli.SetName(s.meta.Name)
-	s.cli.SetEnvPrefix(s.meta.EnvPrefix)
-	s.cli.SetVersion(s.meta.Version)
-	s.cli.SetShortDescription(s.meta.ShorDescription)
-	s.cli.SetLongDescription(s.meta.LongDescription)
 
 	err := s.cli.PreRun(func() error {
 		for _, t := range s.packages {

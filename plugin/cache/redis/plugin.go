@@ -1,5 +1,5 @@
 /*
-Copyright [2014] - [2021] The Last.Backend authors.
+Copyright [2014] - [2022] The Last.Backend authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,8 +18,6 @@ package redis
 
 import (
 	"crypto/tls"
-	"github.com/go-redis/cache/v8"
-	"github.com/go-redis/redis/v8"
 	"github.com/lastbackend/toolkit"
 	"time"
 

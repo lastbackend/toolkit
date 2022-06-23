@@ -1,5 +1,5 @@
 /*
-Copyright [2014] - [2021] The Last.Backend authors.
+Copyright [2014] - [2022] The Last.Backend authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import (
 )
 
 const (
+	defaultName             = "toolkit"
 	defaultShortDescription = "a toolkit service"
 )
 
@@ -44,12 +45,7 @@ type CLI interface {
 	FlagSet
 	CommandSet
 
-	SetName(string)
-	SetVersion(string)
-	SetShortDescription(string)
-	SetLongDescription(string)
-	SetEnvPrefix(string)
-	GetEnvPrefix() string
+	GetMeta() Meta
 	PreRun(Func) error
 	Run(Func) error
 	PostRun(Func) error
@@ -82,25 +78,17 @@ type cli struct {
 	Flags
 	Commands
 
-	opts    Options
+	meta    Meta
 	rootCmd *cobra.Command
 }
 
-type Option func(o *Options)
-
-func New(opts ...Option) CLI {
-	options := Options{}
-
-	for _, o := range opts {
-		o(&options)
-	}
-
-	if len(options.ShortDesc) == 0 {
-		options.ShortDesc = defaultShortDescription
-	}
+func New(name string) CLI {
 
 	c := new(cli)
-	c.opts = options
+
+	c.meta = new(meta)
+	c.meta.SetName(name)
+	c.meta.SetShortDescription(defaultShortDescription)
 
 	// Set default services
 	resolver.DefaultResolver = local.NewResolver()
@@ -109,46 +97,33 @@ func New(opts ...Option) CLI {
 	c.rootCmd.SetGlobalNormalizationFunc(wordSepNormalizeFunc)
 	c.rootCmd.InitDefaultHelpFlag()
 	c.rootCmd.SetHelpCommand(&cobra.Command{Use: "no-help", Hidden: true})
-	c.rootCmd.AddCommand(c.versionCommand())
-
-	if len(c.opts.Name) > 0 {
-		c.rootCmd.Use = c.opts.Name
-	}
-	if len(c.opts.ShortDesc) > 0 {
-		c.rootCmd.Short = c.opts.ShortDesc
-	}
-	if len(c.opts.ShortDesc) > 0 {
-		c.rootCmd.Long = c.opts.LongDesc
-	}
-	if len(c.opts.Version) > 0 {
-		c.rootCmd.Version = c.opts.Version
-	}
 
 	return c
 }
 
+func (c *cli) GetMeta() Meta {
+	return c.meta
+}
+
 func (c *cli) SetName(s string) {
-	c.opts.Name = s
+	c.meta.SetName(s)
 }
 
 func (c *cli) SetVersion(s string) {
-	c.opts.Version = s
+	c.meta.SetVersion(s)
 }
 
 func (c *cli) SetShortDescription(s string) {
-	c.opts.ShortDesc = s
+	c.meta.SetShortDescription(s)
 }
 
 func (c *cli) SetLongDescription(s string) {
-	c.opts.LongDesc = s
+	c.meta.SetLongDescription(s)
 }
 
 func (c *cli) SetEnvPrefix(s string) {
+	c.meta.SetEnvPrefix(s)
 	EnvPrefix = s
-}
-
-func (c *cli) GetEnvPrefix() string {
-	return EnvPrefix
 }
 
 func (c *cli) AddFlag(flags Flag) {
@@ -256,6 +231,14 @@ func (c *cli) PostRun(fn Func) error {
 }
 
 func (c *cli) Execute() error {
+
+	c.rootCmd.Use = c.meta.GetName()
+	c.rootCmd.Short = c.meta.GetShortDescription()
+	c.rootCmd.Long = c.meta.GetLongDescription()
+	c.rootCmd.Version = c.meta.GetVersion()
+
+	c.rootCmd.AddCommand(c.versionCommand())
+
 	return c.rootCmd.Execute()
 }
 
@@ -263,10 +246,10 @@ func (c *cli) versionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:     "version",
 		Aliases: []string{"v"},
-		Short:   fmt.Sprintf("Print the version number of %s", c.opts.Name),
-		Long:    fmt.Sprintf(`All software has versions. This is %s's`, c.opts.Name),
+		Short:   fmt.Sprintf("Print the version number of %s", c.meta.GetName()),
+		Long:    fmt.Sprintf(`All software has versions. This is %s's`, c.meta.GetName()),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Printf("\nversion: %s", c.opts.Version)
+			fmt.Printf("\nversion: %s", c.meta.GetVersion())
 			os.Exit(0)
 			return nil
 		},
@@ -284,6 +267,6 @@ func wordSepNormalizeFunc(_ *pflag.FlagSet, name string) pflag.NormalizedName {
 // printFlags logs the flags in the flagSet
 func printFlags(flags *pflag.FlagSet) {
 	flags.VisitAll(func(flag *pflag.Flag) {
-		fmt.Printf("\nFLAG: --%s=%q", flag.Name, flag.Value)
+		fmt.Printf("FLAG: --%s=%q\n", flag.Name, flag.Value)
 	})
 }
