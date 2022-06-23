@@ -1,5 +1,5 @@
 /*
-Copyright [2014] - [2021] The Last.Backend authors.
+Copyright [2014] - [2022] The Last.Backend authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,9 +29,9 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
 	_ "github.com/lib/pq"
 
-	"os"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 )

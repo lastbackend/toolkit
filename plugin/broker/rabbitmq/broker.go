@@ -17,124 +17,206 @@ limitations under the License.
 package rabbitmq
 
 import (
-	"github.com/streadway/amqp"
-
+	"context"
 	"crypto/tls"
-	"strings"
+	"encoding/json"
 	"sync"
-	"time"
+
+	"github.com/lastbackend/toolkit/logger"
+	"github.com/pkg/errors"
+	"github.com/streadway/amqp"
 )
 
+type ack struct{}
+type reject struct{}
+
 type brokerOptions struct {
-	Endpoint  string
-	TLSCert   string
-	TLSKey    string
-	TLSVerify bool
+	Endpoint        string
+	TLSVerify       bool
+	TLSCert         string
+	TLSKey          string
+	PrefetchCount   int
+	PrefetchGlobal  bool
+	DefaultExchange *Exchange
 }
 
 type broker struct {
-	sync.Mutex
+	mtx sync.Mutex
 
-	conn *amqp.Connection
+	conn           *amqpConn
+	opts           brokerOptions
+	endpoints      []string
+	prefetchCount  int
+	prefetchGlobal bool
+	exchange       Exchange
 
-	endpoint  string
-	tlsConfig *tls.Config
-
-	connected bool
-	close     chan bool
-
-	waitConnection chan struct{}
+	wg sync.WaitGroup
 }
 
-func newBroker(opts brokerOptions) (*broker, error) {
-	var tlsConfig *tls.Config
+func newBroker(opts brokerOptions) *broker {
 
-	if opts.TLSVerify {
-		cer, err := tls.LoadX509KeyPair(opts.TLSCert, opts.TLSKey)
-		if err != nil {
-			return nil, err
-		}
-		tlsConfig = &tls.Config{Certificates: []tls.Certificate{cer}}
+	exchange := DefaultExchange
+	if opts.DefaultExchange != nil {
+		exchange = *opts.DefaultExchange
 	}
 
 	return &broker{
-		endpoint:  opts.Endpoint,
-		tlsConfig: tlsConfig,
-	}, nil
-}
-
-func (b *broker) Connect() error {
-
-	config := amqp.Config{}
-
-	if config.TLSClientConfig != nil || strings.HasPrefix(b.endpoint, "amqps://") {
-		if config.TLSClientConfig == nil {
-			config.TLSClientConfig = &tls.Config{
-				InsecureSkipVerify: true,
-			}
-		}
-
-		b.endpoint = strings.Replace(b.endpoint, "amqp://", "amqps://", 1)
+		endpoints: []string{opts.Endpoint},
+		opts:      opts,
+		exchange:  exchange,
 	}
+}
 
-	if err := b.tryConnect(config); err != nil {
-		return err
+func (r *broker) Ack(ctx context.Context) error {
+	fn, ok := ctx.Value(ack{}).(func() error)
+	if !ok {
+		return errors.New("no acknowledged")
 	}
-
-	b.Lock()
-	b.connected = true
-	b.Unlock()
-
-	go b.reconnect(config)
-
-	return nil
+	return fn()
 }
 
-func (b *broker) Disconnect() error {
-	return b.conn.Close()
+func (r *broker) Reject(ctx context.Context) error {
+	fn, ok := ctx.Value(reject{}).(func(bool) error)
+	if !ok {
+		return errors.New("no rejected")
+	}
+	return fn(false)
 }
 
-func (b *broker) tryConnect(config amqp.Config) error {
+func (r *broker) RejectAndRequeue(ctx context.Context) error {
+	fn, ok := ctx.Value(reject{}).(func(bool) error)
+	if !ok {
+		return errors.New("no rejected")
+	}
+	return fn(true)
+}
 
-	conn, err := amqp.DialConfig(b.endpoint, config)
+func (r *broker) Publish(exchange, topic string, data interface{}, opts *PublishOptions) error {
+
+	body, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
 
-	b.conn = conn
+	if opts == nil {
+		opts = new(PublishOptions)
+	}
 
-	return nil
-}
+	m := amqp.Publishing{
+		Body:    body,
+		Headers: amqp.Table{},
+	}
 
-func (b *broker) reconnect(config amqp.Config) {
-	var connect bool
-
-	for {
-		if connect {
-			if err := b.tryConnect(config); err != nil {
-				time.Sleep(1 * time.Second)
-				continue
-			}
-
-			b.Lock()
-			b.connected = true
-			b.Unlock()
-
-			close(b.waitConnection)
-		}
-
-		connect = true
-		notifyClose := make(chan *amqp.Error)
-		b.conn.NotifyClose(notifyClose)
-
-		select {
-		case <-notifyClose:
-			b.Lock()
-			b.connected = false
-			b.waitConnection = make(chan struct{})
-			b.Unlock()
-		case <-b.close:
-			return
+	if opts.Headers != nil {
+		for k, v := range opts.Headers {
+			m.Headers[k] = v
 		}
 	}
+
+	if r.conn == nil {
+		return errors.New("connection is nil")
+	}
+
+	return r.conn.Publish(exchange, topic, m)
+}
+
+func (r *broker) Subscribe(queue, topic string, handler Handler, opts *SubscribeOptions) (Subscriber, error) {
+	var ackSuccess bool
+
+	if r.conn == nil {
+		return nil, errors.New("not connected")
+	}
+
+	if opts == nil {
+		opts = new(SubscribeOptions)
+	}
+
+	opt := SubscribeOptions{
+		AutoAck: opts.AutoAck,
+	}
+
+	fn := func(msg amqp.Delivery) {
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, ack{}, msg.Ack)
+		ctx = context.WithValue(ctx, reject{}, msg.Reject)
+
+		header := make(map[string]string)
+		for k, v := range msg.Headers {
+			header[k], _ = v.(string)
+		}
+
+		m := &Message{
+			Header: header,
+			Body:   msg.Body,
+		}
+
+		p := &publisher{
+			delivery: msg,
+			message:  m,
+			topic:    msg.RoutingKey,
+			err:      handler(ctx, msg.Body),
+		}
+
+		if p.err == nil && ackSuccess && !opt.AutoAck {
+			if err := msg.Ack(false); err != nil {
+				if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
+					logger.Error(err)
+				}
+			}
+		} else if p.err != nil && !opt.AutoAck {
+			if err := msg.Nack(false, opts.RequeueOnError); err != nil {
+				if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
+					logger.Error(err)
+				}
+			}
+		}
+	}
+
+	sb := &consumer{
+		queue:        queue,
+		topic:        topic,
+		opts:         opt,
+		broker:       r,
+		fn:           fn,
+		headers:      opts.Headers,
+		durableQueue: opts.DurableQueue,
+	}
+
+	go sb.resubscribe()
+
+	return sb, nil
+}
+
+func (r *broker) Channel() (*amqp.Channel, error) {
+	return r.conn.Channel()
+}
+
+func (r *broker) Connect() error {
+	if r.conn == nil {
+		r.conn = newConnection(r.exchange, r.endpoints, r.opts.PrefetchCount, r.opts.PrefetchGlobal)
+	}
+
+	conf := defaultAmqpConfig
+
+	if r.opts.TLSVerify {
+		cer, err := tls.LoadX509KeyPair(r.opts.TLSCert, r.opts.TLSKey)
+		if err != nil {
+			return err
+		}
+		conf.TLSClientConfig = &tls.Config{Certificates: []tls.Certificate{cer}}
+	}
+
+	return r.conn.Connect(r.opts.TLSVerify, &conf)
+}
+
+func (r *broker) Disconnect() error {
+	if r.conn == nil {
+		return errors.New("not connected")
+	}
+
+	err := r.conn.Close()
+
+	r.wg.Wait()
+
+	return err
 }

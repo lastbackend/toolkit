@@ -1,5 +1,5 @@
 /*
-Copyright [2014] - [2021] The Last.Backend authors.
+Copyright [2014] - [2022] The Last.Backend authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,14 +17,14 @@ limitations under the License.
 package rabbitmq
 
 import (
-	"github.com/lastbackend/toolkit"
-	"github.com/streadway/amqp"
-
 	"context"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/lastbackend/toolkit"
+	"github.com/streadway/amqp"
 )
 
 const (
@@ -42,7 +42,14 @@ const (
 type Plugin interface {
 	toolkit.Plugin
 
+	Publish(event string, data interface{}, opts *PublishOptions) error
+	Subscribe(service, event string, handler Handler, opts *SubscribeOptions) (Subscriber, error)
 	Channel() (*amqp.Channel, error)
+
+	Ack(ctx context.Context) error
+	Reject(ctx context.Context) error
+	RejectAndRequeue(ctx context.Context) error
+
 	Register(app toolkit.Service, opts *Options) error
 }
 
@@ -51,16 +58,21 @@ type Options struct {
 }
 
 type plugin struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	prefix    string
 	envPrefix string
-	opts      brokerOptions
+	service   string
 
+	opts   brokerOptions
 	broker *broker
 }
 
 func NewPlugin(app toolkit.Service, opts *Options) Plugin {
 	p := new(plugin)
 	p.envPrefix = app.Meta().GetEnvPrefix()
+	p.service = app.Meta().GetName()
 	err := p.Register(app, opts)
 	if err != nil {
 		return nil
@@ -84,49 +96,60 @@ func (p *plugin) Register(app toolkit.Service, opts *Options) error {
 	return nil
 }
 
-func (p *plugin) Start(context.Context) (err error) {
+func (p *plugin) Start(ctx context.Context) error {
+
+	p.ctx, p.cancel = context.WithCancel(ctx)
 
 	if p.opts.Endpoint == "" {
 		config := p.getAMQPConfig()
 		if config.Host == "" {
 			return fmt.Errorf("%s flag or %s environment variable required but not set",
-				p.withPrefix("endpoint"), p.generatetWithEnvPrefix(envHostName))
+				p.withPrefix("endpoint"), p.generateWithEnvPrefix(envHostName))
 		}
 		p.opts.Endpoint = config.getConnectionString()
 	}
 
-	p.broker, err = newBroker(p.opts)
-	if err != nil {
+	p.opts.DefaultExchange = &Exchange{
+		Name:    p.service,
+		Durable: true,
+	}
+
+	p.broker = newBroker(p.opts)
+
+	if err := p.broker.Connect(); err != nil {
 		return err
 	}
 
-	return p.broker.Connect()
+	return nil
 }
 
 func (p *plugin) Stop() error {
 	return p.broker.Disconnect()
 }
 
-// Call - send message with delivery guarantee
-func (p *plugin) Call() error {
-	return nil
+func (p *plugin) Ack(ctx context.Context) error {
+	return p.broker.Ack(ctx)
 }
 
-// Cast - send message without delivery guarantee
-func (p *plugin) Cast() error {
-	return nil
+func (p *plugin) Reject(ctx context.Context) error {
+	return p.broker.Reject(ctx)
 }
 
-func (p *plugin) Publish() error {
-	return nil
+func (p *plugin) RejectAndRequeue(ctx context.Context) error {
+	return p.broker.RejectAndRequeue(ctx)
 }
 
-func (p *plugin) Subscribe() error {
-	return nil
+func (p *plugin) Publish(event string, data interface{}, opts *PublishOptions) error {
+	return p.broker.Publish(p.service, event, data, opts)
+}
+
+func (p *plugin) Subscribe(service, event string, handler Handler, opts *SubscribeOptions) (Subscriber, error) {
+	queue := fmt.Sprintf("%s:events", service)
+	return p.broker.Subscribe(queue, event, handler, opts)
 }
 
 func (p *plugin) Channel() (*amqp.Channel, error) {
-	return p.broker.conn.Channel()
+	return p.broker.Channel()
 }
 
 func (p *plugin) genUsage() string {
@@ -136,8 +159,8 @@ or use environment variables:
 	%s - The port to bind to (default: 5672), 
 	%s - The username to connect with (not required, guest by default), 
 	%s - The password to connect with (not required, guest by default)`,
-		p.generatetWithEnvPrefix(envHostName), p.generatetWithEnvPrefix(envPortName),
-		p.generatetWithEnvPrefix(envUserName), p.generatetWithEnvPrefix(envPasswordName))
+		p.generateWithEnvPrefix(envHostName), p.generateWithEnvPrefix(envPortName),
+		p.generateWithEnvPrefix(envUserName), p.generateWithEnvPrefix(envPasswordName))
 }
 
 func (p *plugin) addFlags(app toolkit.Service) {
@@ -156,6 +179,15 @@ func (p *plugin) addFlags(app toolkit.Service) {
 	app.CLI().AddStringFlag(p.withPrefix("tls-key"), &p.opts.TLSKey).
 		Env(p.generateEnvName("TLS_KEY")).
 		Usage("Sets the private key file")
+
+	app.CLI().AddIntFlag(p.withPrefix("prefetch-count"), &p.opts.PrefetchCount).
+		Env(p.generateEnvName("PREFETCH_COUNT")).
+		Default(DefaultPrefetchCount).
+		Usage("Sets the prefetch count")
+
+	app.CLI().AddBoolFlag(p.withPrefix("prefetch-global"), &p.opts.PrefetchGlobal).
+		Env(p.generateEnvName("PREFETCH_GLOBAL")).
+		Usage("Sets the prefetch global")
 }
 
 type amqpConfig struct {
@@ -172,24 +204,24 @@ func (c *amqpConfig) getConnectionString() string {
 	if c.Password == "" {
 		c.Password = "guest"
 	}
-	return fmt.Sprintf("amqp://%s:%s@%s:%d", c.Username, c.Password, c.Host, c.Port)
+	return fmt.Sprintf("amqp://%s:%s@%s:%delivery", c.Username, c.Password, c.Host, c.Port)
 }
 
 func (p *plugin) getAMQPConfig() amqpConfig {
 	config := amqpConfig{Port: defaultPort}
 
-	if host, ok := os.LookupEnv(p.generatetWithEnvPrefix(envHostName)); ok {
+	if host, ok := os.LookupEnv(p.generateWithEnvPrefix(envHostName)); ok {
 		config.Host = host
 	}
-	if port, ok := os.LookupEnv(p.generatetWithEnvPrefix(envPortName)); ok {
+	if port, ok := os.LookupEnv(p.generateWithEnvPrefix(envPortName)); ok {
 		if value, err := strconv.ParseInt(port, 10, 32); err == nil {
 			config.Port = int32(value)
 		}
 	}
-	if user, ok := os.LookupEnv(p.generatetWithEnvPrefix(envUserName)); ok {
+	if user, ok := os.LookupEnv(p.generateWithEnvPrefix(envUserName)); ok {
 		config.Username = user
 	}
-	if password, ok := os.LookupEnv(p.generatetWithEnvPrefix(envPasswordName)); ok {
+	if password, ok := os.LookupEnv(p.generateWithEnvPrefix(envPasswordName)); ok {
 		config.Password = password
 	}
 
@@ -204,6 +236,6 @@ func (p *plugin) generateEnvName(name string) string {
 	return strings.ToUpper(fmt.Sprintf("%s_%s", p.prefix, strings.Replace(name, "-", "_", -1)))
 }
 
-func (p *plugin) generatetWithEnvPrefix(name string) string {
+func (p *plugin) generateWithEnvPrefix(name string) string {
 	return strings.ToUpper(fmt.Sprintf("%s_%s", p.envPrefix, p.generateEnvName(name)))
 }

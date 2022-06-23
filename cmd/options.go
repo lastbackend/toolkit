@@ -1,5 +1,5 @@
 /*
-Copyright [2014] - [2021] The Last.Backend authors.
+Copyright [2014] - [2022] The Last.Backend authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,14 +23,6 @@ import (
 	"os"
 	"strings"
 )
-
-type Options struct {
-	Name      string
-	ShortDesc string
-	LongDesc  string
-	Version   string
-	EnvPrefix string
-}
 
 func AddGlobalFlags(fs *pflag.FlagSet) {
 
