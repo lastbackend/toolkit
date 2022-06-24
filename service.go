@@ -19,6 +19,8 @@ package toolkit
 import (
 	"github.com/lastbackend/toolkit/cmd"
 	"github.com/lastbackend/toolkit/logger"
+	"github.com/lastbackend/toolkit/probe"
+	"github.com/lastbackend/toolkit/probe/types"
 	"golang.org/x/sync/errgroup"
 
 	"context"
@@ -38,6 +40,7 @@ type service struct {
 	plugins  []Plugin
 	packages []Package
 	signal   bool
+	probe    types.Probe
 }
 
 func newService(name string) Service {
@@ -45,6 +48,7 @@ func newService(name string) Service {
 	s.context = context.Background()
 	s.logger = logger.DefaultLogger
 	s.cli = cmd.New(name)
+	s.probe = probe.NewProbe()
 	s.clients = make([]Client, 0)
 	s.servers = make([]Server, 0)
 	s.plugins = make([]Plugin, 0)
@@ -58,6 +62,10 @@ func (s *service) Meta() Meta {
 
 func (s *service) CLI() CLI {
 	return s.cli
+}
+
+func (s *service) Probe() types.Probe {
+	return s.probe
 }
 
 func (s *service) PluginRegister(plug Plugin) error {
@@ -155,6 +163,8 @@ func (s *service) Run() error {
 
 func (s *service) Start() error {
 
+	s.probe.Init(s.Meta().GetEnvPrefix(), s.CLI())
+
 	err := s.cli.PreRun(func() error {
 		for _, t := range s.packages {
 			_, ok := reflect.TypeOf(t).MethodByName("PreStart")
@@ -206,7 +216,7 @@ func (s *service) Start() error {
 			}
 		}
 
-		return nil
+		return s.probe.Start(s.context)
 	})
 	if err != nil {
 		return err
@@ -235,6 +245,10 @@ func (s *service) Start() error {
 }
 
 func (s *service) Stop() error {
+	if err := s.probe.Stop(); err != nil {
+		return err
+	}
+
 	for _, t := range s.packages {
 		if err := t.Stop(); err != nil {
 			return err

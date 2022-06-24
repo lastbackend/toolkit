@@ -17,8 +17,10 @@ limitations under the License.
 package postgres_gorm
 
 import (
+	"github.com/lastbackend/toolkit/probe"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/go-pg/pg/v10"
 	"github.com/golang-migrate/migrate/v4"
@@ -81,12 +83,15 @@ type plugin struct {
 	opts options
 
 	db *gorm.DB
+
+	probe toolkit.Probe
 }
 
-func NewPlugin(app toolkit.Service, opts *Options) Plugin {
+func NewPlugin(service toolkit.Service, opts *Options) Plugin {
 	p := new(plugin)
-	p.envPrefix = app.Meta().GetEnvPrefix()
-	err := p.Register(app, opts)
+	p.envPrefix = service.Meta().GetEnvPrefix()
+	p.probe = service.Probe()
+	err := p.Register(service, opts)
 	if err != nil {
 		return nil
 	}
@@ -124,12 +129,12 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 		p.opts.Connection = config.getConnectionString()
 	}
 
-	sqlDB, err := sql.Open(driverName, p.opts.Connection)
+	conn, err := sql.Open(driverName, p.opts.Connection)
 	if err != nil {
 		return err
 	}
 	db, err := gorm.Open(psql.New(psql.Config{
-		Conn: sqlDB,
+		Conn: conn,
 	}))
 	if err != nil {
 		return err
@@ -137,13 +142,16 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 
 	if p.opts.MigrationsDir != "" {
 		fmt.Printf("\nRun migration from dir: %s", p.opts.MigrationsDir)
-		if err = p.migration(sqlDB, p.opts.MigrationsDir, p.opts.Connection); err != nil {
+		if err = p.migration(conn, p.opts.MigrationsDir, p.opts.Connection); err != nil {
 			return err
 		}
 		fmt.Printf("\nMigration completed!\n")
 	}
 
+	p.probe.AddReadinessFunc(p.prefix, probe.PostgresPingChecker(conn, 1*time.Second))
+
 	p.db = db
+
 	return nil
 }
 
@@ -201,15 +209,15 @@ func (p *plugin) addCommands(app toolkit.Service) {
 				connection = config.getConnectionString()
 			}
 
-			sqlDB, err := sql.Open(driverName, connection)
+			conn, err := sql.Open(driverName, connection)
 			if err != nil {
 				return fmt.Errorf("failed to db open: %w", err)
 			}
-			defer sqlDB.Close()
+			defer conn.Close()
 
 			fmt.Println("Start migration")
 
-			if err = p.migration(sqlDB, args[0], connection); err != nil {
+			if err = p.migration(conn, args[0], connection); err != nil {
 				return err
 			}
 

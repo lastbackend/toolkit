@@ -17,13 +17,16 @@ limitations under the License.
 package redis
 
 import (
+	"context"
 	"crypto/tls"
-	"github.com/lastbackend/toolkit"
+	"fmt"
+	"github.com/lastbackend/toolkit/probe"
+	"strings"
 	"time"
 
-	"context"
-	"fmt"
-	"strings"
+	"github.com/go-redis/cache/v8"
+	"github.com/go-redis/redis/v8"
+	"github.com/lastbackend/toolkit"
 )
 
 const (
@@ -118,11 +121,14 @@ type plugin struct {
 	opts   options
 
 	db *cache.Cache
+
+	probe toolkit.Probe
 }
 
-func NewPlugin(app toolkit.Service, opts *Options) Plugin {
+func NewPlugin(service toolkit.Service, opts *Options) Plugin {
 	p := new(plugin)
-	err := p.Register(app, opts)
+	p.probe = service.Probe()
+	err := p.Register(service, opts)
 	if err != nil {
 		return nil
 	}
@@ -150,11 +156,17 @@ func (p *plugin) DB() *cache.Cache {
 }
 
 func (p *plugin) Start(ctx context.Context) (err error) {
-	ring := redis.NewRing(p.prepareOptions(p.opts))
-	p.db = cache.New(&cache.Options{
-		Redis:      ring,
+	client := redis.NewClusterClient(p.prepareOptions(p.opts))
+
+	conn := cache.New(&cache.Options{
+		Redis:      client,
 		LocalCache: cache.NewTinyLFU(1000, time.Minute),
 	})
+
+	p.probe.AddReadinessFunc(p.prefix, probe.RedisClusterPingChecker(client, 1*time.Second))
+
+	p.db = conn
+
 	return nil
 }
 
@@ -240,21 +252,15 @@ func (p *plugin) addFlags(app toolkit.Service) {
 		Usage("Set frequency of idle checks made by idle connections reaper. (Default is 1 minute. -1)")
 }
 
-func (p *plugin) prepareOptions(opts options) *redis.RingOptions {
+func (p *plugin) prepareOptions(opts options) *redis.ClusterOptions {
 
-	addrs := map[string]string{defaultName: defaultEndpoint}
+	addrs := []string{defaultEndpoint}
 	if len(opts.Endpoints) > 0 {
-		addrs = make(map[string]string, 0)
-
 		opts.Endpoints = strings.Replace(opts.Endpoints, " ", "", -1)
-		addrsList := strings.Split(opts.Endpoints, ",")
-		var index = 1
-		for _, v := range addrsList {
-			addrs[fmt.Sprintf("%s-%d", defaultName, index)] = v
-		}
+		addrs = strings.Split(opts.Endpoints, ",")
 	}
 
-	return &redis.RingOptions{
+	return &redis.ClusterOptions{
 		Addrs:              addrs,
 		Username:           opts.Username,
 		Password:           opts.Password,

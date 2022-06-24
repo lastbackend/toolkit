@@ -18,9 +18,11 @@ package toolkit
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/lastbackend/toolkit/cmd"
 	"github.com/lastbackend/toolkit/logger"
+	probe "github.com/lastbackend/toolkit/probe/types"
 )
 
 type ServiceType uint8
@@ -33,6 +35,7 @@ type HandlerProps struct {
 type Service interface {
 	Meta() Meta
 	CLI() CLI
+	Probe() probe.Probe
 	Logger() logger.Logger
 	SetContext(ctx context.Context)
 	PluginRegister(plug Plugin) error
@@ -71,6 +74,13 @@ type Package interface {
 	Start(ctx context.Context) error
 	PostStart(ctx context.Context) error
 	Stop() error
+}
+
+type Probe interface {
+	AddLivenessFunc(name string, fn probe.ProbeFunc)
+	AddReadinessFunc(name string, fn probe.ProbeFunc)
+	LiveEndpoint(http.ResponseWriter, *http.Request)
+	ReadyEndpoint(http.ResponseWriter, *http.Request)
 }
 
 func NewService(name string) Service {
