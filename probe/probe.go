@@ -46,6 +46,7 @@ type probe struct {
 	prefix    string
 	envPrefix string
 
+	disable        bool
 	port           int32
 	livenessRoute  string
 	readinessRoute string
@@ -63,6 +64,11 @@ func NewProbe() types.Probe {
 
 func (p *probe) Init(prefix string, cli cmd.FlagSet) {
 	p.envPrefix = prefix
+
+	cli.AddBoolFlag(p.withPrefix("disable"), &p.disable).
+		Env(p.generateEnvName("DISABLE")).
+		Default(false).
+		Usage("Disable probes checker")
 
 	cli.AddInt32Flag(p.withPrefix("http-server-port"), &p.port).
 		Env(p.generateEnvName("HTTP_SERVER_PORT")).
@@ -116,6 +122,10 @@ func (p *probe) checkProbes(probes map[string]types.ProbeFunc, resultsOut map[st
 
 func (p *probe) Start(ctx context.Context) error {
 
+	if p.disable {
+		return nil
+	}
+
 	p.Handle(p.livenessRoute, http.HandlerFunc(p.LiveEndpoint))
 	p.Handle(p.readinessRoute, http.HandlerFunc(p.ReadyEndpoint))
 
@@ -130,6 +140,10 @@ func (p *probe) Start(ctx context.Context) error {
 }
 
 func (p *probe) Stop() error {
+	if p.disable {
+		return nil
+	}
+
 	return p.server.Shutdown(context.Background())
 }
 
