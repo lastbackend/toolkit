@@ -24,7 +24,9 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/cmd"
+	"github.com/lastbackend/toolkit/probe"
 	"github.com/pkg/errors"
+	"strconv"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
 	_ "github.com/lib/pq"
@@ -39,6 +41,17 @@ import (
 const (
 	defaultPrefix = "psql"
 	driverName    = "postgres"
+	defaultPort   = 5432
+)
+
+const (
+	envHostName     = "HOST"
+	envPortName     = "PORT"
+	envUserName     = "USERNAME"
+	envPasswordName = "PASSWORD"
+	envDatabaseName = "DATABASE"
+	envSslmodeName  = "SSL_MODE"
+	envTimezoneName = "TIMEZONE"
 )
 
 const (
@@ -101,19 +114,24 @@ type options struct {
 
 type plugin struct {
 	prefix     string
+	envPrefix  string
 	connection string
 	opts       options
 
 	db *sqlx.DB
+
+	probe toolkit.Probe
 }
 
-func NewPlugin(app toolkit.Service, opts *Options) Plugin {
-	db := new(plugin)
-	err := db.Register(app, opts)
+func NewPlugin(service toolkit.Service, opts *Options) Plugin {
+	p := new(plugin)
+	p.envPrefix = service.Meta().GetEnvPrefix()
+	p.probe = service.Probe()
+	err := p.Register(service, opts)
 	if err != nil {
 		return nil
 	}
-	return db
+	return p
 }
 
 // Register - registers the plugin implements storage using Postgres as a database storage
@@ -139,12 +157,13 @@ func (p *plugin) DB() *sqlx.DB {
 }
 
 func (p *plugin) Start(ctx context.Context) (err error) {
-	if len(p.opts.Connection) == 0 {
-		return errors.New(errMissingConnectionString)
-	}
-
-	if len(p.opts.Connection) == 0 {
-		return errors.New(errMissingConnectionString)
+	if p.opts.Connection == "" {
+		config := p.getDBConfig()
+		if config.Host == "" {
+			return fmt.Errorf("%s flag or %s environment variable required but not set",
+				p.withPrefix("connection"), p.generateWithEnvPrefix(envHostName))
+		}
+		p.opts.Connection = config.getConnectionString()
 	}
 
 	conn, err := sqlx.Open(driverName, p.opts.Connection)
@@ -173,6 +192,8 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 		fmt.Printf("\nMigration completed!\n")
 	}
 
+	p.probe.AddReadinessFunc(p.prefix, probe.PostgresPingChecker(conn.DB, 1*time.Second))
+
 	p.connection = p.opts.Connection
 	p.db = conn
 
@@ -183,48 +204,54 @@ func (p *plugin) Stop() error {
 	return nil
 }
 
-func (p *plugin) withPrefix(name string) string {
-	return fmt.Sprintf("%s-%s", p.prefix, name)
-}
-
-func (p *plugin) withEnvPrefix(name string) string {
-	return strings.ToUpper(fmt.Sprintf("%s_%s", p.prefix, name))
+func (p *plugin) genUsage() string {
+	return fmt.Sprintf(`PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>) 
+or use environment variables: 
+	%s - The host to connect to (required), 
+	%s - The port to bind to (default: 5432), 
+	%s - The username to connect with. Not required if using IntegratedSecurity, 
+	%s - The password to connect with. Not required if using IntegratedSecurity, 
+	%s - The database to connect to, 
+	%s - Whether or not to use SSL, 
+	%s - Sets the session timezone`,
+		p.generateWithEnvPrefix(envHostName), p.generateWithEnvPrefix(envPortName), p.generateWithEnvPrefix(envUserName),
+		p.generateWithEnvPrefix(envPasswordName), p.generateWithEnvPrefix(envDatabaseName), p.generateWithEnvPrefix(envSslmodeName),
+		p.generateWithEnvPrefix(envTimezoneName))
 }
 
 func (p *plugin) addFlags(app toolkit.Service) {
 
 	// define plugin connection
 	app.CLI().AddStringFlag(p.withPrefix("connection"), &p.opts.Connection).
-		Env(p.withEnvPrefix("CONNECTION")).
-		Usage("PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>)").
-		Required()
+		Env(p.generateEnvName("CONNECTION")).
+		Usage(p.genUsage())
 
 	// define connection max lifetime flag
 	app.CLI().AddDurationFlag(p.withPrefix("conn-max-lifetime"), p.opts.ConnMaxLifetime).
-		Env(p.withEnvPrefix("CONN_MAX_LIFETIME")).
+		Env(p.generateEnvName("CONN_MAX_LIFETIME")).
 		Usage("Sets the maximum amount of time a connection may be reused.\nIf <= 0, connections are not closed due to a connection's age").
 		Default(0)
 
 	// define connection max idle flag
 	app.CLI().AddDurationFlag(p.withPrefix("conn-max-idle-time"), p.opts.ConnMaxIdleTime).
-		Env(p.withEnvPrefix("CONN_MAX_IDLE_TIME")).
+		Env(p.generateEnvName("CONN_MAX_IDLE_TIME")).
 		Usage("Sets the maximum amount of time a connection may be idle.\nIf <= 0, connections are not closed due to a connection's idle time").
 		Default(0)
 
 	// define max idle connections flag
 	app.CLI().AddIntFlag(p.withPrefix("max-idle-conns"), p.opts.MaxIdleConns).
-		Env(p.withEnvPrefix("MAX_IDLE_CONNS")).
+		Env(p.generateEnvName("MAX_IDLE_CONNS")).
 		Usage("Sets the maximum number of connections in the idle connection pool.\nIf <= 0, no idle connections are retained.\n(The default max idle connections is currently 2)").
 		Default(0)
 
 	// define max idle connections flag
 	app.CLI().AddIntFlag(p.withPrefix("max-open-conns"), p.opts.MaxOpenConns).
-		Env(p.withEnvPrefix("MAX_OPEN_CONNS")).
+		Env(p.generateEnvName("MAX_OPEN_CONNS")).
 		Usage("Sets the maximum number of open connections to the database.\nIf <= 0, then there is no limit on the number of open connections.\n(default unlimited)").
 		Default(0)
 
 	app.CLI().AddStringFlag(p.withPrefix("migration-dir"), &p.opts.MigrationsDir).
-		Env(p.withEnvPrefix("MIGRATION_DIR")).
+		Env(p.generateEnvName("MIGRATION_DIR")).
 		Usage("PostgreSQL migration dir path")
 }
 
@@ -240,18 +267,32 @@ func (p *plugin) addCommands(app toolkit.Service) {
 
 			connection, err := cmd.Flags().GetString(p.withPrefix("connection"))
 			if err != nil {
-				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct", p.withPrefix("connection"))
+				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct",
+					p.withPrefix("connection"))
 			}
 
-			c, err := sqlx.Open(driverName, connection)
+			if connection == "" {
+				config := p.getDBConfig()
+				if config.Host == "" {
+					return fmt.Errorf("%s flag or %s environment variable required but not set",
+						p.withPrefix("connection"), p.generateWithEnvPrefix(envHostName))
+				}
+				connection = config.getConnectionString()
+			}
+
+			conn, err := sqlx.Open(driverName, connection)
 			if err != nil {
 				return fmt.Errorf("failed to db open: %w", err)
 			}
-			defer c.Close()
+			defer conn.Close()
 
-			if err = p.migration(c.DB, args[0], connection); err != nil {
+			fmt.Println("Start migration")
+
+			if err = p.migration(conn.DB, args[0], connection); err != nil {
 				return err
 			}
+
+			fmt.Println("Migration is completed successfully!")
 
 			os.Exit(0)
 
@@ -260,9 +301,8 @@ func (p *plugin) addCommands(app toolkit.Service) {
 	}
 
 	migrateCmd.AddStringFlag(p.withPrefix("connection"), nil).
-		Env(p.withEnvPrefix("CONNECTION")).
-		Usage("PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>)").
-		Required()
+		Env(p.generateEnvName("CONNECTION")).
+		Usage(p.genUsage())
 
 	app.CLI().AddCommand(migrateCmd)
 }
@@ -302,4 +342,75 @@ func (p *plugin) migration(db *sql.DB, migrateDir, connectionString string) erro
 	}
 
 	return nil
+}
+
+type dbConfig struct {
+	Host     string
+	Port     int32
+	Database string
+	Username string
+	Password string
+	SSLMode  string
+	TimeZone string
+}
+
+func (c *dbConfig) getConnectionString() string {
+	var connection = fmt.Sprintf("postgres://%s:%s@%s:%d/%s",
+		c.Username, c.Password, c.Host, c.Port, c.Database)
+
+	var qs = make([]string, 0)
+
+	if c.TimeZone != "" {
+		qs = append(qs, fmt.Sprintf("TimeZone=%s", c.TimeZone))
+	}
+	if c.SSLMode != "" {
+		qs = append(qs, fmt.Sprintf("sslmode=%s", c.SSLMode))
+	}
+	if len(qs) > 0 {
+		connection += "?" + strings.Join(qs, "&")
+	}
+
+	return connection
+}
+
+func (p *plugin) getDBConfig() dbConfig {
+	config := dbConfig{Port: defaultPort}
+
+	if host, ok := os.LookupEnv(p.generateWithEnvPrefix(envHostName)); ok {
+		config.Host = host
+	}
+	if port, ok := os.LookupEnv(p.generateWithEnvPrefix(envPortName)); ok {
+		if value, err := strconv.ParseInt(port, 10, 32); err == nil {
+			config.Port = int32(value)
+		}
+	}
+	if user, ok := os.LookupEnv(p.generateWithEnvPrefix(envUserName)); ok {
+		config.Username = user
+	}
+	if password, ok := os.LookupEnv(p.generateWithEnvPrefix(envPasswordName)); ok {
+		config.Password = password
+	}
+	if name, ok := os.LookupEnv(p.generateWithEnvPrefix(envDatabaseName)); ok {
+		config.Database = name
+	}
+	if sslMode, ok := os.LookupEnv(p.generateWithEnvPrefix(envSslmodeName)); ok {
+		config.SSLMode = sslMode
+	}
+	if timeZone, ok := os.LookupEnv(p.generateWithEnvPrefix(envTimezoneName)); ok {
+		config.TimeZone = timeZone
+	}
+
+	return config
+}
+
+func (p *plugin) withPrefix(name string) string {
+	return fmt.Sprintf("%s-%s", p.prefix, name)
+}
+
+func (p *plugin) generateEnvName(name string) string {
+	return strings.ToUpper(fmt.Sprintf("%s_%s", p.prefix, strings.Replace(name, "-", "_", -1)))
+}
+
+func (p *plugin) generateWithEnvPrefix(name string) string {
+	return strings.ToUpper(fmt.Sprintf("%s_%s", p.envPrefix, p.generateEnvName(name)))
 }

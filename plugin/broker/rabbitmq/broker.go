@@ -187,6 +187,10 @@ func (r *broker) Subscribe(queue, topic string, handler Handler, opts *Subscribe
 	return sb, nil
 }
 
+func (r *broker) Connected() error {
+	return r.conn.Connected()
+}
+
 func (r *broker) Channel() (*amqp.Channel, error) {
 	return r.conn.Channel()
 }

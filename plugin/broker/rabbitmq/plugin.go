@@ -19,12 +19,11 @@ package rabbitmq
 import (
 	"context"
 	"fmt"
+	"github.com/lastbackend/toolkit"
+	"github.com/streadway/amqp"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/lastbackend/toolkit"
-	"github.com/streadway/amqp"
 )
 
 const (
@@ -67,13 +66,15 @@ type plugin struct {
 
 	opts   brokerOptions
 	broker *broker
+	probe  toolkit.Probe
 }
 
-func NewPlugin(app toolkit.Service, opts *Options) Plugin {
+func NewPlugin(service toolkit.Service, opts *Options) Plugin {
 	p := new(plugin)
-	p.envPrefix = app.Meta().GetEnvPrefix()
-	p.service = app.Meta().GetName()
-	err := p.Register(app, opts)
+	p.envPrefix = service.Meta().GetEnvPrefix()
+	p.service = service.Meta().GetName()
+	p.probe = service.Probe()
+	err := p.Register(service, opts)
 	if err != nil {
 		return nil
 	}
@@ -119,6 +120,10 @@ func (p *plugin) Start(ctx context.Context) error {
 	if err := p.broker.Connect(); err != nil {
 		return err
 	}
+
+	p.probe.AddReadinessFunc(p.prefix, func() error {
+		return p.broker.Connected()
+	})
 
 	return nil
 }

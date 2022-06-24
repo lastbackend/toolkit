@@ -58,6 +58,7 @@ type amqpConn struct {
 	prefetchCount   int
 	prefetchGlobal  bool
 
+	err       error
 	connected bool
 	close     chan bool
 
@@ -98,6 +99,7 @@ func (a *amqpConn) connect(secure bool, config *amqp.Config) error {
 
 	a.Lock()
 	a.connected = true
+	a.err = nil
 	a.Unlock()
 
 	go a.reconnect(secure, config)
@@ -118,6 +120,7 @@ func (a *amqpConn) reconnect(secure bool, config *amqp.Config) {
 
 			a.Lock()
 			a.connected = true
+			a.err = nil
 			a.Unlock()
 
 			close(a.waitConnection)
@@ -139,6 +142,7 @@ func (a *amqpConn) reconnect(secure bool, config *amqp.Config) {
 
 				a.Lock()
 				a.connected = false
+				a.err = err
 				a.waitConnection = make(chan struct{})
 				a.Unlock()
 
@@ -150,6 +154,7 @@ func (a *amqpConn) reconnect(secure bool, config *amqp.Config) {
 
 				a.Lock()
 				a.connected = false
+				a.err = err
 				a.waitConnection = make(chan struct{})
 				a.Unlock()
 
@@ -180,6 +185,10 @@ func (a *amqpConn) Connect(secure bool, config *amqp.Config) error {
 	return a.connect(secure, config)
 }
 
+func (a *amqpConn) Connected() error {
+	return a.err
+}
+
 func (a *amqpConn) Close() error {
 	a.Lock()
 	defer a.Unlock()
@@ -190,6 +199,7 @@ func (a *amqpConn) Close() error {
 	default:
 		close(a.close)
 		a.connected = false
+		a.err = errors.New("connection closed")
 	}
 
 	return a.conn.Close()
