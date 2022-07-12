@@ -141,6 +141,15 @@ func (c *cli) PreRun(fn Func) error {
 		isDebug = len(val) > 0
 	}
 
+	if sentryDNS, ok := getEnv("SENTRY"); ok {
+		opts := logger.DefaultLogger.Options()
+		opts.SentryDNS = sentryDNS
+		opts.Tags = map[string]string{
+			"service": c.meta.GetName(),
+		}
+		logger.DefaultLogger.Init(opts)
+	}
+
 	resolverType := resolver.LocalResolver
 	if val, ok := getEnv("RESOLVER"); ok {
 		resolverType = resolver.ResolveType(val)
@@ -210,9 +219,9 @@ func (c *cli) Run(fn Func) error {
 		}
 
 		if debugFlag {
-			logger.DefaultLogger.Init(logger.Options{
-				Level: logger.DebugLevel,
-			})
+			opts := logger.DefaultLogger.Options()
+			opts.Level = logger.DebugLevel
+			logger.DefaultLogger.Init(opts)
 			printFlags(cmd.Flags())
 		}
 

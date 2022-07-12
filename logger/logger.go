@@ -33,6 +33,8 @@ type Options struct {
 	CallerSkipCount int
 	Fields          Fields
 	Out             io.Writer
+	Tags            map[string]string
+	SentryDNS       string
 }
 
 type Logger interface {

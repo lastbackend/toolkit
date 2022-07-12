@@ -17,6 +17,7 @@ limitations under the License.
 package logger
 
 import (
+	sentry_core "github.com/lastbackend/toolkit/logger/sentry"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -57,13 +58,13 @@ func newZapLogger(opts Options) *zapLogger {
 			JSONFormat:      false,
 		},
 	}
-	l.Init(opts)
+	l.init(opts)
 	return l
 }
 
 func (l *zapLogger) Init(opts Options) Logger {
 	l.opts.JSONFormat = opts.JSONFormat
-
+	l.opts.SentryDNS = opts.SentryDNS
 	if opts.Level != InfoLevel {
 		l.opts.Level = opts.Level
 	}
@@ -148,6 +149,7 @@ func (l *zapLogger) init(opts Options) Logger {
 	writer := zapcore.Lock(zapcore.NewMultiWriteSyncer(zapcore.AddSync(l.opts.Out)))
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	core := zapcore.NewCore(zapcore.NewConsoleEncoder(encoderConfig), writer, level)
+
 	if opts.JSONFormat {
 		core = zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), writer, level)
 	}
@@ -156,7 +158,26 @@ func (l *zapLogger) init(opts Options) Logger {
 	zapOptions = append(zapOptions, zap.AddCallerSkip(l.opts.CallerSkipCount))
 	zapOptions = append(zapOptions, zap.AddCaller())
 
-	l.logger = zap.New(zapcore.NewTee(zapCores...), zapOptions...).Sugar()
+	log := zap.New(zapcore.NewTee(zapCores...), zapOptions...)
+
+	// Enable sentry
+	if l.opts.SentryDNS != "" {
+		cfg := sentry_core.Configuration{
+			Level:             zapcore.ErrorLevel,
+			EnableBreadcrumbs: true,
+		}
+		if opts.Tags != nil {
+			cfg.Tags = opts.Tags
+		}
+		sentryCore, err := sentry_core.NewCore(cfg, sentry_core.NewSentryClientFromDSN(l.opts.SentryDNS))
+		if err != nil {
+			panic(err)
+		}
+		log = sentry_core.AttachCoreToLogger(sentryCore, log)
+		log = log.With(sentry_core.NewScope())
+	}
+
+	l.logger = log.Sugar()
 
 	return l
 }
