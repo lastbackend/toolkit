@@ -27,6 +27,7 @@ import (
 type consumer struct {
 	done         bool
 	mtx          sync.Mutex
+	exchange     string
 	queue        string
 	topic        string
 	durableQueue bool
@@ -81,6 +82,7 @@ func (c *consumer) resubscribe() {
 		}
 
 		ch, sub, err := c.broker.conn.Consume(
+			c.exchange,
 			c.queue,
 			c.topic,
 			c.headers,

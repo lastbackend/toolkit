@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/lastbackend/toolkit/logger"
@@ -68,11 +69,11 @@ func newBroker(opts brokerOptions) *broker {
 }
 
 func (r *broker) Ack(ctx context.Context) error {
-	fn, ok := ctx.Value(ack{}).(func() error)
+	fn, ok := ctx.Value(ack{}).(func(bool) error)
 	if !ok {
 		return errors.New("no acknowledged")
 	}
-	return fn()
+	return fn(false)
 }
 
 func (r *broker) Reject(ctx context.Context) error {
@@ -120,7 +121,7 @@ func (r *broker) Publish(exchange, topic string, data interface{}, opts *Publish
 	return r.conn.Publish(exchange, topic, m)
 }
 
-func (r *broker) Subscribe(queue, topic string, handler Handler, opts *SubscribeOptions) (Subscriber, error) {
+func (r *broker) Subscribe(exchange, queue, topic string, handler Handler, opts *SubscribeOptions) (Subscriber, error) {
 	var ackSuccess bool
 
 	if r.conn == nil {
@@ -159,6 +160,7 @@ func (r *broker) Subscribe(queue, topic string, handler Handler, opts *Subscribe
 
 		if p.err == nil && ackSuccess && !opt.AutoAck {
 			if err := msg.Ack(false); err != nil {
+				fmt.Println(err)
 				if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
 					logger.Error(err)
 				}
@@ -173,6 +175,7 @@ func (r *broker) Subscribe(queue, topic string, handler Handler, opts *Subscribe
 	}
 
 	sb := &consumer{
+		exchange:     exchange,
 		queue:        queue,
 		topic:        topic,
 		opts:         opt,
