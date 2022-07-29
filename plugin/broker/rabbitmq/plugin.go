@@ -150,7 +150,7 @@ func (p *plugin) Publish(event string, data interface{}, opts *PublishOptions) e
 
 func (p *plugin) Subscribe(service, event string, handler Handler, opts *SubscribeOptions) (Subscriber, error) {
 	queue := fmt.Sprintf("%s:events", service)
-	return p.broker.Subscribe(queue, event, handler, opts)
+	return p.broker.Subscribe(service, queue, event, handler, opts)
 }
 
 func (p *plugin) Channel() (*amqp.Channel, error) {

@@ -258,7 +258,7 @@ func (a *amqpConn) tryConnect(secure bool, config *amqp.Config) error {
 	return err
 }
 
-func (a *amqpConn) Consume(queue, key string, headers amqp.Table, qArgs amqp.Table, autoAck, durableQueue bool) (*amqpChannel, <-chan amqp.Delivery, error) {
+func (a *amqpConn) Consume(exchange, queue, key string, headers amqp.Table, qArgs amqp.Table, autoAck, durableQueue bool) (*amqpChannel, <-chan amqp.Delivery, error) {
 	ch, err := newRabbitChannel(a.conn, a.prefetchCount, a.prefetchGlobal)
 	if err != nil {
 		return nil, nil, err
@@ -278,7 +278,7 @@ func (a *amqpConn) Consume(queue, key string, headers amqp.Table, qArgs amqp.Tab
 		return nil, nil, err
 	}
 
-	err = ch.BindQueue(queue, key, a.exchange.Name, headers)
+	err = ch.BindQueue(queue, key, exchange, headers)
 	if err != nil {
 		return nil, nil, err
 	}
