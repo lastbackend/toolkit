@@ -195,14 +195,16 @@ func (s *service) Start() error {
 		group, _ := errgroup.WithContext(s.context)
 
 		for _, t := range s.packages {
+			var _t = t
 			group.Go(func() error {
-				return t.Start(s.context)
+				return _t.Start(s.context)
 			})
 		}
 
 		for _, t := range s.servers {
+			var _t = t
 			group.Go(func() error {
-				return t.Start()
+				return _t.Start()
 			})
 		}
 
