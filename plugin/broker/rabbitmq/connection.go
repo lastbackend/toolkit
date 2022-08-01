@@ -245,9 +245,9 @@ func (a *amqpConn) tryConnect(secure bool, config *amqp.Config) error {
 	}
 
 	if a.exchange.Durable {
-		err = a.channel.DeclareDurableExchange(a.exchange.Name)
+		err = a.channel.DeclareDurableExchange(a.exchange.Name, "fanout")
 	} else {
-		err = a.channel.DeclareExchange(a.exchange.Name)
+		err = a.channel.DeclareExchange(a.exchange.Name, "fanout")
 	}
 	if err != nil {
 		return err

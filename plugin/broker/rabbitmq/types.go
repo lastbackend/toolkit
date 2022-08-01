@@ -18,7 +18,7 @@ package rabbitmq
 
 import "context"
 
-type Handler func(context.Context, []byte) error
+type SubscriberHandler func(ctx context.Context, event string, payload []byte)
 
 type Event interface {
 	Message() *Message
@@ -37,13 +37,11 @@ type PublishOptions struct {
 }
 
 type SubscribeOptions struct {
-	AutoAck        bool
 	DurableQueue   bool
 	RequeueOnError bool
 	Headers        map[string]interface{}
 }
 
 type Subscriber interface {
-	Name() string
 	Unsubscribe() error
 }

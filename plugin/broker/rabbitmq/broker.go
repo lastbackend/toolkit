@@ -20,10 +20,8 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"sync"
 
-	"github.com/lastbackend/toolkit/logger"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
@@ -52,6 +50,11 @@ type broker struct {
 	exchange       Exchange
 
 	wg sync.WaitGroup
+}
+
+type message struct {
+	Event   string `json:"event"`
+	Payload string `json:"payload"`
 }
 
 func newBroker(opts brokerOptions) *broker {
@@ -92,9 +95,14 @@ func (r *broker) RejectAndRequeue(ctx context.Context) error {
 	return fn(true)
 }
 
-func (r *broker) Publish(exchange, topic string, data interface{}, opts *PublishOptions) error {
+func (r *broker) Publish(exchange, event string, payload []byte, opts *PublishOptions) error {
 
-	body, err := json.Marshal(data)
+	e := message{
+		Event:   event,
+		Payload: string(payload),
+	}
+
+	body, err := json.Marshal(e)
 	if err != nil {
 		return err
 	}
@@ -118,11 +126,10 @@ func (r *broker) Publish(exchange, topic string, data interface{}, opts *Publish
 		return errors.New("connection is nil")
 	}
 
-	return r.conn.Publish(exchange, topic, m)
+	return r.conn.Publish(exchange, "*", m)
 }
 
-func (r *broker) Subscribe(exchange, queue, topic string, handler Handler, opts *SubscribeOptions) (Subscriber, error) {
-	var ackSuccess bool
+func (r *broker) Subscribe(exchange, queue string, handler SubscriberHandler, opts *SubscribeOptions) (Subscriber, error) {
 
 	if r.conn == nil {
 		return nil, errors.New("not connected")
@@ -132,53 +139,26 @@ func (r *broker) Subscribe(exchange, queue, topic string, handler Handler, opts 
 		opts = new(SubscribeOptions)
 	}
 
-	opt := SubscribeOptions{
-		AutoAck: opts.AutoAck,
-	}
-
 	fn := func(msg amqp.Delivery) {
 		ctx := context.Background()
-		ctx = context.WithValue(ctx, ack{}, msg.Ack)
-		ctx = context.WithValue(ctx, reject{}, msg.Reject)
 
-		header := make(map[string]string)
+		e := message{}
+		json.Unmarshal(msg.Body, &e)
+
+		headers := make(map[string]string)
 		for k, v := range msg.Headers {
-			header[k], _ = v.(string)
+			headers[k], _ = v.(string)
 		}
 
-		m := &Message{
-			Header: header,
-			Body:   msg.Body,
-		}
-
-		p := &publisher{
-			delivery: msg,
-			message:  m,
-			topic:    msg.RoutingKey,
-			err:      handler(ctx, msg.Body),
-		}
-
-		if p.err == nil && ackSuccess && !opt.AutoAck {
-			if err := msg.Ack(false); err != nil {
-				fmt.Println(err)
-				if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-					logger.Error(err)
-				}
-			}
-		} else if p.err != nil && !opt.AutoAck {
-			if err := msg.Nack(false, opts.RequeueOnError); err != nil {
-				if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-					logger.Error(err)
-				}
-			}
-		}
+		ctx = context.WithValue(ctx, "headers", headers)
+		handler(ctx, e.Event, []byte(e.Payload))
 	}
 
 	sb := &consumer{
 		exchange:     exchange,
 		queue:        queue,
-		topic:        topic,
-		opts:         opt,
+		key:          "*",
+		autoAck:      true,
 		broker:       r,
 		fn:           fn,
 		headers:      opts.Headers,

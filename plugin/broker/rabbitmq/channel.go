@@ -70,10 +70,10 @@ func (a *amqpChannel) Publish(exchange, key string, message amqp.Publishing) err
 	return a.channel.Publish(exchange, key, false, false, message)
 }
 
-func (a *amqpChannel) DeclareExchange(exchange string) error {
+func (a *amqpChannel) DeclareExchange(exchange, kind string) error {
 	return a.channel.ExchangeDeclare(
 		exchange, // name
-		"topic",  // kind
+		kind,     // kind
 		false,    // durable
 		false,    // autoDelete
 		false,    // internal
@@ -82,10 +82,10 @@ func (a *amqpChannel) DeclareExchange(exchange string) error {
 	)
 }
 
-func (a *amqpChannel) DeclareDurableExchange(exchange string) error {
+func (a *amqpChannel) DeclareDurableExchange(exchange, kind string) error {
 	return a.channel.ExchangeDeclare(
 		exchange, // name
-		"topic",  // kind
+		kind,     // kind
 		true,     // durable
 		false,    // autoDelete
 		false,    // internal
