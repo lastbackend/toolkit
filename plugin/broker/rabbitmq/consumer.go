@@ -29,18 +29,14 @@ type consumer struct {
 	mtx          sync.Mutex
 	exchange     string
 	queue        string
-	topic        string
+	key          string
 	durableQueue bool
+	autoAck      bool
 	broker       *broker
 	ch           *amqpChannel
-	opts         SubscribeOptions
 	fn           func(msg amqp.Delivery)
 	headers      map[string]interface{}
 	queueArgs    map[string]interface{}
-}
-
-func (c *consumer) Name() string {
-	return c.topic
 }
 
 func (c *consumer) Unsubscribe() error {
@@ -84,10 +80,10 @@ func (c *consumer) resubscribe() {
 		ch, sub, err := c.broker.conn.Consume(
 			c.exchange,
 			c.queue,
-			c.topic,
+			c.key,
 			c.headers,
 			c.queueArgs,
-			c.opts.AutoAck,
+			c.autoAck,
 			c.durableQueue,
 		)
 

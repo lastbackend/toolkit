@@ -17,10 +17,12 @@ limitations under the License.
 package rabbitmq
 
 import (
-	"context"
-	"fmt"
 	"github.com/lastbackend/toolkit"
 	"github.com/streadway/amqp"
+	"sync"
+
+	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -41,13 +43,9 @@ const (
 type Plugin interface {
 	toolkit.Plugin
 
-	Publish(event string, data interface{}, opts *PublishOptions) error
+	Publish(event string, payload []byte, opts *PublishOptions) error
 	Subscribe(service, event string, handler Handler, opts *SubscribeOptions) (Subscriber, error)
 	Channel() (*amqp.Channel, error)
-
-	Ack(ctx context.Context) error
-	Reject(ctx context.Context) error
-	RejectAndRequeue(ctx context.Context) error
 
 	Register(app toolkit.Service, opts *Options) error
 }
@@ -57,6 +55,8 @@ type Options struct {
 }
 
 type plugin struct {
+	sync.RWMutex
+
 	ctx    context.Context
 	cancel context.CancelFunc
 
@@ -67,6 +67,8 @@ type plugin struct {
 	opts   brokerOptions
 	broker *broker
 	probe  toolkit.Probe
+
+	subscribers map[string]bool
 }
 
 func NewPlugin(service toolkit.Service, opts *Options) Plugin {
@@ -74,6 +76,7 @@ func NewPlugin(service toolkit.Service, opts *Options) Plugin {
 	p.envPrefix = service.Meta().GetEnvPrefix()
 	p.service = service.Meta().GetName()
 	p.probe = service.Probe()
+	p.subscribers = make(map[string]bool, 0)
 	err := p.Register(service, opts)
 	if err != nil {
 		return nil
@@ -132,25 +135,40 @@ func (p *plugin) Stop() error {
 	return p.broker.Disconnect()
 }
 
-func (p *plugin) Ack(ctx context.Context) error {
-	return p.broker.Ack(ctx)
+func (p *plugin) Publish(event string, payload []byte, opts *PublishOptions) error {
+	return p.broker.Publish(p.service, event, payload, opts)
 }
 
-func (p *plugin) Reject(ctx context.Context) error {
-	return p.broker.Reject(ctx)
-}
-
-func (p *plugin) RejectAndRequeue(ctx context.Context) error {
-	return p.broker.RejectAndRequeue(ctx)
-}
-
-func (p *plugin) Publish(event string, data interface{}, opts *PublishOptions) error {
-	return p.broker.Publish(p.service, event, data, opts)
-}
+type Handler func(ctx context.Context, payload []byte)
 
 func (p *plugin) Subscribe(service, event string, handler Handler, opts *SubscribeOptions) (Subscriber, error) {
-	queue := fmt.Sprintf("%s:events", service)
-	return p.broker.Subscribe(service, queue, event, handler, opts)
+	queue := fmt.Sprintf("%s:events", p.service)
+	key := fmt.Sprintf("%s:%s", queue, event)
+
+	p.RLock()
+	_, exists := p.subscribers[key]
+	p.RUnlock()
+
+	if exists {
+		return nil, fmt.Errorf("handler already set for event: %s", event)
+	}
+
+	p.RLock()
+	p.subscribers[key] = true
+	p.RUnlock()
+
+	fn := func(ctx context.Context, name string, data []byte) {
+		if event != name {
+			return
+		}
+		handler(ctx, data)
+	}
+
+	if opts == nil {
+		opts = new(SubscribeOptions)
+	}
+
+	return p.broker.Subscribe(service, queue, fn, opts)
 }
 
 func (p *plugin) Channel() (*amqp.Channel, error) {
