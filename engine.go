@@ -37,14 +37,16 @@ type Service interface {
 	CLI() CLI
 	Probe() probe.Probe
 	Logger() logger.Logger
-	SetContext(ctx context.Context)
 	PluginRegister(plug Plugin) error
 	ServerRegister(srv Server) error
 	ClientRegister(cli Client) error
-	PackageRegister(ctrl Package) error
-	Run() error
-	Start() error
-	Stop() error
+	PreRunHookFunc(fn HookFunc) error
+	PostRunHookFunc(fn HookFunc) error
+	PreStopHookFunc(fn HookFunc) error
+	PostStopHookFunc(fn HookFunc) error
+	Run(ctx context.Context) error
+	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
 }
 
 type Meta cmd.MetaInfo
@@ -55,12 +57,12 @@ type CLI interface {
 }
 
 type Server interface {
-	Start() error
+	Start(ctx context.Context) error
 	Stop() error
 }
 
 type Client interface {
-	Start() error
+	Start(ctx context.Context) error
 	Stop() error
 }
 

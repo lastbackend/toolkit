@@ -31,28 +31,34 @@ import (
 	"syscall"
 )
 
+type HookFunc func(ctx context.Context) error
+
 type service struct {
-	context  context.Context
-	cli      cmd.CLI
-	logger   logger.Logger
-	clients  []Client
-	servers  []Server
-	plugins  []Plugin
-	packages []Package
-	signal   bool
-	probe    types.Probe
+	cli           cmd.CLI
+	logger        logger.Logger
+	clients       []Client
+	servers       []Server
+	plugins       []Plugin
+	preRunFuncs   []HookFunc
+	postRunFuncs  []HookFunc
+	preStopFuncs  []HookFunc
+	postStopFuncs []HookFunc
+	signal        bool
+	probe         types.Probe
 }
 
 func newService(name string) Service {
 	s := new(service)
-	s.context = context.Background()
 	s.logger = logger.DefaultLogger
 	s.cli = cmd.New(name)
 	s.probe = probe.NewProbe()
 	s.clients = make([]Client, 0)
 	s.servers = make([]Server, 0)
 	s.plugins = make([]Plugin, 0)
-	s.packages = make([]Package, 0)
+	s.preRunFuncs = make([]HookFunc, 0)
+	s.postRunFuncs = make([]HookFunc, 0)
+	s.preStopFuncs = make([]HookFunc, 0)
+	s.postStopFuncs = make([]HookFunc, 0)
 	return s
 }
 
@@ -116,33 +122,45 @@ func (s *service) ServerRegister(srv Server) error {
 	return nil
 }
 
-func (s *service) PackageRegister(ctrl Package) error {
-	valueIface := reflect.ValueOf(ctrl)
-
-	// Check if the passed interface is a pointer
-	if valueIface.Type().Kind() != reflect.Ptr {
-		return fmt.Errorf("the package must be a pointer")
-	}
-	if valueIface.IsNil() {
-		return fmt.Errorf("the package must not be nil")
-	}
-
-	s.packages = append(s.packages, ctrl)
-
-	return nil
-}
-
 func (s *service) Logger() logger.Logger {
 	return s.logger
 }
 
-func (s *service) SetContext(ctx context.Context) {
-	s.context = ctx
+func (s *service) PreRunHookFunc(fn HookFunc) error {
+	if fn == nil {
+		return fmt.Errorf("the hook function must not be nil")
+	}
+	s.preRunFuncs = append(s.preRunFuncs, fn)
+	return nil
 }
 
-func (s *service) Run() error {
+func (s *service) PostRunHookFunc(fn HookFunc) error {
+	if fn == nil {
+		return fmt.Errorf("the hook function must not be nil")
+	}
+	s.postRunFuncs = append(s.postRunFuncs, fn)
+	return nil
+}
 
-	if err := s.Start(); err != nil {
+func (s *service) PreStopHookFunc(fn HookFunc) error {
+	if fn == nil {
+		return fmt.Errorf("the hook function must not be nil")
+	}
+	s.preStopFuncs = append(s.preStopFuncs, fn)
+	return nil
+}
+
+func (s *service) PostStopHookFunc(fn HookFunc) error {
+	if fn == nil {
+		return fmt.Errorf("the hook function must not be nil")
+	}
+	s.postStopFuncs = append(s.postStopFuncs, fn)
+	return nil
+}
+
+func (s *service) Run(ctx context.Context) error {
+
+	if err := s.Start(ctx); err != nil {
 		return err
 	}
 
@@ -155,30 +173,26 @@ func (s *service) Run() error {
 	// wait on kill signal
 	case <-ch:
 	// wait on context cancel
-	case <-s.context.Done():
+	case <-ctx.Done():
 	}
 
-	return s.Stop()
+	return s.Stop(ctx)
 }
 
-func (s *service) Start() error {
+func (s *service) Start(ctx context.Context) error {
 
 	s.probe.Init(s.Meta().GetEnvPrefix(), s.CLI())
 
 	err := s.cli.PreRun(func() error {
-		for _, t := range s.packages {
-			_, ok := reflect.TypeOf(t).MethodByName("PreStart")
-			if ok {
-				args := []reflect.Value{reflect.ValueOf(s.context)}
-				res := reflect.ValueOf(t).MethodByName("PreStart").Call(args)
-				if len(res) == 1 {
-					if v := res[0].Interface(); v != nil {
-						return v.(error)
-					}
-				}
-			}
+		group, _ := errgroup.WithContext(ctx)
+
+		for _, fn := range s.preRunFuncs {
+			var _fn = fn
+			group.Go(func() error {
+				return _fn(ctx)
+			})
 		}
-		return nil
+		return group.Wait()
 	})
 	if err != nil {
 		return err
@@ -187,24 +201,17 @@ func (s *service) Start() error {
 	err = s.cli.Run(func() error {
 
 		for _, t := range s.plugins {
-			if err := t.Start(s.context); err != nil {
+			if err := t.Start(ctx); err != nil {
 				return err
 			}
 		}
 
-		group, _ := errgroup.WithContext(s.context)
-
-		for _, t := range s.packages {
-			var _t = t
-			group.Go(func() error {
-				return _t.Start(s.context)
-			})
-		}
+		group, _ := errgroup.WithContext(ctx)
 
 		for _, t := range s.servers {
 			var _t = t
 			group.Go(func() error {
-				return _t.Start()
+				return _t.Start(ctx)
 			})
 		}
 
@@ -213,31 +220,28 @@ func (s *service) Start() error {
 		}
 
 		for _, t := range s.clients {
-			if err := t.Start(); err != nil {
+			if err := t.Start(ctx); err != nil {
 				return err
 			}
 		}
 
-		return s.probe.Start(s.context)
+		return s.probe.Start(ctx)
 	})
 	if err != nil {
 		return err
 	}
 
 	err = s.cli.PostRun(func() error {
-		for _, t := range s.packages {
-			_, ok := reflect.TypeOf(t).MethodByName("PostStart")
-			if ok {
-				args := []reflect.Value{reflect.ValueOf(s.context)}
-				res := reflect.ValueOf(t).MethodByName("PostStart").Call(args)
-				if len(res) == 1 {
-					if v := res[0].Interface(); v != nil {
-						return v.(error)
-					}
-				}
-			}
+		group, _ := errgroup.WithContext(ctx)
+
+		for _, fn := range s.postRunFuncs {
+			var _fn = fn
+			group.Go(func() error {
+				return _fn(ctx)
+			})
 		}
-		return nil
+
+		return group.Wait()
 	})
 	if err != nil {
 		return err
@@ -246,13 +250,13 @@ func (s *service) Start() error {
 	return s.cli.Execute()
 }
 
-func (s *service) Stop() error {
+func (s *service) Stop(ctx context.Context) error {
 	if err := s.probe.Stop(); err != nil {
 		return err
 	}
 
-	for _, t := range s.packages {
-		if err := t.Stop(); err != nil {
+	for _, t := range s.preStopFuncs {
+		if err := t(ctx); err != nil {
 			return err
 		}
 	}
@@ -263,6 +267,11 @@ func (s *service) Stop() error {
 	}
 	for _, t := range s.plugins {
 		if err := t.Stop(); err != nil {
+			return err
+		}
+	}
+	for _, t := range s.postStopFuncs {
+		if err := t(ctx); err != nil {
 			return err
 		}
 	}

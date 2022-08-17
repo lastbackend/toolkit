@@ -235,7 +235,6 @@ func (c *cli) PostRun(fn Func) error {
 	c.rootCmd.PostRunE = func(cmd *cobra.Command, args []string) error {
 		return fn()
 	}
-
 	return nil
 }
 
