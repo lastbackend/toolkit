@@ -78,7 +78,7 @@ func (s *rpcClient) Client() *GRPCClient {
 	return s.client
 }
 
-func (s *rpcClient) Start() error {
+func (s *rpcClient) Start(_ context.Context) error {
 	return s.client.Init(s.opts)
 }
 

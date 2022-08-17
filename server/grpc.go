@@ -17,6 +17,7 @@ limitations under the License.
 package server
 
 import (
+	"context"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/logger"
@@ -68,7 +69,7 @@ func (g *grpcServer) Register(sd *grpc.ServiceDesc, ss interface{}) error {
 	return nil
 }
 
-func (g *grpcServer) Start() error {
+func (g *grpcServer) Start(_ context.Context) error {
 
 	if g.opts.IsDisable {
 		return nil

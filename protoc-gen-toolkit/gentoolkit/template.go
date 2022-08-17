@@ -205,6 +205,7 @@ type Service interface {
 	{{ end }}
 
 	AddPackage(pkg interface{})
+	Invoke(fn interface{})
 }
 
 type RPC struct {
@@ -221,6 +222,7 @@ func NewService(name string) Service {
 		srv:     make([]interface{}, 0),
 		{{- end }}
 		pkg:     make([]interface{}, 0),
+		inv:     make([]interface{}, 0),
 		rpc:     new(RPC),
 	}
 }
@@ -232,6 +234,7 @@ type service struct {
 	srv  []interface{}
 	{{- end }}
 	pkg  []interface{}
+	inv  []interface{}
 	cfg  interface{}
 }
 
@@ -253,12 +256,25 @@ func (s *service) SetConfig(cfg interface{}) {
 
 {{ if not .HasNotServer }}
 func (s *service) SetServer(srv interface{}) {
+	if srv == nil {
+		return 
+	}
 	s.srv = append(s.srv, srv)
 }
 {{ end }}
 
 func (s *service) AddPackage(pkg interface{}) {
+	if pkg == nil {
+		return 
+	}
 	s.pkg = append(s.pkg, pkg)
+}
+
+func (s *service) Invoke(fn interface{}) {
+	if fn == nil {
+		return 
+	}
+	s.inv = append(s.inv, fn)
 }
 
 {{ range $type, $plugins := .Plugins }}
@@ -319,7 +335,7 @@ func (s *service) Run(ctx context.Context) error {
 			opts = append(opts, fx.Invoke(s.register{{ $svc.GetName }}Server))
 		{{- end }}
 	{{- end }}
-	opts = append(opts, fx.Invoke(s.pkg...))
+	opts = append(opts, fx.Invoke(s.inv...))
 	opts = append(opts, fx.Invoke(s.runService))
 
 	app := fx.New(
@@ -390,10 +406,10 @@ func (s *service) registerClients() error {
 func (s *service) runService(lc fx.Lifecycle) error {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			return s.toolkit.Start()
+			return s.toolkit.Start(ctx)
 		},
 		OnStop: func(ctx context.Context) error {
-			return s.toolkit.Stop()
+			return s.toolkit.Stop(ctx)
 		},
 	})
 	return nil
