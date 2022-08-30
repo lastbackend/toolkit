@@ -199,7 +199,6 @@ func (s *service) Start(ctx context.Context) error {
 	}
 
 	err = s.cli.Run(func() error {
-
 		for _, t := range s.plugins {
 			if err := t.Start(ctx); err != nil {
 				return err
@@ -225,7 +224,7 @@ func (s *service) Start(ctx context.Context) error {
 			}
 		}
 
-		return s.probe.Start(ctx)
+		return nil
 	})
 	if err != nil {
 		return err
@@ -241,7 +240,11 @@ func (s *service) Start(ctx context.Context) error {
 			})
 		}
 
-		return group.Wait()
+		if err := group.Wait(); err != nil {
+			return err
+		}
+
+		return s.probe.Start(ctx)
 	})
 	if err != nil {
 		return err
