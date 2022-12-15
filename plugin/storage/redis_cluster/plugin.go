@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package redis
+package redis_cluster
 
 import (
 	"context"
@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-redis/cache/v9"
 	"github.com/go-redis/redis/v9"
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/probe"
@@ -38,7 +37,7 @@ const (
 type Plugin interface {
 	toolkit.Plugin
 
-	DB() *cache.Cache
+	DB() *redis.ClusterClient
 	Register(app toolkit.Service, opts *Options) error
 }
 
@@ -87,6 +86,7 @@ type options struct {
 	// with a timeout instead of blocking.
 	// Default is ReadTimeout.
 	WriteTimeout time.Duration
+
 	// Maximum number of socket connections.
 	// Default is 10 connections per every CPU as reported by runtime.NumCPU.
 	PoolSize int
@@ -107,7 +107,7 @@ type plugin struct {
 	prefix string
 	opts   options
 
-	db *cache.Cache
+	db *redis.ClusterClient
 
 	probe toolkit.Probe
 }
@@ -138,21 +138,16 @@ func (p *plugin) Register(app toolkit.Service, opts *Options) error {
 	return nil
 }
 
-func (p *plugin) DB() *cache.Cache {
+func (p *plugin) DB() *redis.ClusterClient {
 	return p.db
 }
 
 func (p *plugin) Start(ctx context.Context) (err error) {
 	client := redis.NewClusterClient(p.prepareOptions(p.opts))
 
-	conn := cache.New(&cache.Options{
-		Redis:      client,
-		LocalCache: cache.NewTinyLFU(1000, time.Minute),
-	})
-
 	p.probe.AddReadinessFunc(p.prefix, probe.RedisClusterPingChecker(client, 1*time.Second))
 
-	p.db = conn
+	p.db = client
 
 	return nil
 }
@@ -225,6 +220,7 @@ func (p *plugin) addFlags(app toolkit.Service) {
 	app.CLI().AddDurationFlag(p.withPrefix("pool-timeout"), &p.opts.PoolTimeout).
 		Env(p.withEnvPrefix("POOL_TIMEOUT")).
 		Usage("Set amount of time client waits for connection if all connections are busy before returning an error. (Default is ReadTimeout + 1 second.)")
+
 }
 
 func (p *plugin) prepareOptions(opts options) *redis.ClusterOptions {
