@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package redis_cluster
+package redis
 
 import (
 	"context"
@@ -37,7 +37,9 @@ const (
 type Plugin interface {
 	toolkit.Plugin
 
-	DB() *redis.ClusterClient
+	DB() *redis.Client
+	ClusterDB() *redis.ClusterClient
+
 	Register(app toolkit.Service, opts *Options) error
 }
 
@@ -46,8 +48,11 @@ type Options struct {
 }
 
 type options struct {
-	// Endpoints = host:port,host:port addresses of ring shards.
-	Endpoints string
+	// Endpoint = host:port,host:port addresses of ring shards.
+	Endpoint string
+
+	// IsCluster = enable cluster mode
+	IsCluster bool
 
 	// Frequency of PING commands sent to check shards availability.
 	// Shard is considered down after 3 subsequent failed checks.
@@ -107,7 +112,8 @@ type plugin struct {
 	prefix string
 	opts   options
 
-	db *redis.ClusterClient
+	db  *redis.Client
+	cdb *redis.ClusterClient
 
 	probe toolkit.Probe
 }
@@ -138,17 +144,24 @@ func (p *plugin) Register(app toolkit.Service, opts *Options) error {
 	return nil
 }
 
-func (p *plugin) DB() *redis.ClusterClient {
+func (p *plugin) DB() *redis.Client {
 	return p.db
 }
 
+func (p *plugin) ClusterDB() *redis.ClusterClient {
+	return p.cdb
+}
+
 func (p *plugin) Start(ctx context.Context) (err error) {
-	client := redis.NewClusterClient(p.prepareOptions(p.opts))
-
-	p.probe.AddReadinessFunc(p.prefix, probe.RedisClusterPingChecker(client, 1*time.Second))
-
-	p.db = client
-
+	if p.opts.IsCluster {
+		client := redis.NewClusterClient(p.prepareClusterOptions(p.opts))
+		p.probe.AddReadinessFunc(p.prefix, probe.RedisClusterPingChecker(client, 1*time.Second))
+		p.cdb = client
+	} else {
+		client := redis.NewClient(p.prepareOptions(p.opts))
+		p.probe.AddReadinessFunc(p.prefix, probe.RedisPingChecker(client, 1*time.Second))
+		p.db = client
+	}
 	return nil
 }
 
@@ -165,9 +178,15 @@ func (p *plugin) withEnvPrefix(name string) string {
 }
 
 func (p *plugin) addFlags(app toolkit.Service) {
-	app.CLI().AddStringFlag(p.withPrefix("endpoints"), &p.opts.Endpoints).
-		Env(p.withEnvPrefix("ENDPOINTS")).
-		Usage("Set endpoints for connecting to the server as <host(optional)>:<port>,<host(optional)>:<port>,<etc.> string. (Default: :6379)")
+	app.CLI().AddStringFlag(p.withPrefix("endpoint"), &p.opts.Endpoint).
+		Env(p.withEnvPrefix("ENDPOINT")).
+		Usage("Set endpoint for connecting to the server as <host(optional)>:<port> or for cluster <host(optional)>:<port>,<host(optional)>:<port>,<etc.> string. (Default: :6379)").
+		Default(":6379")
+
+	app.CLI().AddBoolFlag(p.withPrefix("cluster"), &p.opts.IsCluster).
+		Env(p.withEnvPrefix("CLUSTER")).
+		Usage("Set database as cluster mode (default: false)").
+		Default(false)
 
 	app.CLI().AddIntFlag(p.withPrefix("db"), &p.opts.DB).
 		Env(p.withEnvPrefix("DB")).
@@ -223,12 +242,37 @@ func (p *plugin) addFlags(app toolkit.Service) {
 
 }
 
-func (p *plugin) prepareOptions(opts options) *redis.ClusterOptions {
+func (p *plugin) prepareOptions(opts options) *redis.Options {
+
+	addr := defaultEndpoint
+	if len(opts.Endpoint) > 0 {
+		opts.Endpoint = strings.Replace(opts.Endpoint, " ", "", -1)
+		addr = strings.Split(opts.Endpoint, ",")[0]
+	}
+
+	return &redis.Options{
+		Addr:            addr,
+		Username:        opts.Username,
+		Password:        opts.Password,
+		MaxRetries:      opts.MaxRetries,
+		MinRetryBackoff: opts.MinRetryBackoff,
+		MaxRetryBackoff: opts.MaxRetryBackoff,
+		DialTimeout:     opts.DialTimeout,
+		ReadTimeout:     opts.ReadTimeout,
+		WriteTimeout:    opts.WriteTimeout,
+		PoolSize:        opts.PoolSize,
+		MinIdleConns:    opts.MinIdleConns,
+		PoolTimeout:     opts.PoolTimeout,
+		TLSConfig:       opts.TLSConfig,
+	}
+}
+
+func (p *plugin) prepareClusterOptions(opts options) *redis.ClusterOptions {
 
 	addrs := []string{defaultEndpoint}
-	if len(opts.Endpoints) > 0 {
-		opts.Endpoints = strings.Replace(opts.Endpoints, " ", "", -1)
-		addrs = strings.Split(opts.Endpoints, ",")
+	if len(opts.Endpoint) > 0 {
+		opts.Endpoint = strings.Replace(opts.Endpoint, " ", "", -1)
+		addrs = strings.Split(opts.Endpoint, ",")
 	}
 
 	return &redis.ClusterOptions{
