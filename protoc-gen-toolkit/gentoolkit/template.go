@@ -37,7 +37,7 @@ type Client struct {
 
 type contentServiceParams struct {
 	HasNotServer bool
-	Plugins      map[string]map[string]*Plugin
+	Plugins      map[string][]*Plugin
 	Services     []*descriptor.Service
 	Clients      map[string]*Client
 }
@@ -46,7 +46,7 @@ type tplServiceOptions struct {
 	*descriptor.File
 	HasNotServer bool
 	Imports      []descriptor.GoPackage
-	Plugins      map[string]map[string]*Plugin
+	Plugins      map[string][]*Plugin
 	Clients      map[string]*Client
 }
 
@@ -190,6 +190,9 @@ import (
 		"ToLower":      strings.ToLower,
 		"ToCapitalize": strings.Title,
 		"ToCamel":      strings.ToCamel,
+		"inc": func(n int) int {
+			return n + 1
+		},
 	}
 
 	_ = template.Must(contentServiceTemplate.New("services-content").Parse(`
@@ -277,21 +280,26 @@ func (s *service) Invoke(fn interface{}) {
 	s.inv = append(s.inv, fn)
 }
 
-{{ range $type, $plugins := .Plugins }}
-	{{ range $name, $plugin := $plugins }}
-type {{ $plugin.Prefix | ToCapitalize }}{{ $type | ToCapitalize }} interface {
-	{{ $plugin.Plugin }}.Plugin
+{{- range $type, $plugins := .Plugins }}
+{{- range $index, $plugin := $plugins }}
+type {{ $plugin.Prefix | ToCamel }}Plugin interface {
+	{{ $type }}.Plugin
 }
-	{{ end }}
+{{ end }}
 {{ end }}
 
 func (s *service) Run(ctx context.Context) error {
 	
+	{{ $count := 0 }}
+
 	{{ range $type, $plugins := .Plugins }}
-		{{- range $name, $plugin := $plugins }}
-			{{ $type | ToLower }}{{ $plugin.Prefix | ToCapitalize }} := {{ $plugin.Plugin }}.NewPlugin(s.toolkit, &{{ $plugin.Plugin }}.Options{Name: "{{ $plugin.Prefix | ToLower }}"})
+		{{- range $index, $plugin := $plugins }}
+			plugin_{{ $count }} := {{ $plugin.Plugin }}.NewPlugin(s.toolkit, &{{ $plugin.Plugin }}.Options{Name: "{{ $plugin.Prefix | ToLower }}"})
+			{{ $count = inc $count }}
 		{{- end }}
 	{{- end }}
+
+	{{ $count = 0 }}
 
 	provide := make([]interface{}, 0)
 	provide = append(provide,
@@ -307,12 +315,13 @@ func (s *service) Run(ctx context.Context) error {
 			return s.rpc
 		},
 		{{- range $type, $plugins := .Plugins }}
-			{{- range $name, $plugin := $plugins }}
+			{{- range $index, $plugin := $plugins }}
 				fx.Annotate(
-					func() {{ $plugin.Prefix | ToCapitalize }}{{ $type | ToCapitalize }} {
-						return {{ $type | ToLower }}{{ $plugin.Prefix | ToCapitalize }}
+					func() {{ $plugin.Prefix | ToCamel }}Plugin {
+						return plugin_{{ $count }}
 					},
 				),
+				{{ $count = inc $count }}	
 			{{- end }}
 		{{- end }}
 	)

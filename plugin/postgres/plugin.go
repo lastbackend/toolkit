@@ -1,5 +1,5 @@
 /*
-Copyright [2014] - [2022] The Last.Backend authors.
+Copyright [2014] - [2023] The Last.Backend authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,30 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package postgres_gorm
+package postgres
 
 import (
-	"github.com/lastbackend/toolkit/probe"
-	"os"
-	"strconv"
-	"time"
-
+	"database/sql"
 	"github.com/go-pg/pg/v10"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/jmoiron/sqlx"
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/cmd"
+	"github.com/lastbackend/toolkit/probe"
 	"github.com/pkg/errors"
-	psql "gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"strconv"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
 	_ "github.com/lib/pq"
 
 	"context"
-	"database/sql"
 	"fmt"
+	"os"
 	"strings"
+	"time"
 )
 
 const (
@@ -63,7 +61,7 @@ const (
 type Plugin interface {
 	toolkit.Plugin
 
-	DB() *gorm.DB
+	DB() *sqlx.DB
 	Register(app toolkit.Service, opts *Options) error
 }
 
@@ -72,17 +70,55 @@ type Options struct {
 }
 
 type options struct {
-	Connection    string
+	// Sets the connection string for connecting to the database
+	Connection string
+
+	// Sets the maximum number of connections in the idle
+	// connection pool.
+	//
+	// If MaxOpenConns is greater than 0 but less than the new MaxIdleConns,
+	// then the new MaxIdleConns will be reduced to match the MaxOpenConns limit.
+	//
+	// If n <= 0, no idle connections are retained.
+	//
+	// The default max idle connections is currently 2. This may change in
+	// a future release.
+	MaxIdleConns *int
+
+	// Sets the maximum number of open connections to the database.
+	//
+	// If MaxIdleConns is greater than 0 and the new MaxOpenConns is less than
+	// MaxIdleConns, then MaxIdleConns will be reduced to match the new
+	// MaxOpenConns limit.
+	//
+	// If n <= 0, then there is no limit on the number of open connections.
+	// The default is 0 (unlimited).
+	MaxOpenConns *int
+
+	// Sets the maximum amount of time a connection may be reused.
+	//
+	// Expired connections may be closed lazily before reuse.
+	//
+	// If d <= 0, connections are not closed due to a connection's age.
+	ConnMaxLifetime *time.Duration
+
+	// Sets the maximum amount of time a connection may be reused.
+	//
+	// Expired connections may be closed lazily before reuse.
+	//
+	// If d <= 0, connections are not closed due to a connection's age.
+	ConnMaxIdleTime *time.Duration
+
 	MigrationsDir string
 }
 
 type plugin struct {
-	prefix    string
-	envPrefix string
+	prefix     string
+	envPrefix  string
+	connection string
+	opts       options
 
-	opts options
-
-	db *gorm.DB
+	db *sqlx.DB
 
 	probe toolkit.Probe
 }
@@ -100,6 +136,7 @@ func NewPlugin(service toolkit.Service, opts *Options) Plugin {
 
 // Register - registers the plugin implements storage using Postgres as a database storage
 func (p *plugin) Register(app toolkit.Service, opts *Options) error {
+
 	p.prefix = opts.Name
 	if p.prefix == "" {
 		p.prefix = defaultPrefix
@@ -115,7 +152,7 @@ func (p *plugin) Register(app toolkit.Service, opts *Options) error {
 	return nil
 }
 
-func (p *plugin) DB() *gorm.DB {
+func (p *plugin) DB() *sqlx.DB {
 	return p.db
 }
 
@@ -129,28 +166,36 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 		p.opts.Connection = config.getConnectionString()
 	}
 
-	conn, err := sql.Open(driverName, p.opts.Connection)
-	if err != nil {
-		return err
-	}
-	db, err := gorm.Open(psql.New(psql.Config{
-		Conn: conn,
-	}))
+	conn, err := sqlx.Open(driverName, p.opts.Connection)
 	if err != nil {
 		return err
 	}
 
+	if p.opts.MaxIdleConns != nil {
+		conn.SetMaxIdleConns(*p.opts.MaxIdleConns)
+	}
+	if p.opts.MaxOpenConns != nil {
+		conn.SetMaxOpenConns(*p.opts.MaxOpenConns)
+	}
+	if p.opts.ConnMaxLifetime != nil {
+		conn.SetConnMaxLifetime(*p.opts.ConnMaxLifetime)
+	}
+	if p.opts.ConnMaxIdleTime != nil {
+		conn.SetConnMaxIdleTime(*p.opts.ConnMaxIdleTime)
+	}
+
 	if p.opts.MigrationsDir != "" {
 		fmt.Printf("\nRun migration from dir: %s", p.opts.MigrationsDir)
-		if err = p.migration(conn, p.opts.MigrationsDir, p.opts.Connection); err != nil {
+		if err = p.migration(conn.DB, p.opts.MigrationsDir, p.opts.Connection); err != nil {
 			return err
 		}
 		fmt.Printf("\nMigration completed!\n")
 	}
 
-	p.probe.AddReadinessFunc(p.prefix, probe.PostgresPingChecker(conn, 1*time.Second))
+	p.probe.AddReadinessFunc(p.prefix, probe.PostgresPingChecker(conn.DB, 1*time.Second))
 
-	p.db = db
+	p.connection = p.opts.Connection
+	p.db = conn
 
 	return nil
 }
@@ -160,7 +205,7 @@ func (p *plugin) Stop() error {
 }
 
 func (p *plugin) genUsage() string {
-	return fmt.Sprintf(`PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name) 
+	return fmt.Sprintf(`PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>) 
 or use environment variables: 
 	%s - The host to connect to (required), 
 	%s - The port to bind to (default: 5432), 
@@ -175,9 +220,35 @@ or use environment variables:
 }
 
 func (p *plugin) addFlags(app toolkit.Service) {
+
+	// define plugin connection
 	app.CLI().AddStringFlag(p.withPrefix("connection"), &p.opts.Connection).
 		Env(p.generateEnvName("CONNECTION")).
 		Usage(p.genUsage())
+
+	// define connection max lifetime flag
+	app.CLI().AddDurationFlag(p.withPrefix("conn-max-lifetime"), p.opts.ConnMaxLifetime).
+		Env(p.generateEnvName("CONN_MAX_LIFETIME")).
+		Usage("Sets the maximum amount of time a connection may be reused.\nIf <= 0, connections are not closed due to a connection's age").
+		Default(0)
+
+	// define connection max idle flag
+	app.CLI().AddDurationFlag(p.withPrefix("conn-max-idle-time"), p.opts.ConnMaxIdleTime).
+		Env(p.generateEnvName("CONN_MAX_IDLE_TIME")).
+		Usage("Sets the maximum amount of time a connection may be idle.\nIf <= 0, connections are not closed due to a connection's idle time").
+		Default(0)
+
+	// define max idle connections flag
+	app.CLI().AddIntFlag(p.withPrefix("max-idle-conns"), p.opts.MaxIdleConns).
+		Env(p.generateEnvName("MAX_IDLE_CONNS")).
+		Usage("Sets the maximum number of connections in the idle connection pool.\nIf <= 0, no idle connections are retained.\n(The default max idle connections is currently 2)").
+		Default(0)
+
+	// define max idle connections flag
+	app.CLI().AddIntFlag(p.withPrefix("max-open-conns"), p.opts.MaxOpenConns).
+		Env(p.generateEnvName("MAX_OPEN_CONNS")).
+		Usage("Sets the maximum number of open connections to the database.\nIf <= 0, then there is no limit on the number of open connections.\n(default unlimited)").
+		Default(0)
 
 	app.CLI().AddStringFlag(p.withPrefix("migration-dir"), &p.opts.MigrationsDir).
 		Env(p.generateEnvName("MIGRATION_DIR")).
@@ -209,7 +280,7 @@ func (p *plugin) addCommands(app toolkit.Service) {
 				connection = config.getConnectionString()
 			}
 
-			conn, err := sql.Open(driverName, connection)
+			conn, err := sqlx.Open(driverName, connection)
 			if err != nil {
 				return fmt.Errorf("failed to db open: %w", err)
 			}
@@ -217,7 +288,7 @@ func (p *plugin) addCommands(app toolkit.Service) {
 
 			fmt.Println("Start migration")
 
-			if err = p.migration(conn, args[0], connection); err != nil {
+			if err = p.migration(conn.DB, args[0], connection); err != nil {
 				return err
 			}
 
