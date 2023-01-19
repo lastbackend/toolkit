@@ -1,5 +1,5 @@
 /*
-Copyright [2014] - [2022] The Last.Backend authors.
+Copyright [2014] - [2023] The Last.Backend authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package redis
+package redis_cache
 
 import (
 	"context"
@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-redis/cache/v9"
 	"github.com/go-redis/redis/v9"
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/probe"
@@ -37,9 +38,7 @@ const (
 type Plugin interface {
 	toolkit.Plugin
 
-	DB() *redis.Client
-	ClusterDB() *redis.ClusterClient
-
+	DB() *cache.Cache
 	Register(app toolkit.Service, opts *Options) error
 }
 
@@ -48,11 +47,8 @@ type Options struct {
 }
 
 type options struct {
-	// Endpoint = host:port,host:port addresses of ring shards.
-	Endpoint string
-
-	// IsCluster = enable cluster mode
-	IsCluster bool
+	// Endpoints = host:port,host:port addresses of ring shards.
+	Endpoints string
 
 	// Frequency of PING commands sent to check shards availability.
 	// Shard is considered down after 3 subsequent failed checks.
@@ -91,7 +87,6 @@ type options struct {
 	// with a timeout instead of blocking.
 	// Default is ReadTimeout.
 	WriteTimeout time.Duration
-
 	// Maximum number of socket connections.
 	// Default is 10 connections per every CPU as reported by runtime.NumCPU.
 	PoolSize int
@@ -112,8 +107,7 @@ type plugin struct {
 	prefix string
 	opts   options
 
-	db  *redis.Client
-	cdb *redis.ClusterClient
+	db *cache.Cache
 
 	probe toolkit.Probe
 }
@@ -144,24 +138,22 @@ func (p *plugin) Register(app toolkit.Service, opts *Options) error {
 	return nil
 }
 
-func (p *plugin) DB() *redis.Client {
+func (p *plugin) DB() *cache.Cache {
 	return p.db
 }
 
-func (p *plugin) ClusterDB() *redis.ClusterClient {
-	return p.cdb
-}
-
 func (p *plugin) Start(ctx context.Context) (err error) {
-	if p.opts.IsCluster {
-		client := redis.NewClusterClient(p.prepareClusterOptions(p.opts))
-		p.probe.AddReadinessFunc(p.prefix, probe.RedisClusterPingChecker(client, 1*time.Second))
-		p.cdb = client
-	} else {
-		client := redis.NewClient(p.prepareOptions(p.opts))
-		p.probe.AddReadinessFunc(p.prefix, probe.RedisPingChecker(client, 1*time.Second))
-		p.db = client
-	}
+	client := redis.NewClusterClient(p.prepareOptions(p.opts))
+
+	conn := cache.New(&cache.Options{
+		Redis:      client,
+		LocalCache: cache.NewTinyLFU(1000, time.Minute),
+	})
+
+	p.probe.AddReadinessFunc(p.prefix, probe.RedisClusterPingChecker(client, 1*time.Second))
+
+	p.db = conn
+
 	return nil
 }
 
@@ -178,15 +170,9 @@ func (p *plugin) withEnvPrefix(name string) string {
 }
 
 func (p *plugin) addFlags(app toolkit.Service) {
-	app.CLI().AddStringFlag(p.withPrefix("endpoint"), &p.opts.Endpoint).
-		Env(p.withEnvPrefix("ENDPOINT")).
-		Usage("Set endpoint for connecting to the server as <host(optional)>:<port> or for cluster <host(optional)>:<port>,<host(optional)>:<port>,<etc.> string. (Default: :6379)").
-		Default(":6379")
-
-	app.CLI().AddBoolFlag(p.withPrefix("cluster"), &p.opts.IsCluster).
-		Env(p.withEnvPrefix("CLUSTER")).
-		Usage("Set database as cluster mode (default: false)").
-		Default(false)
+	app.CLI().AddStringFlag(p.withPrefix("endpoints"), &p.opts.Endpoints).
+		Env(p.withEnvPrefix("ENDPOINTS")).
+		Usage("Set endpoints for connecting to the server as <host(optional)>:<port>,<host(optional)>:<port>,<etc.> string. (Default: :6379)")
 
 	app.CLI().AddIntFlag(p.withPrefix("db"), &p.opts.DB).
 		Env(p.withEnvPrefix("DB")).
@@ -239,40 +225,14 @@ func (p *plugin) addFlags(app toolkit.Service) {
 	app.CLI().AddDurationFlag(p.withPrefix("pool-timeout"), &p.opts.PoolTimeout).
 		Env(p.withEnvPrefix("POOL_TIMEOUT")).
 		Usage("Set amount of time client waits for connection if all connections are busy before returning an error. (Default is ReadTimeout + 1 second.)")
-
 }
 
-func (p *plugin) prepareOptions(opts options) *redis.Options {
-
-	addr := defaultEndpoint
-	if len(opts.Endpoint) > 0 {
-		opts.Endpoint = strings.Replace(opts.Endpoint, " ", "", -1)
-		addr = strings.Split(opts.Endpoint, ",")[0]
-	}
-
-	return &redis.Options{
-		Addr:            addr,
-		Username:        opts.Username,
-		Password:        opts.Password,
-		MaxRetries:      opts.MaxRetries,
-		MinRetryBackoff: opts.MinRetryBackoff,
-		MaxRetryBackoff: opts.MaxRetryBackoff,
-		DialTimeout:     opts.DialTimeout,
-		ReadTimeout:     opts.ReadTimeout,
-		WriteTimeout:    opts.WriteTimeout,
-		PoolSize:        opts.PoolSize,
-		MinIdleConns:    opts.MinIdleConns,
-		PoolTimeout:     opts.PoolTimeout,
-		TLSConfig:       opts.TLSConfig,
-	}
-}
-
-func (p *plugin) prepareClusterOptions(opts options) *redis.ClusterOptions {
+func (p *plugin) prepareOptions(opts options) *redis.ClusterOptions {
 
 	addrs := []string{defaultEndpoint}
-	if len(opts.Endpoint) > 0 {
-		opts.Endpoint = strings.Replace(opts.Endpoint, " ", "", -1)
-		addrs = strings.Split(opts.Endpoint, ",")
+	if len(opts.Endpoints) > 0 {
+		opts.Endpoints = strings.Replace(opts.Endpoints, " ", "", -1)
+		addrs = strings.Split(opts.Endpoints, ",")
 	}
 
 	return &redis.ClusterOptions{

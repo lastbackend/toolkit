@@ -36,12 +36,6 @@ const (
 	defaultRepoRootPath = "github.com/lastbackend/toolkit"
 )
 
-const (
-	StoragePluginType = "Storage"
-	CachePluginType   = "Cache"
-	BrokerPluginType  = "Broker"
-)
-
 type Generator interface {
 	Generate(targets []*descriptor.File) ([]*descriptor.ResponseFile, error)
 }
@@ -146,7 +140,7 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 
 	var pluginImportsExists = make(map[string]bool, 0)
 	var clientImportsExists = make(map[string]bool, 0)
-	var plugins = make(map[string]map[string]*Plugin, 0)
+	var plugins = make(map[string][]*Plugin, 0)
 	var clients = make(map[string]*Client, 0)
 	var imports = g.prepareImports([]string{
 		"toolkit github.com/lastbackend/toolkit",
@@ -176,8 +170,8 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Clients) {
 		eClients := proto.GetExtension(file.Options, toolkit_annotattions.E_Clients)
 		if eClients != nil {
-			clnts := eClients.(*toolkit_annotattions.Clients)
-			for _, value := range clnts.Client {
+			clnts := eClients.([]*toolkit_annotattions.Client)
+			for _, value := range clnts {
 				if _, ok := clientImportsExists[value.Service]; !ok {
 					imports = append(imports, descriptor.GoPackage{
 						Alias: strings.ToLower(value.Service),
@@ -195,54 +189,22 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Plugins) {
 		ePlugins := proto.GetExtension(file.Options, toolkit_annotattions.E_Plugins)
 		if ePlugins != nil {
-			plgs := ePlugins.(*toolkit_annotattions.Plugins)
-			if len(plgs.Storage) > 0 {
-				plugins[StoragePluginType] = make(map[string]*Plugin, 0)
-				for name, props := range plgs.Storage {
-					if _, ok := pluginImportsExists[props.Plugin]; !ok {
-						imports = append(imports, descriptor.GoPackage{
-							Path: fmt.Sprintf("%s/plugin/storage/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
-							Name: path.Base(fmt.Sprintf("%s/plugin/storage/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
-						})
-					}
-					plugins[StoragePluginType][name] = &Plugin{
-						Plugin: props.Plugin,
-						Prefix: props.Prefix,
-						Pkg:    fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), StoragePluginType),
-					}
+			plgs := ePlugins.([]*toolkit_annotattions.Plugin)
+			for _, props := range plgs {
+				if _, ok := plugins[props.Plugin]; !ok {
+					plugins[props.Plugin] = make([]*Plugin, 0)
 				}
-			}
-			if len(plgs.Cache) > 0 {
-				plugins[CachePluginType] = make(map[string]*Plugin, 0)
-				for name, props := range plgs.Cache {
-					if _, ok := pluginImportsExists[props.Plugin]; !ok {
-						imports = append(imports, descriptor.GoPackage{
-							Path: fmt.Sprintf("%s/plugin/cache/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
-							Name: path.Base(fmt.Sprintf("%s/plugin/cache/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
-						})
-					}
-					plugins[CachePluginType][name] = &Plugin{
-						Plugin: props.Plugin,
-						Prefix: props.Prefix,
-						Pkg:    fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), CachePluginType),
-					}
+				if _, ok := pluginImportsExists[props.Plugin]; !ok {
+					imports = append(imports, descriptor.GoPackage{
+						Path: fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
+						Name: path.Base(fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
+					})
 				}
-			}
-			if len(plgs.Broker) > 0 {
-				plugins[BrokerPluginType] = make(map[string]*Plugin, 0)
-				for name, props := range plgs.Broker {
-					if _, ok := pluginImportsExists[props.Plugin]; !ok {
-						imports = append(imports, descriptor.GoPackage{
-							Path: fmt.Sprintf("%s/plugin/broker/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
-							Name: path.Base(fmt.Sprintf("%s/plugin/broker/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
-						})
-					}
-					plugins[BrokerPluginType][name] = &Plugin{
-						Plugin: props.Plugin,
-						Prefix: props.Prefix,
-						Pkg:    fmt.Sprintf("%s.%s", strings.ToLower(props.Plugin), BrokerPluginType),
-					}
-				}
+				plugins[props.Plugin] = append(plugins[props.Plugin], &Plugin{
+					Plugin: props.Plugin,
+					Prefix: props.Prefix,
+					Pkg:    strings.ToLower(props.Plugin),
+				})
 			}
 		}
 	}
@@ -279,8 +241,8 @@ func (g *generator) generateClient(file *descriptor.File) (string, error) {
 	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Clients) {
 		eClients := proto.GetExtension(file.Options, toolkit_annotattions.E_Clients)
 		if eClients != nil {
-			clnts := eClients.(*toolkit_annotattions.Clients)
-			for _, value := range clnts.Client {
+			clnts := eClients.([]*toolkit_annotattions.Client)
+			for _, value := range clnts {
 				clients[value.Service] = &Client{
 					Service: value.Service,
 					Pkg:     value.Package,
