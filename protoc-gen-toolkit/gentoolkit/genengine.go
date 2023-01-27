@@ -224,7 +224,7 @@ func (g *generator) generateClient(file *descriptor.File) (string, error) {
 
 	pkgImports := []string{
 		"context context",
-		"github.com/lastbackend/toolkit/client/grpc",
+		"github.com/lastbackend/toolkit/pkg/client/grpc",
 		"emptypb google.golang.org/protobuf/types/known/emptypb",
 	}
 
