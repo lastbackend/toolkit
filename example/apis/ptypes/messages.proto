@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package lastbackend.example;
 
-option go_package = "github.com/lastbackend/toolkit/example/runtime/ptypes;typespb";
+option go_package = "github.com/lastbackend/toolkit/example/gen/ptypes;typespb";
 
 import "validate/validate.proto";
 

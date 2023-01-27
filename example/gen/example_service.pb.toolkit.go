@@ -5,16 +5,17 @@ package servicepb
 
 import (
 	"context"
-	"github.com/lastbackend/toolkit/pkg/client/grpc"
-	"github.com/lastbackend/toolkit/pkg/logger"
-	server2 "github.com/lastbackend/toolkit/pkg/server"
 	"os"
 	"os/signal"
 	"syscall"
 
 	toolkit "github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/example/gen/ptypes"
+	"github.com/lastbackend/toolkit/pkg/client/grpc"
+	logger "github.com/lastbackend/toolkit/pkg/logger"
+	server "github.com/lastbackend/toolkit/pkg/server"
 	"github.com/lastbackend/toolkit/plugin/postgres_gorm"
+	"github.com/lastbackend/toolkit/plugin/redis_cache"
 	fx "go.uber.org/fx"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
@@ -23,7 +24,7 @@ import (
 var _ context.Context
 var _ logger.Logger
 var _ emptypb.Empty
-var _ server2.Server
+var _ server.Server
 
 type Service interface {
 	Logger() logger.Logger
@@ -98,13 +99,19 @@ func (s *service) Invoke(fn interface{}) {
 	s.inv = append(s.inv, fn)
 }
 
-type PgsqlStorage interface {
+type PgsqlPlugin interface {
 	postgres_gorm.Plugin
+}
+
+type RedisPlugin interface {
+	redis_cache.Plugin
 }
 
 func (s *service) Run(ctx context.Context) error {
 
-	storagePgsql := postgres_gorm.NewPlugin(s.toolkit, &postgres_gorm.Options{Name: "pgsql"})
+	plugin_0 := postgres_gorm.NewPlugin(s.toolkit, &postgres_gorm.Options{Name: "pgsql"})
+
+	plugin_1 := redis_cache.NewPlugin(s.toolkit, &redis_cache.Options{Name: "redis"})
 
 	provide := make([]interface{}, 0)
 	provide = append(provide,
@@ -120,8 +127,14 @@ func (s *service) Run(ctx context.Context) error {
 			return s.rpc
 		},
 		fx.Annotate(
-			func() PgsqlStorage {
-				return storagePgsql
+			func() PgsqlPlugin {
+				return plugin_0
+			},
+		),
+
+		fx.Annotate(
+			func() RedisPlugin {
+				return plugin_1
 			},
 		),
 	)
@@ -136,12 +149,10 @@ func (s *service) Run(ctx context.Context) error {
 	}
 
 	opts = append(opts, fx.Provide(provide...))
-
 	opts = append(opts, fx.Invoke(s.registerClients))
 	opts = append(opts, fx.Invoke(s.registerExampleServer))
-
-	opts = append(opts, fx.Invoke(s.runService))
 	opts = append(opts, fx.Invoke(s.inv...))
+	opts = append(opts, fx.Invoke(s.runService))
 
 	app := fx.New(
 		fx.Options(opts...),
@@ -187,7 +198,7 @@ func (s *service) registerExampleServer(srv ExampleRpcServer) error {
 	}
 
 	h := &exampleGrpcRpcServer{srv.(ExampleRpcServer)}
-	grpcServer := server2.NewServer(s.toolkit, &server2.ServerOptions{Name: "server-example-grpc"})
+	grpcServer := server.NewServer(s.toolkit, &server.ServerOptions{Name: "server-example-grpc"})
 	if err := grpcServer.Register(&Example_ServiceDesc, &ExampleGrpcRpcServer{h}); err != nil {
 		return err
 	}
@@ -200,9 +211,10 @@ func (s *service) registerExampleServer(srv ExampleRpcServer) error {
 }
 
 func (s *service) runService(lc fx.Lifecycle) error {
-	s.toolkit.Start(context.Background())
-
 	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			return s.toolkit.Start(ctx)
+		},
 		OnStop: func(ctx context.Context) error {
 			return s.toolkit.Stop(ctx)
 		},

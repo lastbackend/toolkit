@@ -144,8 +144,8 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 	var clients = make(map[string]*Client, 0)
 	var imports = g.prepareImports([]string{
 		"toolkit github.com/lastbackend/toolkit",
-		"logger github.com/lastbackend/toolkit/logger",
-		"github.com/lastbackend/toolkit/client/grpc",
+		"logger github.com/lastbackend/toolkit/pkg/logger",
+		"github.com/lastbackend/toolkit/pkg/client/grpc",
 		"emptypb google.golang.org/protobuf/types/known/emptypb",
 		"fx go.uber.org/fx",
 		"context",
@@ -157,7 +157,7 @@ func (g *generator) generateService(file *descriptor.File) (string, error) {
 	// Add imports for server
 	if g.hasServiceMethods(file) {
 		imports = append(imports, g.prepareImports([]string{
-			"server github.com/lastbackend/toolkit/server",
+			"server github.com/lastbackend/toolkit/pkg/server",
 		})...)
 
 		for _, svc := range file.Services {
@@ -267,7 +267,7 @@ func (g *generator) generateTestStubs(file *descriptor.File) (string, error) {
 
 		baseImports := []string{
 			"context context",
-			"grpc github.com/lastbackend/toolkit/client/grpc",
+			"grpc github.com/lastbackend/toolkit/pkg/client/grpc",
 			"emptypb google.golang.org/protobuf/types/known/emptypb",
 			fmt.Sprintf("servicepb %s/client", filepath.Dir(file.GeneratedFilenamePrefix)),
 		}
