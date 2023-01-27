@@ -14,7 +14,7 @@ import (
 
 	toolkit "github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/example/gen/ptypes"
-	"github.com/lastbackend/toolkit/plugin/storage/postgres_gorm"
+	"github.com/lastbackend/toolkit/plugin/postgres_gorm"
 	fx "go.uber.org/fx"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )

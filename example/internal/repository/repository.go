@@ -3,7 +3,7 @@ package repository
 import (
 	"github.com/lastbackend/toolkit/example/config"
 	servicepb "github.com/lastbackend/toolkit/example/gen"
-	"github.com/lastbackend/toolkit/plugin/storage/postgres_gorm"
+	"github.com/lastbackend/toolkit/plugin/postgres_gorm"
 )
 
 // The Repository represents Model.
