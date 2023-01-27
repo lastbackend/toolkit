@@ -25,7 +25,7 @@ import (
 
 	"github.com/go-redis/redis/v9"
 	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/probe"
+	"github.com/lastbackend/toolkit/pkg/probe"
 )
 
 const (

@@ -20,8 +20,8 @@ import (
 	"bytes"
 	"text/template"
 
+	"github.com/lastbackend/toolkit/pkg/util/strings"
 	"github.com/lastbackend/toolkit/protoc-gen-toolkit/descriptor"
-	"github.com/lastbackend/toolkit/util/strings"
 )
 
 type Plugin struct {

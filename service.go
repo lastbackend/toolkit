@@ -17,10 +17,10 @@ limitations under the License.
 package toolkit
 
 import (
-	"github.com/lastbackend/toolkit/cmd"
-	"github.com/lastbackend/toolkit/logger"
-	"github.com/lastbackend/toolkit/probe"
-	"github.com/lastbackend/toolkit/probe/types"
+	"github.com/lastbackend/toolkit/pkg/cmd"
+	"github.com/lastbackend/toolkit/pkg/logger"
+	"github.com/lastbackend/toolkit/pkg/probe"
+	"github.com/lastbackend/toolkit/pkg/probe/types"
 	"golang.org/x/sync/errgroup"
 
 	"context"

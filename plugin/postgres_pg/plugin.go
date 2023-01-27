@@ -26,7 +26,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/jmoiron/sqlx"
 	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/cmd"
+	"github.com/lastbackend/toolkit/pkg/cmd"
 	"github.com/pkg/errors"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
