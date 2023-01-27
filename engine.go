@@ -20,9 +20,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/lastbackend/toolkit/cmd"
-	"github.com/lastbackend/toolkit/logger"
-	probe "github.com/lastbackend/toolkit/probe/types"
+	"github.com/lastbackend/toolkit/pkg/cmd"
+	"github.com/lastbackend/toolkit/pkg/logger"
+	probe "github.com/lastbackend/toolkit/pkg/probe/types"
 )
 
 type ServiceType uint8

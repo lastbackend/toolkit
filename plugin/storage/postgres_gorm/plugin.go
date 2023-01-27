@@ -17,7 +17,7 @@ limitations under the License.
 package postgres_gorm
 
 import (
-	"github.com/lastbackend/toolkit/probe"
+	"github.com/lastbackend/toolkit/pkg/probe"
 	"os"
 	"strconv"
 	"time"
@@ -26,7 +26,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/cmd"
+	"github.com/lastbackend/toolkit/pkg/cmd"
 	"github.com/pkg/errors"
 	psql "gorm.io/driver/postgres"
 	"gorm.io/gorm"

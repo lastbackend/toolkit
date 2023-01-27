@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lastbackend/toolkit/logger"
+	"github.com/lastbackend/toolkit/pkg/logger"
 	"github.com/streadway/amqp"
 )
 

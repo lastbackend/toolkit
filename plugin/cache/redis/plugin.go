@@ -20,7 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/lastbackend/toolkit/probe"
+	"github.com/lastbackend/toolkit/pkg/probe"
 	"strings"
 	"time"
 

@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package lastbackend.example;
+
+option go_package = "github.com/lastbackend/toolkit/example/gen;servicepb";
+
+import "github.com/lastbackend/toolkit/protoc-gen-toolkit/toolkit/options/annotations.proto";
+import "github.com/lastbackend/toolkit/example/apis/ptypes/messages.proto";
+
+message Empty {}
+
+// =====================================================
+// Dockerfile spec
+// =====================================================
+option (toolkit.dockerfile_spec) = {
+  expose: [3000]
+  commands: ["/usr/bin/service"]
+  rewrite_if_exists: false
+};
+
+// =====================================================
+// Generate mocks
+// =====================================================
+option (toolkit.tests_spec) = {
+  mockery: {
+    package: "github.com/lastbackend/toolkit/example/tests/service_mocks"
+  }
+};
+
+// =====================================================
+// Install clients
+// =====================================================
+option (toolkit.plugins) = {
+  storage: {
+    key: "pgsql"
+    value: {
+      prefix: "pgsql"
+      plugin: "postgres_gorm"
+    }
+  }
+};
+
+// =====================================================
+// RPC methods
+// =====================================================
+service Example {
+  //  Example methods
+  rpc HelloWorld(HelloWorldRequest) returns (HelloWorldResponse) {}
+};

@@ -23,8 +23,8 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/jmoiron/sqlx"
 	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/cmd"
-	"github.com/lastbackend/toolkit/probe"
+	"github.com/lastbackend/toolkit/pkg/cmd"
+	"github.com/lastbackend/toolkit/pkg/probe"
 	"github.com/pkg/errors"
 	"strconv"
 
