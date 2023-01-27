@@ -1,5 +1,5 @@
 /*
-Copyright [2014] - [2022] The Last.Backend authors.
+Copyright [2014] - [2023] The Last.Backend authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis/v9"
 	"github.com/lastbackend/toolkit/pkg/probe/types"
 	"time"
 )
@@ -52,6 +52,21 @@ func RedisClientPingChecker(client *redis.Client, timeout time.Duration) types.P
 }
 
 func RedisClusterPingChecker(client *redis.ClusterClient, timeout time.Duration) types.ProbeFunc {
+	return func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		if client == nil {
+			return fmt.Errorf("connection is nil")
+		}
+		_, err := client.Ping(ctx).Result()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
+func RedisPingChecker(client *redis.Client, timeout time.Duration) types.ProbeFunc {
 	return func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()

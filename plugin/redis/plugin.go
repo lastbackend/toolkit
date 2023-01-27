@@ -1,5 +1,5 @@
 /*
-Copyright [2014] - [2022] The Last.Backend authors.
+Copyright [2014] - [2023] The Last.Backend authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,13 +20,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/lastbackend/toolkit/pkg/probe"
 	"strings"
 	"time"
 
-	"github.com/go-redis/cache/v8"
-	"github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis/v9"
 	"github.com/lastbackend/toolkit"
+	"github.com/lastbackend/toolkit/probe"
 )
 
 const (
@@ -38,7 +37,9 @@ const (
 type Plugin interface {
 	toolkit.Plugin
 
-	DB() *cache.Cache
+	DB() *redis.Client
+	ClusterDB() *redis.ClusterClient
+
 	Register(app toolkit.Service, opts *Options) error
 }
 
@@ -47,8 +48,11 @@ type Options struct {
 }
 
 type options struct {
-	// Endpoints = host:port,host:port addresses of ring shards.
-	Endpoints string
+	// Endpoint = host:port,host:port addresses of ring shards.
+	Endpoint string
+
+	// IsCluster = enable cluster mode
+	IsCluster bool
 
 	// Frequency of PING commands sent to check shards availability.
 	// Shard is considered down after 3 subsequent failed checks.
@@ -94,22 +98,10 @@ type options struct {
 	// Minimum number of idle connections which is useful when establishing
 	// new connection is slow.
 	MinIdleConns int
-	// Endpoint age at which client retires (closes) the connection.
-	// Default is to not close aged connections.
-	MaxConnAge time.Duration
 	// Amount of time client waits for connection if all connections
 	// are busy before returning an error.
 	// Default is ReadTimeout + 1 second.
 	PoolTimeout time.Duration
-	// Amount of time after which client closes idle connections.
-	// Should be less than server's timeout.
-	// Default is 5 minutes. -1 disables idle timeout check.
-	IdleTimeout time.Duration
-	// Frequency of idle checks made by idle connections reaper.
-	// Default is 1 minute. -1 disables idle connections reaper,
-	// but idle connections are still discarded by the client
-	// if IdleTimeout is set.
-	IdleCheckFrequency time.Duration
 
 	// TODO: need to implement the ability to install tls
 	// TLS Config to use. When set TLS will be negotiated.
@@ -120,7 +112,8 @@ type plugin struct {
 	prefix string
 	opts   options
 
-	db *cache.Cache
+	db  *redis.Client
+	cdb *redis.ClusterClient
 
 	probe toolkit.Probe
 }
@@ -151,22 +144,24 @@ func (p *plugin) Register(app toolkit.Service, opts *Options) error {
 	return nil
 }
 
-func (p *plugin) DB() *cache.Cache {
+func (p *plugin) DB() *redis.Client {
 	return p.db
 }
 
+func (p *plugin) ClusterDB() *redis.ClusterClient {
+	return p.cdb
+}
+
 func (p *plugin) Start(ctx context.Context) (err error) {
-	client := redis.NewClusterClient(p.prepareOptions(p.opts))
-
-	conn := cache.New(&cache.Options{
-		Redis:      client,
-		LocalCache: cache.NewTinyLFU(1000, time.Minute),
-	})
-
-	p.probe.AddReadinessFunc(p.prefix, probe.RedisClusterPingChecker(client, 1*time.Second))
-
-	p.db = conn
-
+	if p.opts.IsCluster {
+		client := redis.NewClusterClient(p.prepareClusterOptions(p.opts))
+		p.probe.AddReadinessFunc(p.prefix, probe.RedisClusterPingChecker(client, 1*time.Second))
+		p.cdb = client
+	} else {
+		client := redis.NewClient(p.prepareOptions(p.opts))
+		p.probe.AddReadinessFunc(p.prefix, probe.RedisPingChecker(client, 1*time.Second))
+		p.db = client
+	}
 	return nil
 }
 
@@ -183,9 +178,15 @@ func (p *plugin) withEnvPrefix(name string) string {
 }
 
 func (p *plugin) addFlags(app toolkit.Service) {
-	app.CLI().AddStringFlag(p.withPrefix("endpoints"), &p.opts.Endpoints).
-		Env(p.withEnvPrefix("ENDPOINTS")).
-		Usage("Set endpoints for connecting to the server as <host(optional)>:<port>,<host(optional)>:<port>,<etc.> string. (Default: :6379)")
+	app.CLI().AddStringFlag(p.withPrefix("endpoint"), &p.opts.Endpoint).
+		Env(p.withEnvPrefix("ENDPOINT")).
+		Usage("Set endpoint for connecting to the server as <host(optional)>:<port> or for cluster <host(optional)>:<port>,<host(optional)>:<port>,<etc.> string. (Default: :6379)").
+		Default(":6379")
+
+	app.CLI().AddBoolFlag(p.withPrefix("cluster"), &p.opts.IsCluster).
+		Env(p.withEnvPrefix("CLUSTER")).
+		Usage("Set database as cluster mode (default: false)").
+		Default(false)
 
 	app.CLI().AddIntFlag(p.withPrefix("db"), &p.opts.DB).
 		Env(p.withEnvPrefix("DB")).
@@ -235,47 +236,58 @@ func (p *plugin) addFlags(app toolkit.Service) {
 		Env(p.withEnvPrefix("MIN_IDLE_CONNS")).
 		Usage("Set connection age at which client retires (closes) the connection.")
 
-	app.CLI().AddDurationFlag(p.withPrefix("max-conn-age"), &p.opts.MaxConnAge).
-		Env(p.withEnvPrefix("MAX_CONN_AGE")).
-		Usage("Set connection age at which client retires (closes) the connection. (Default is to not close aged connections.)")
-
 	app.CLI().AddDurationFlag(p.withPrefix("pool-timeout"), &p.opts.PoolTimeout).
 		Env(p.withEnvPrefix("POOL_TIMEOUT")).
 		Usage("Set amount of time client waits for connection if all connections are busy before returning an error. (Default is ReadTimeout + 1 second.)")
 
-	app.CLI().AddDurationFlag(p.withPrefix("idle-timeout"), &p.opts.IdleTimeout).
-		Env(p.withEnvPrefix("IDLE_TIMEOUT")).
-		Usage("Set amount of time after which client closes idle connections. Should be less than server's timeout. (Default is 5 minutes.)")
-
-	app.CLI().AddDurationFlag(p.withPrefix("idle-check-frequency"), &p.opts.IdleCheckFrequency).
-		Env(p.withEnvPrefix("IDLE_CHECK_FREQUENCY")).
-		Usage("Set frequency of idle checks made by idle connections reaper. (Default is 1 minute. -1)")
 }
 
-func (p *plugin) prepareOptions(opts options) *redis.ClusterOptions {
+func (p *plugin) prepareOptions(opts options) *redis.Options {
+
+	addr := defaultEndpoint
+	if len(opts.Endpoint) > 0 {
+		opts.Endpoint = strings.Replace(opts.Endpoint, " ", "", -1)
+		addr = strings.Split(opts.Endpoint, ",")[0]
+	}
+
+	return &redis.Options{
+		Addr:            addr,
+		Username:        opts.Username,
+		Password:        opts.Password,
+		MaxRetries:      opts.MaxRetries,
+		MinRetryBackoff: opts.MinRetryBackoff,
+		MaxRetryBackoff: opts.MaxRetryBackoff,
+		DialTimeout:     opts.DialTimeout,
+		ReadTimeout:     opts.ReadTimeout,
+		WriteTimeout:    opts.WriteTimeout,
+		PoolSize:        opts.PoolSize,
+		MinIdleConns:    opts.MinIdleConns,
+		PoolTimeout:     opts.PoolTimeout,
+		TLSConfig:       opts.TLSConfig,
+	}
+}
+
+func (p *plugin) prepareClusterOptions(opts options) *redis.ClusterOptions {
 
 	addrs := []string{defaultEndpoint}
-	if len(opts.Endpoints) > 0 {
-		opts.Endpoints = strings.Replace(opts.Endpoints, " ", "", -1)
-		addrs = strings.Split(opts.Endpoints, ",")
+	if len(opts.Endpoint) > 0 {
+		opts.Endpoint = strings.Replace(opts.Endpoint, " ", "", -1)
+		addrs = strings.Split(opts.Endpoint, ",")
 	}
 
 	return &redis.ClusterOptions{
-		Addrs:              addrs,
-		Username:           opts.Username,
-		Password:           opts.Password,
-		MaxRetries:         opts.MaxRetries,
-		MinRetryBackoff:    opts.MinRetryBackoff,
-		MaxRetryBackoff:    opts.MaxRetryBackoff,
-		DialTimeout:        opts.DialTimeout,
-		ReadTimeout:        opts.ReadTimeout,
-		WriteTimeout:       opts.WriteTimeout,
-		PoolSize:           opts.PoolSize,
-		MinIdleConns:       opts.MinIdleConns,
-		MaxConnAge:         opts.MaxConnAge,
-		PoolTimeout:        opts.PoolTimeout,
-		IdleTimeout:        opts.IdleTimeout,
-		IdleCheckFrequency: opts.IdleCheckFrequency,
-		TLSConfig:          opts.TLSConfig,
+		Addrs:           addrs,
+		Username:        opts.Username,
+		Password:        opts.Password,
+		MaxRetries:      opts.MaxRetries,
+		MinRetryBackoff: opts.MinRetryBackoff,
+		MaxRetryBackoff: opts.MaxRetryBackoff,
+		DialTimeout:     opts.DialTimeout,
+		ReadTimeout:     opts.ReadTimeout,
+		WriteTimeout:    opts.WriteTimeout,
+		PoolSize:        opts.PoolSize,
+		MinIdleConns:    opts.MinIdleConns,
+		PoolTimeout:     opts.PoolTimeout,
+		TLSConfig:       opts.TLSConfig,
 	}
 }
