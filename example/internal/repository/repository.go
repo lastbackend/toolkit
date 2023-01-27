@@ -13,6 +13,6 @@ type Repository struct {
 }
 
 // NewRepository Model with given configurations.
-func NewRepository(psql servicepb.PgsqlStorage, cfg *config.Config) *Repository {
+func NewRepository(psql servicepb.PgsqlPlugin, cfg *config.Config) *Repository {
 	return &Repository{psql, cfg}
 }

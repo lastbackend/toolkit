@@ -31,13 +31,13 @@ option (toolkit.tests_spec) = {
 // Install clients
 // =====================================================
 option (toolkit.plugins) = {
-  storage: {
-    key: "pgsql"
-    value: {
-      prefix: "pgsql"
-      plugin: "postgres_gorm"
-    }
-  }
+  prefix: "pgsql"
+  plugin: "postgres_gorm"
+};
+
+option (toolkit.plugins) = {
+  prefix: "redis"
+  plugin: "redis_cache"
 };
 
 // =====================================================
