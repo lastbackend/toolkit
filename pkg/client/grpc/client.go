@@ -50,6 +50,8 @@ const (
 	defaultMaxRecvMsgSize = 1024 * 1024 * 16
 	// DefaultMaxSendMsgSize maximum message that client can send (16 MB).
 	defaultMaxSendMsgSize = 1024 * 1024 * 16
+
+	defaultAddress = ":50005"
 )
 
 type GRPCClient struct { // nolint
@@ -92,8 +94,13 @@ func (c *GRPCClient) Call(ctx context.Context, service, method string, body, res
 	req := newRequest(service, method, body, headers)
 
 	routes, err := resolver.DefaultResolver.Lookup(req.service)
-	if err != nil {
+	if err != nil && !strings.HasSuffix(err.Error(), "route not found") {
 		return status.Error(codes.Unavailable, err.Error())
+	}
+
+	addresses := routes.Addresses()
+	if len(addresses) == 0 {
+		addresses = []string{defaultAddress}
 	}
 
 	next, err := c.opts.Selector.Select(routes.Addresses())
@@ -141,8 +148,13 @@ func (c *GRPCClient) Stream(ctx context.Context, service, method string, body in
 	req := newRequest(service, method, body, headers)
 
 	routes, err := resolver.DefaultResolver.Lookup(req.service)
-	if err != nil {
+	if err != nil && !strings.HasSuffix(err.Error(), "route not found") {
 		return nil, status.Error(codes.Unavailable, err.Error())
+	}
+
+	addresses := routes.Addresses()
+	if len(addresses) == 0 {
+		addresses = []string{defaultAddress}
 	}
 
 	next, err := c.opts.Selector.Select(routes.Addresses())
