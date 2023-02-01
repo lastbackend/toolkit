@@ -9,7 +9,7 @@ curl -s -o proto/google/api/annotations.proto -L https://raw.githubusercontent.c
 PROTOS=$(find . -type f -name '*.proto' | grep -v example | grep -v proto/google/api | grep -v proto/toolkit/options)
 
 for PROTO in $PROTOS; do
-  protoc --experimental_allow_proto3_optional \
+  protoc \
     -I. \
     -I$GOPATH/src \
     -I$(dirname $PROTO) \

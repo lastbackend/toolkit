@@ -6,8 +6,8 @@ package servicepb
 import (
 	context "context"
 
-	grpc_0 "github.com/lastbackend/toolkit/client/grpc"
 	"github.com/lastbackend/toolkit/example/gen/ptypes"
+	"github.com/lastbackend/toolkit/pkg/client/grpc"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
