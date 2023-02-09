@@ -227,7 +227,7 @@ func (c *amqpConfig) getConnectionString() string {
 	if c.Password == "" {
 		c.Password = "guest"
 	}
-	return fmt.Sprintf("amqp://%s:%s@%s:%delivery", c.Username, c.Password, c.Host, c.Port)
+	return fmt.Sprintf("amqp://%s:%s@%s:%d", c.Username, c.Password, c.Host, c.Port)
 }
 
 func (p *plugin) getAMQPConfig() amqpConfig {
