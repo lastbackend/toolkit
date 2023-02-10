@@ -20,13 +20,13 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/lastbackend/toolkit/pkg/probe"
 	"strings"
 	"time"
 
 	"github.com/go-redis/cache/v9"
-	"github.com/go-redis/redis/v9"
 	"github.com/lastbackend/toolkit"
+	"github.com/lastbackend/toolkit/pkg/probe"
+	"github.com/redis/go-redis/v9"
 )
 
 const (

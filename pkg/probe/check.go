@@ -20,8 +20,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/go-redis/redis/v9"
 	"github.com/lastbackend/toolkit/pkg/probe/types"
+	"github.com/redis/go-redis/v9"
 	"time"
 )
 
