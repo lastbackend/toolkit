@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	defaultAddress          = ":9000"
+	defaultPort             = 9000
 	defaultName             = "go.toolkit.server"
 	defaultRegisterInterval = time.Second * 30
 	defaultRegisterTTL      = time.Second * 90
@@ -37,9 +37,11 @@ const (
 )
 
 type Options struct {
-	ID      string
-	Name    string
-	Address string
+	ID   string
+	Name string
+
+	Host string
+	Port int
 
 	MaxConnSize    int
 	MaxRecvMsgSize int
@@ -61,7 +63,7 @@ func defaultOptions() Options {
 	return Options{
 		ID:               uuid.New().String(),
 		Name:             defaultName,
-		Address:          defaultAddress,
+		Port:             defaultPort,
 		RegisterInterval: defaultRegisterInterval,
 		RegisterTTL:      defaultRegisterTTL,
 	}

@@ -231,7 +231,7 @@ type Service interface {
 }
 
 type RPC struct {
-	Grpc grpc.RPCClient
+	Grpc grpc.Client
 	{{- range $key, $value := .Clients }}
 		{{ $value.Service | ToCamel }} {{ $key }}.{{ $value.Service | ToCamel }}RPCClient
 	{{- end }}
@@ -410,14 +410,10 @@ func (s *service) registerClients() error {
 
 	// Register clients
 	
-	s.rpc.Grpc = grpc.NewClient(s.toolkit.CLI(), grpc.ClientOptions{Name: "client-grpc"})
-
-	if err := s.toolkit.ClientRegister(s.rpc.Grpc); err != nil {
-		return err
-	}
+	s.rpc.Grpc = s.toolkit.Client()
 
 	{{ range $key, $value := .Clients }}
-		s.rpc.{{ $value.Service | ToCamel }} = {{ $value.Service | ToLower }}.New{{ $value.Service | ToCamel }}RPCClient("{{ $value.Service | ToLower }}", s.rpc.Grpc.Client())
+		s.rpc.{{ $value.Service | ToCamel }} = {{ $value.Service | ToLower }}.New{{ $value.Service | ToCamel }}RPCClient("{{ $value.Service | ToLower }}", s.rpc.Grpc)
 	{{ end }}
 
 	return nil
@@ -437,9 +433,9 @@ func (s *service) registerClients() error {
 		h := &{{ $svc.GetName | ToLower }}GrpcRpcServer{srv.({{ $svc.GetName }}RpcServer)}
 
 		{{ if eq $lengthService 1 }}
-		grpc{{ $svc.GetName | ToLower }}Server := server.NewServer(s.toolkit, &server.ServerOptions{Name: "server-grpc"})
+		grpc{{ $svc.GetName | ToLower }}Server := server.NewServer(s.toolkit, &server.ServerOptions{Name: "grpc"})
 		{{ else }}
-		grpc{{ $svc.GetName | ToLower }}Server := server.NewServer(s.toolkit, &server.ServerOptions{Name: "server-{{ $svc.GetName | ToLower }}-grpc"})
+		grpc{{ $svc.GetName | ToLower }}Server := server.NewServer(s.toolkit, &server.ServerOptions{Name: "{{ $svc.GetName | ToLower }}-grpc"})
 		{{ end }}
 		if err := grpc{{ $svc.GetName | ToLower }}Server.Register(&{{ $svc.GetName }}_ServiceDesc, &{{ $svc.GetName }}GrpcRpcServer{h}); err != nil {
 			return err

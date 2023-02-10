@@ -51,7 +51,8 @@ type probe struct {
 	envPrefix string
 
 	disable        bool
-	port           int32
+	host           string
+	port           int
 	livenessRoute  string
 	readinessRoute string
 	metricsRoute   string
@@ -76,8 +77,12 @@ func (p *probe) Init(prefix string, cli cmd.FlagSet) {
 		Default(false).
 		Usage("Disable probes checker")
 
-	cli.AddInt32Flag(p.withPrefix("http-server-port"), &p.port).
-		Env(p.generateEnvName("HTTP_SERVER_PORT")).
+	cli.AddStringFlag(p.withPrefix("host"), &p.host).
+		Env(p.generateEnvName("HOST")).
+		Usage("Sets probe HTTP server port")
+
+	cli.AddIntFlag(p.withPrefix("port"), &p.port).
+		Env(p.generateEnvName("PORT")).
 		Default(defaultPort).
 		Usage("Sets probe HTTP server port")
 
@@ -149,8 +154,9 @@ func (p *probe) Start(ctx context.Context) error {
 
 	p.Handle(p.livenessRoute, http.HandlerFunc(p.LiveEndpoint))
 	p.Handle(p.readinessRoute, http.HandlerFunc(p.ReadyEndpoint))
+	p.Handle(p.metricsRoute, http.HandlerFunc(p.MetricsEndpoint))
 
-	p.server = &http.Server{Addr: fmt.Sprintf(":%d", p.port), Handler: p}
+	p.server = &http.Server{Addr: fmt.Sprintf("%s:%d", p.host, p.port), Handler: p}
 
 	go func() {
 		<-ctx.Done()
@@ -204,7 +210,6 @@ func (p *probe) metricsHandle(w http.ResponseWriter, r *http.Request, metrics ..
 
 	w.Header().Set("Content-Type", defaultContentType)
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{}`))
 }
 
 func (p *probe) withPrefix(name string) string {

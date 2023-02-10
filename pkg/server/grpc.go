@@ -18,19 +18,19 @@ package server
 
 import (
 	"context"
-	"github.com/improbable-eng/grpc-web/go/grpcweb"
-	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/pkg/logger"
-	"golang.org/x/net/netutil"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-
 	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/lastbackend/toolkit"
+	"github.com/lastbackend/toolkit/pkg/logger"
+	"golang.org/x/net/netutil"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 const (
@@ -44,7 +44,8 @@ type ServerOptions struct { // nolint
 type grpcServer struct {
 	sync.RWMutex
 
-	prefix string
+	prefix  string
+	address string
 
 	opts Options
 
@@ -89,10 +90,11 @@ func (g *grpcServer) Start(_ context.Context) error {
 		err      error
 	)
 
+	address := fmt.Sprintf("%s:%d", g.opts.Host, g.opts.Port)
 	if transportConfig := g.opts.TLSConfig; transportConfig != nil {
-		listener, err = tls.Listen("tcp", g.opts.Address, transportConfig)
+		listener, err = tls.Listen("tcp", address, transportConfig)
 	} else {
-		listener, err = net.Listen("tcp", g.opts.Address)
+		listener, err = net.Listen("tcp", address)
 	}
 	if err != nil {
 		return err
@@ -107,7 +109,7 @@ func (g *grpcServer) Start(_ context.Context) error {
 	}
 
 	g.Lock()
-	g.opts.Address = listener.Addr().String()
+	g.address = listener.Addr().String()
 	g.Unlock()
 
 	if len(g.opts.GRPCWebAddr) > 0 {
@@ -183,10 +185,14 @@ func (g *grpcServer) Stop() error {
 
 func (g *grpcServer) addFlags(app toolkit.Service) {
 
-	app.CLI().AddStringFlag(g.withPrefix("address"), &g.opts.Address).
-		Env(g.withEnvPrefix("ADDRESS")).
-		Usage("Server address for listening").
-		Default(defaultAddress)
+	app.CLI().AddStringFlag(g.withPrefix("host"), &g.opts.Host).
+		Env(g.withEnvPrefix("HOST")).
+		Usage("Server host for listening")
+
+	app.CLI().AddIntFlag(g.withPrefix("port"), &g.opts.Port).
+		Env(g.withEnvPrefix("PORT")).
+		Usage("Server port for listening").
+		Default(defaultPort)
 
 	app.CLI().AddStringFlag(g.withPrefix("name"), &g.opts.Name).
 		Env(g.withEnvPrefix("NAME")).

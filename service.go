@@ -54,7 +54,7 @@ type service struct {
 
 func newService(name string) Service {
 	cli := cmd.New(name)
-	rpc := grpc.NewClient(cli, grpc.ClientOptions{})
+	rpc := grpc.NewClient(cli, grpc.ClientOptions{Name: "client-grpc"})
 	rtr := router.New(cli)
 
 	return &service{
