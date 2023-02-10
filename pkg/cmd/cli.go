@@ -17,6 +17,12 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
+	"os"
+	"regexp"
+	"strings"
+	"time"
+
 	"github.com/lastbackend/toolkit/pkg/logger"
 	"github.com/lastbackend/toolkit/pkg/network/resolver"
 	"github.com/lastbackend/toolkit/pkg/network/resolver/consul"
@@ -24,12 +30,6 @@ import (
 	"github.com/lastbackend/toolkit/pkg/network/resolver/route"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-
-	"fmt"
-	"os"
-	"regexp"
-	"strings"
-	"time"
 )
 
 const (
@@ -83,6 +83,10 @@ type cli struct {
 }
 
 func New(name string) CLI {
+
+	if name == "" {
+		name = defaultName
+	}
 
 	c := new(cli)
 
