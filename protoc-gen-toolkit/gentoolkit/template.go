@@ -377,7 +377,9 @@ func (s *service) Run(ctx context.Context) error {
 		{{- end }}
 	{{- end }}
 	opts = append(opts, fx.Invoke(s.inv...))
-	opts = append(opts, fx.Invoke(s.mdw))
+	if s.mdw != nil {
+		opts = append(opts, fx.Invoke(s.mdw))
+	}
 	opts = append(opts, fx.Invoke(s.registerRouter))
 	opts = append(opts, fx.Invoke(s.runService))
 
