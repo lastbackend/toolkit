@@ -20,19 +20,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/lastbackend/toolkit/pkg/cmd"
 	"net/http"
 	"strings"
 	"sync"
 
+	"github.com/lastbackend/toolkit/pkg/cmd"
 	"github.com/lastbackend/toolkit/pkg/probe/types"
 )
 
 const (
 	defaultPrefix         = "probe"
-	defaultLivenessRoute  = "/live"
-	defaultReadinessRoute = "/ready"
-	defaultPort           = 5005
+	defaultLivenessRoute  = "/healthz/live"
+	defaultReadinessRoute = "/healthz/ready"
+	defaultMetricsRoute   = "/metrics"
+	defaultPort           = 9090
+
+	defaultContentType = "application/json; charset=utf-8"
 )
 
 type probe struct {
@@ -40,8 +43,9 @@ type probe struct {
 
 	mtx sync.RWMutex
 
-	livenessProbes  map[string]types.ProbeFunc
-	readinessProbes map[string]types.ProbeFunc
+	livenessProbes  map[string]types.HandleFunc
+	readinessProbes map[string]types.HandleFunc
+	metrics         map[string]types.HandleFunc
 
 	prefix    string
 	envPrefix string
@@ -50,14 +54,16 @@ type probe struct {
 	port           int32
 	livenessRoute  string
 	readinessRoute string
+	metricsRoute   string
 
 	server *http.Server
 }
 
 func NewProbe() types.Probe {
 	return &probe{
-		livenessProbes:  make(map[string]types.ProbeFunc),
-		readinessProbes: make(map[string]types.ProbeFunc),
+		livenessProbes:  make(map[string]types.HandleFunc),
+		readinessProbes: make(map[string]types.HandleFunc),
+		metrics:         make(map[string]types.HandleFunc),
 		prefix:          defaultPrefix,
 	}
 }
@@ -84,29 +90,44 @@ func (p *probe) Init(prefix string, cli cmd.FlagSet) {
 		Env(p.generateEnvName("READINESS_URI")).
 		Default(defaultReadinessRoute).
 		Usage("Sets readiness uri path")
+
+	cli.AddStringFlag(p.withPrefix("metrics-path"), &p.metricsRoute).
+		Env(p.generateEnvName("METRICS_URI")).
+		Default(defaultMetricsRoute).
+		Usage("Sets metrics uri path")
 }
 
 func (p *probe) LiveEndpoint(w http.ResponseWriter, r *http.Request) {
-	p.handle(w, r, p.livenessProbes)
+	p.probeHandle(w, r, p.livenessProbes)
 }
 
 func (p *probe) ReadyEndpoint(w http.ResponseWriter, r *http.Request) {
-	p.handle(w, r, p.readinessProbes, p.livenessProbes)
+	p.probeHandle(w, r, p.readinessProbes, p.livenessProbes)
 }
 
-func (p *probe) AddLivenessFunc(name string, probe types.ProbeFunc) {
+func (p *probe) MetricsEndpoint(w http.ResponseWriter, r *http.Request) {
+	p.metricsHandle(w, r, p.metrics)
+}
+
+func (p *probe) AddLivenessFunc(name string, fn types.HandleFunc) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
-	p.livenessProbes[name] = probe
+	p.livenessProbes[name] = fn
 }
 
-func (p *probe) AddReadinessFunc(name string, probe types.ProbeFunc) {
+func (p *probe) AddReadinessFunc(name string, fn types.HandleFunc) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
-	p.readinessProbes[name] = probe
+	p.readinessProbes[name] = fn
 }
 
-func (p *probe) checkProbes(probes map[string]types.ProbeFunc, resultsOut map[string]string, statusOut *int) {
+func (p *probe) AddMetricsFunc(name string, fn types.HandleFunc) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	p.metrics[name] = fn
+}
+
+func (p *probe) checkProbes(probes map[string]types.HandleFunc, resultsOut map[string]string, statusOut *int) {
 	p.mtx.RLock()
 	defer p.mtx.RUnlock()
 
@@ -147,7 +168,7 @@ func (p *probe) Stop() error {
 	return p.server.Shutdown(context.Background())
 }
 
-func (p *probe) handle(w http.ResponseWriter, r *http.Request, probes ...map[string]types.ProbeFunc) {
+func (p *probe) probeHandle(w http.ResponseWriter, r *http.Request, probes ...map[string]types.HandleFunc) {
 
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -155,20 +176,35 @@ func (p *probe) handle(w http.ResponseWriter, r *http.Request, probes ...map[str
 	}
 
 	var (
-		probeResults = make(map[string]string, 0)
-		status       = http.StatusOK
+		result = make(map[string]string, 0)
+		status = http.StatusOK
 	)
 
-	for _, probes := range probes {
-		p.checkProbes(probes, probeResults, &status)
+	for _, v := range probes {
+		p.checkProbes(v, result, &status)
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", defaultContentType)
 	w.WriteHeader(status)
 
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "    ")
-	encoder.Encode(probeResults)
+
+	if err := encoder.Encode(result); err != nil {
+		return
+	}
+}
+
+func (p *probe) metricsHandle(w http.ResponseWriter, r *http.Request, metrics ...map[string]types.HandleFunc) {
+
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.Header().Set("Content-Type", defaultContentType)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{}`))
 }
 
 func (p *probe) withPrefix(name string) string {

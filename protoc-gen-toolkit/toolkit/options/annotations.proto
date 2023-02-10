@@ -36,3 +36,23 @@ message TestSpec {
 message MockeryTestsSpec {
   string package = 1;
 }
+
+extend google.protobuf.MethodOptions {
+  Proxy proxy = 60001;
+}
+
+message Proxy {
+  oneof proxy {
+    HttpProxy http = 1;
+    WsProxy ws = 2;
+  }
+}
+
+message HttpProxy {
+  string service = 1;
+  string method = 2;
+}
+
+message WsProxy {
+  string path = 1;
+}

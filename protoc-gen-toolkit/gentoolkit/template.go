@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"text/template"
 
+	"github.com/lastbackend/toolkit/pkg/util/converter"
 	"github.com/lastbackend/toolkit/pkg/util/strings"
 	"github.com/lastbackend/toolkit/protoc-gen-toolkit/descriptor"
 )
@@ -186,20 +187,37 @@ import (
 `))
 
 	funcMap = template.FuncMap{
-		"ToUpper":      strings.ToUpper,
-		"ToLower":      strings.ToLower,
-		"ToCapitalize": strings.Title,
-		"ToCamel":      strings.ToCamel,
+		"ToUpper":                       strings.ToUpper,
+		"ToLower":                       strings.ToLower,
+		"ToCapitalize":                  strings.Title,
+		"ToCamel":                       strings.ToCamel,
+		"ToTrimRegexFromQueryParameter": converter.ToTrimRegexFromQueryParameter,
 		"inc": func(n int) int {
 			return n + 1
 		},
 	}
 
-	_ = template.Must(contentServiceTemplate.New("services-content").Parse(`
+	_ = template.Must(contentServiceTemplate.New("services-content").Funcs(funcMap).Parse(`
+type middleware map[string][]func(h http.Handler) http.Handler
+
+func (m middleware) getMiddleware(name string) router.Middleware {
+	middleware := router.Middleware{}
+	if m[name] != nil {
+		for _, mdw := range m[name] {
+			middleware.Add(mdw)
+		}
+	}
+	return middleware
+}
+
+var middlewares = make(middleware, 0)
+
 type Service interface {
 	Logger() logger.Logger
 	Meta() toolkit.Meta
 	CLI() toolkit.CLI
+	Client() grpc.Client
+	Router() router.Server
 	Run(ctx context.Context) error
 
 	SetConfig(cfg interface{})
@@ -208,6 +226,7 @@ type Service interface {
 	{{ end }}
 
 	AddPackage(pkg interface{})
+	AddMiddleware(mdw interface{})
 	Invoke(fn interface{})
 }
 
@@ -232,13 +251,14 @@ func NewService(name string) Service {
 
 type service struct {
 	toolkit toolkit.Service
-	rpc    *RPC
+	rpc     *RPC
 	{{- if not .HasNotServer }}
-	srv  []interface{}
+	srv    []interface{}
 	{{- end }}
-	pkg  []interface{}
-	inv  []interface{}
-	cfg  interface{}
+	pkg    []interface{}
+	inv    []interface{}
+	cfg    interface{}
+	mdw    interface{}
 }
 
 func (s *service) Meta() toolkit.Meta {
@@ -251,6 +271,14 @@ func (s *service) CLI() toolkit.CLI {
 
 func (s *service) Logger() logger.Logger {
 	return s.toolkit.Logger()
+}
+
+func (s *service) Router() router.Server {
+	return s.toolkit.Router()
+}
+
+func (s *service) Client() grpc.Client {
+	return s.toolkit.Client()
 }
 
 func (s *service) SetConfig(cfg interface{}) {
@@ -271,6 +299,10 @@ func (s *service) AddPackage(pkg interface{}) {
 		return 
 	}
 	s.pkg = append(s.pkg, pkg)
+}
+
+func (s *service) AddMiddleware(mdw interface{}) {
+	s.mdw = mdw
 }
 
 func (s *service) Invoke(fn interface{}) {
@@ -345,6 +377,8 @@ func (s *service) Run(ctx context.Context) error {
 		{{- end }}
 	{{- end }}
 	opts = append(opts, fx.Invoke(s.inv...))
+	opts = append(opts, fx.Invoke(s.mdw))
+	opts = append(opts, fx.Invoke(s.registerRouter))
 	opts = append(opts, fx.Invoke(s.runService))
 
 	app := fx.New(
@@ -374,7 +408,7 @@ func (s *service) registerClients() error {
 
 	// Register clients
 	
-	s.rpc.Grpc = grpc.NewClient(s.toolkit, &grpc.ClientOptions{Name: "client-grpc"})
+	s.rpc.Grpc = grpc.NewClient(s.toolkit.CLI(), grpc.ClientOptions{Name: "client-grpc"})
 
 	if err := s.toolkit.ClientRegister(s.rpc.Grpc); err != nil {
 		return err
@@ -388,6 +422,7 @@ func (s *service) registerClients() error {
 }
 
 {{ if not .HasNotServer }}
+	{{ $lengthService := len .Services }} 
 	{{ range $svc := .Services }}
 	func (s *service) register{{ $svc.GetName }}Server(srv {{ $svc.GetName }}RpcServer) error {
 	
@@ -398,12 +433,17 @@ func (s *service) registerClients() error {
 		}
 	
 		h := &{{ $svc.GetName | ToLower }}GrpcRpcServer{srv.({{ $svc.GetName }}RpcServer)}
-		grpcServer := server.NewServer(s.toolkit, &server.ServerOptions{Name: "server-{{ $svc.GetName | ToLower }}-grpc"})
-		if err := grpcServer.Register(&{{ $svc.GetName }}_ServiceDesc, &{{ $svc.GetName }}GrpcRpcServer{h}); err != nil {
+
+		{{ if eq $lengthService 1 }}
+		grpc{{ $svc.GetName | ToLower }}Server := server.NewServer(s.toolkit, &server.ServerOptions{Name: "server-grpc"})
+		{{ else }}
+		grpc{{ $svc.GetName | ToLower }}Server := server.NewServer(s.toolkit, &server.ServerOptions{Name: "server-{{ $svc.GetName | ToLower }}-grpc"})
+		{{ end }}
+		if err := grpc{{ $svc.GetName | ToLower }}Server.Register(&{{ $svc.GetName }}_ServiceDesc, &{{ $svc.GetName }}GrpcRpcServer{h}); err != nil {
 			return err
 		}
 	
-		if err := s.toolkit.ServerRegister(grpcServer); err != nil {
+		if err := s.toolkit.ServerRegister(grpc{{ $svc.GetName | ToLower }}Server); err != nil {
 			return err
 		}
 	
@@ -411,6 +451,143 @@ func (s *service) registerClients() error {
 	}
 	{{ end }}
 {{ end }}
+
+func (s *service) registerRouter() {
+	{{range $svc := .Services}}
+		{{range $binding := $svc.Bindings}}
+		
+		{{ if $binding.Websocket }}
+		s.toolkit.Router().Handle(http.MethodGet, "{{$binding.HttpPath}}", s.Router().ServerWS,
+			router.HandleOptions{Middlewares: middlewares.getMiddleware("{{$binding.RpcMethod}}")})
+		{{end}}
+
+		{{ if not $binding.Websocket }}
+		s.toolkit.Router().Subscribe("{{$binding.RpcMethod}}", func(ctx context.Context, event ws.Event, c *ws.Client) error {
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+	
+			var protoRequest {{$binding.RequestType.GoType}}
+			var protoResponse {{$binding.ResponseType.GoType}}
+	
+			if err := json.Unmarshal(event.Payload, &protoRequest); err != nil {
+				return err
+			}
+	
+			callOpts := make([]grpc.CallOption, 0)
+
+			if headers := ctx.Value(ws.RequestHeaders); headers != nil {
+				if v, ok := headers.(map[string]string); ok {
+					callOpts = append(callOpts, grpc.Headers(v))
+				}
+			}
+	
+			if err := s.toolkit.Client().Call(ctx, "{{$binding.Service}}", "{{$binding.RpcPath}}", &protoRequest, &protoResponse, callOpts...); err != nil {
+				return err	
+			}
+	
+			return c.WriteJSON(protoResponse)
+		})
+
+		s.toolkit.Router().Handle({{$binding.HttpMethod}}, "{{$binding.HttpPath}}", func(w http.ResponseWriter, r *http.Request) {
+			ctx, cancel := context.WithCancel(r.Context())
+			defer cancel()
+
+			var protoRequest {{$binding.RequestType.GoType}}
+			var protoResponse {{$binding.ResponseType.GoType}}
+	
+			{{ if or (eq $binding.HttpMethod "http.MethodPost") (eq $binding.HttpMethod "http.MethodPut") (eq $binding.HttpMethod "http.MethodPatch") }}
+				{{ if eq $binding.RawBody "*" }}
+					im, om := router.GetMarshaler(s.toolkit.Router(), r)
+
+					reader, err := router.NewReader(r.Body)
+					if err != nil {
+						errors.HTTP.InternalServerError(w)
+						return
+					}
+					
+					if err := im.NewDecoder(reader).Decode(&protoRequest); err != nil && err != io.EOF {
+						errors.HTTP.InternalServerError(w)
+						return
+					}
+				{{else}}
+					_, om := router.GetMarshaler(s.toolkit.Router(), r)
+
+					if err := router.SetRawBodyToProto(r, &protoRequest, "{{$binding.RawBody}}"); err != nil {
+						errors.HTTP.InternalServerError(w)
+						return
+					}
+
+				{{end}}
+			{{else}}
+				_, om := router.GetMarshaler(s.toolkit.Router(), r)
+
+				if err := r.ParseForm(); err != nil {
+					errors.HTTP.InternalServerError(w)
+					return
+				}
+	
+				if err := router.ParseRequestQueryParametersToProto(&protoRequest, r.Form); err != nil {
+					errors.HTTP.InternalServerError(w)
+					return
+				}
+			{{end}}
+
+			{{range $param := $binding.HttpParams}}
+			if err := router.ParseRequestUrlParametersToProto(r, &protoRequest, "{{$param | ToTrimRegexFromQueryParameter}}"); err != nil {
+				errors.HTTP.InternalServerError(w)
+				return
+			}
+			{{end}}
+	
+			headers, err := router.PrepareHeaderFromRequest(r)
+			if err != nil {
+				errors.HTTP.InternalServerError(w)
+				return
+			}
+
+			callOpts := make([]grpc.CallOption, 0)
+			callOpts = append(callOpts, grpc.Headers(headers))
+
+			if err := s.toolkit.Client().Call(ctx, "{{$binding.Service}}", "{{$binding.RpcPath}}", &protoRequest, &protoResponse, callOpts...); err != nil {
+				errors.GrpcErrorHandlerFunc(w, err)
+				return			
+			}
+	
+			buf, err := om.Marshal(protoResponse)
+			if err != nil {
+				errors.HTTP.InternalServerError(w)
+				return
+			}
+
+			w.Header().Set("Content-Type", om.ContentType())
+
+			w.WriteHeader(http.StatusOK)
+			if _, err = w.Write(buf); err != nil {
+				s.toolkit.Logger().Infof("Failed to write response: %v", err)
+				return
+			}
+
+		}, router.HandleOptions{Middlewares: middlewares.getMiddleware("{{$binding.RpcMethod}}")})
+		{{end}}{{end}} 
+	{{end}}
+}
+
+func registerMiddleware(name string, mdw ...func(h http.Handler) http.Handler) {
+	if middlewares[name] == nil {
+		middlewares[name] = make([]func(h http.Handler) http.Handler, 0)
+	}
+	for _, h := range mdw {
+		middlewares[name] = append(middlewares[name], h)
+	}
+}
+
+{{range $svc := .Services}}
+	{{range $m := $svc.ProxyMethods}}
+	func {{$m.GetName}}MiddlewareAdd(mdw ...func(h http.Handler) http.Handler) {
+		registerMiddleware("{{$m.GetName}}", mdw...)
+	}
+	{{end}}
+{{end}}
 
 func (s *service) runService(lc fx.Lifecycle) error {
 	lc.Append(fx.Hook{
@@ -436,14 +613,14 @@ var shutdownSignals = []os.Signal{
 {{ range $svc := .Services }}
 	// Server API for Api service
 	type {{ $svc.GetName }}RpcServer interface {
-		{{ range $m := $svc.Methods }}
-    {{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
+	{{ range $m := $svc.RPCMethods }}
+		{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
 			{{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType }}) (*{{ $m.ResponseType.GoType }}, error)
-    {{ else }}{{ if not $m.GetClientStreaming }}
+		{{ else }}{{ if not $m.GetClientStreaming }}
 			{{ $m.GetName }}(req *{{ $m.RequestType.GoType }}, stream {{ $svc.GetName }}_{{ $m.GetName }}Server) error
-    {{ else }}
+		{{ else }}
 			{{ $m.GetName }}(stream {{ $svc.GetName }}_{{ $m.GetName }}Server) error
-    {{ end }}{{ end }}
+		{{ end }}{{ end }}
 	{{ end }}
 	}
 {{ end }}
@@ -453,20 +630,20 @@ var shutdownSignals = []os.Signal{
 		{{ $svc.GetName }}RpcServer
 	}
 
-	{{ range $m := $svc.Methods }}
-    {{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
-  		func (h *{{ $svc.GetName | ToLower }}GrpcRpcServer) {{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType }}) (*{{ $m.ResponseType.GoType }}, error) {
+	{{ range $m := $svc.RPCMethods }}
+		{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
+			func (h *{{ $svc.GetName | ToLower }}GrpcRpcServer) {{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType }}) (*{{ $m.ResponseType.GoType }}, error) {
 				return h.{{ $svc.GetName }}RpcServer.{{ $m.GetName }}(ctx, req)
 			}
-    {{ else }}{{ if not $m.GetClientStreaming }}
+		{{ else }}{{ if not $m.GetClientStreaming }}
 			func (h *{{ $svc.GetName | ToLower }}GrpcRpcServer) {{ $m.GetName }}(req *{{ $m.RequestType.GoType }}, stream {{ $svc.GetName }}_{{ $m.GetName }}Server) error {
 				return h.{{ $svc.GetName }}RpcServer.{{ $m.GetName }}(req, stream)
 			}
-    {{ else }}
+		{{ else }}
 			func (h *{{ $svc.GetName | ToLower }}GrpcRpcServer) {{ $m.GetName }}(stream {{ $svc.GetName }}_{{ $m.GetName }}Server) error {
 				return h.{{ $svc.GetName }}RpcServer.{{ $m.GetName }}(stream)
 			}
-    {{ end }}{{ end }}
+		{{ end }}{{ end }}
 	{{ end }}
 	func ({{ $svc.GetName | ToLower }}GrpcRpcServer) mustEmbedUnimplemented{{ $svc.GetName }}Server() {}
 {{ end }}
@@ -477,11 +654,19 @@ var shutdownSignals = []os.Signal{
 var _ context.Context
 var _ logger.Logger
 var _ emptypb.Empty
+var _ server.Server
+var _ grpc.Client
+var _ http.Handler
+var _ errors.Err
+var _ io.Reader
+var _ json.Marshaler
+var _ ws.Client
 {{- if not .HasNotServer }}
 var _ server.Server
 {{ end }}
 
 {{ template "services-content" . }}
+
 {{ if not .HasNotServer }}
 	{{ template "server-content" . }}
 {{ end }}
@@ -500,15 +685,15 @@ var _ emptypb.Empty
 
 	// Client gRPC API for {{ $svc.GetName }} service
 	type {{ $svc.GetName }}RPCClient interface {
-		{{ range $m := $svc.Methods }}
-			{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
-				{{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType }}, opts ...grpc.CallOption) (*{{ $m.ResponseType.GoType }}, error)
-			{{ else }}
-				{{ if not $m.GetClientStreaming }}
-					{{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType }}, opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error)
+		{{ range $m := $svc.RPCMethods }}
+				{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
+					{{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType }}, opts ...grpc.CallOption) (*{{ $m.ResponseType.GoType }}, error)
 				{{ else }}
-					{{ $m.GetName }}(ctx context.Context, opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error)
-				{{ end }}
+					{{ if not $m.GetClientStreaming }}
+						{{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType }}, opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error)
+					{{ else }}
+						{{ $m.GetName }}(ctx context.Context, opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error)
+					{{ end }}
 			{{ end }}
 		{{ end }}
 	}
@@ -520,7 +705,7 @@ var _ emptypb.Empty
 		cli     grpc.Client
 	}
 
-	{{ range $m := $svc.Methods }}
+	{{ range $m := $svc.RPCMethods }}
 		{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
 			func (c *{{ $svc.GetName | ToLower }}GrpcRPCClient) {{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType }}, opts ...grpc.CallOption) (*{{ $m.ResponseType.GoType }}, error) {
 				resp := new({{ $m.ResponseType.GoType }})
@@ -589,7 +774,6 @@ var _ emptypb.Empty
 				return x.stream.SendMsg(m)
 			}
 			{{ end }}
-
 		{{ end }}
 	{{ end }}
 
@@ -597,12 +781,12 @@ var _ emptypb.Empty
 {{ end }}
 
 {{ range $svc := .Services }}
-	{{ if $svc.Methods }}
+	{{ if $svc.RPCMethods }}
 		// Client methods for {{ $svc.GetName }} service
 		const (
-			{{ range $m := $svc.Methods }}
-				{{ $svc.GetName }}_{{ $m.GetName }}Method = "/{{ $svc.FullyName }}/{{ $m.GetName }}"
-			{{ end }}
+		{{ range $m := $svc.RPCMethods }}
+			{{ $svc.GetName }}_{{ $m.GetName }}Method = "/{{ $svc.FullyName }}/{{ $m.GetName }}"
+		{{ end }}
 		)
 	{{ end }}
 {{ end }}
@@ -616,7 +800,7 @@ var _ emptypb.Empty
 {{ range $svc := .Services }}
 	// Server API for Api service
 	type {{ $svc.GetName }}Stubs struct {
-		{{ range $m := $svc.Methods }}
+		{{ range $m := $svc.RPCMethods }}
 			{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
 				{{ $m.GetName }} []{{ $m.GetName }}Stub
 			{{ else }}
@@ -626,7 +810,7 @@ var _ emptypb.Empty
 
 	func New{{ $svc.GetName }}Stubs() *{{ $svc.GetName }}Stubs {
 		stubs:= new({{ $svc.GetName }}Stubs)
-		{{ range $m := $svc.Methods }}
+		{{ range $m := $svc.RPCMethods }}
 			{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
 				stubs.{{ $m.GetName }} = make([]{{ $m.GetName }}Stub,0)
 			{{ end }}
@@ -638,7 +822,7 @@ var _ emptypb.Empty
 
 		rpc_mock := new(service_mocks.{{ $svc.GetName }}RPCClient)
 
-		{{ range $m := $svc.Methods }}
+		{{ range $m := $svc.RPCMethods }}
 			{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
 				for _, st := range stubs.{{ $m.GetName }} {
 					resp := st.Response
@@ -668,7 +852,7 @@ var _ emptypb.Empty
 {{ end }}
 
 	{{ range $svc := .Services }}
-		{{ range $m := $svc.Methods }}
+		{{ range $m := $svc.RPCMethods }}
 			type {{ $m.GetName }}Stub struct {
 			{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
 				Context     context.Context

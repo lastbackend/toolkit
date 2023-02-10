@@ -17,18 +17,20 @@ limitations under the License.
 package toolkit
 
 import (
-	"github.com/lastbackend/toolkit/pkg/cmd"
-	"github.com/lastbackend/toolkit/pkg/logger"
-	"github.com/lastbackend/toolkit/pkg/probe"
-	"github.com/lastbackend/toolkit/pkg/probe/types"
-	"golang.org/x/sync/errgroup"
-
 	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"reflect"
 	"syscall"
+
+	"github.com/lastbackend/toolkit/pkg/client/grpc"
+	"github.com/lastbackend/toolkit/pkg/cmd"
+	"github.com/lastbackend/toolkit/pkg/logger"
+	"github.com/lastbackend/toolkit/pkg/probe"
+	"github.com/lastbackend/toolkit/pkg/probe/types"
+	"github.com/lastbackend/toolkit/pkg/router"
+	"golang.org/x/sync/errgroup"
 )
 
 type HookFunc func(ctx context.Context) error
@@ -36,6 +38,9 @@ type HookFunc func(ctx context.Context) error
 type service struct {
 	cli           cmd.CLI
 	logger        logger.Logger
+	router        router.Server
+	probe         types.Probe
+	client        grpc.RPCClient
 	clients       []Client
 	servers       []Server
 	plugins       []Plugin
@@ -43,23 +48,29 @@ type service struct {
 	postRunFuncs  []HookFunc
 	preStopFuncs  []HookFunc
 	postStopFuncs []HookFunc
-	signal        bool
-	probe         types.Probe
+
+	signal bool
 }
 
 func newService(name string) Service {
-	s := new(service)
-	s.logger = logger.DefaultLogger
-	s.cli = cmd.New(name)
-	s.probe = probe.NewProbe()
-	s.clients = make([]Client, 0)
-	s.servers = make([]Server, 0)
-	s.plugins = make([]Plugin, 0)
-	s.preRunFuncs = make([]HookFunc, 0)
-	s.postRunFuncs = make([]HookFunc, 0)
-	s.preStopFuncs = make([]HookFunc, 0)
-	s.postStopFuncs = make([]HookFunc, 0)
-	return s
+	cli := cmd.New(name)
+	rpc := grpc.NewClient(cli, grpc.ClientOptions{})
+	rtr := router.New(cli)
+
+	return &service{
+		logger:        logger.DefaultLogger,
+		cli:           cli,
+		router:        rtr,
+		client:        rpc,
+		probe:         probe.NewProbe(),
+		clients:       []Client{rpc},
+		servers:       []Server{rtr},
+		plugins:       make([]Plugin, 0),
+		preRunFuncs:   make([]HookFunc, 0),
+		postRunFuncs:  make([]HookFunc, 0),
+		preStopFuncs:  make([]HookFunc, 0),
+		postStopFuncs: make([]HookFunc, 0),
+	}
 }
 
 func (s *service) Meta() Meta {
@@ -72,6 +83,14 @@ func (s *service) CLI() CLI {
 
 func (s *service) Probe() types.Probe {
 	return s.probe
+}
+
+func (s *service) Router() router.Server {
+	return s.router
+}
+
+func (s *service) Client() grpc.Client {
+	return s.client.Client()
 }
 
 func (s *service) PluginRegister(plug Plugin) error {
@@ -183,7 +202,7 @@ func (s *service) Start(ctx context.Context) error {
 
 	s.probe.Init(s.Meta().GetEnvPrefix(), s.CLI())
 
-	err := s.cli.PreRun(func() error {
+	if err := s.cli.PreRun(func() error {
 		group, _ := errgroup.WithContext(ctx)
 
 		for _, fn := range s.preRunFuncs {
@@ -193,12 +212,12 @@ func (s *service) Start(ctx context.Context) error {
 			})
 		}
 		return group.Wait()
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
-	err = s.cli.Run(func() error {
+	if err := s.cli.Run(func() error {
+
 		for _, t := range s.plugins {
 			if err := t.Start(ctx); err != nil {
 				return err
@@ -225,12 +244,11 @@ func (s *service) Start(ctx context.Context) error {
 		}
 
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
-	err = s.cli.PostRun(func() error {
+	if err := s.cli.PostRun(func() error {
 		group, _ := errgroup.WithContext(ctx)
 
 		for _, fn := range s.postRunFuncs {
@@ -245,8 +263,7 @@ func (s *service) Start(ctx context.Context) error {
 		}
 
 		return s.probe.Start(ctx)
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
@@ -257,7 +274,6 @@ func (s *service) Stop(ctx context.Context) error {
 	if err := s.probe.Stop(); err != nil {
 		return err
 	}
-
 	for _, t := range s.preStopFuncs {
 		if err := t(ctx); err != nil {
 			return err

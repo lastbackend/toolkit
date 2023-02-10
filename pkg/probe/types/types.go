@@ -22,15 +22,15 @@ import (
 	"net/http"
 )
 
-type ProbeFunc func() error
+type HandleFunc func() error
 
 type Probe interface {
 	http.Handler
 
 	Init(prefix string, cli cmd.FlagSet)
 
-	AddLivenessFunc(name string, fn ProbeFunc)
-	AddReadinessFunc(name string, fn ProbeFunc)
+	AddLivenessFunc(name string, fn HandleFunc)
+	AddReadinessFunc(name string, fn HandleFunc)
 	LiveEndpoint(http.ResponseWriter, *http.Request)
 	ReadyEndpoint(http.ResponseWriter, *http.Request)
 

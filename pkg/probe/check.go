@@ -25,7 +25,7 @@ import (
 	"time"
 )
 
-func PostgresPingChecker(database *sql.DB, timeout time.Duration) types.ProbeFunc {
+func PostgresPingChecker(database *sql.DB, timeout time.Duration) types.HandleFunc {
 	return func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
@@ -36,7 +36,7 @@ func PostgresPingChecker(database *sql.DB, timeout time.Duration) types.ProbeFun
 	}
 }
 
-func RedisClientPingChecker(client *redis.Client, timeout time.Duration) types.ProbeFunc {
+func RedisClientPingChecker(client *redis.Client, timeout time.Duration) types.HandleFunc {
 	return func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
@@ -51,7 +51,7 @@ func RedisClientPingChecker(client *redis.Client, timeout time.Duration) types.P
 	}
 }
 
-func RedisClusterPingChecker(client *redis.ClusterClient, timeout time.Duration) types.ProbeFunc {
+func RedisClusterPingChecker(client *redis.ClusterClient, timeout time.Duration) types.HandleFunc {
 	return func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
@@ -66,7 +66,7 @@ func RedisClusterPingChecker(client *redis.ClusterClient, timeout time.Duration)
 	}
 }
 
-func RedisPingChecker(client *redis.Client, timeout time.Duration) types.ProbeFunc {
+func RedisPingChecker(client *redis.Client, timeout time.Duration) types.HandleFunc {
 	return func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()

@@ -30,7 +30,6 @@ import (
 
 const (
 	defaultPrefix   = "redis"
-	defaultName     = "server"
 	defaultEndpoint = ":6379"
 )
 
