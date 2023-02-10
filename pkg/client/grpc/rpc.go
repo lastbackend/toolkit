@@ -94,15 +94,6 @@ func (s *rpcClient) Stop() error {
 
 func (s *rpcClient) addFlags(cli CLI) {
 
-	cli.AddStringFlag(s.withPrefix("host"), &s.opts.Host).
-		Env(s.withEnvPrefix("HOST")).
-		Usage("Set host connection")
-
-	cli.AddIntFlag(s.withPrefix("port"), &s.opts.Port).
-		Env(s.withEnvPrefix("PORT")).
-		Usage("Set port connection").
-		Default(defaultPort)
-
 	cli.AddIntFlag(s.withPrefix("pool-size"), s.opts.Pool.Size).
 		Env(s.withEnvPrefix("POOL_SIZE")).
 		Usage("Set pool size").
