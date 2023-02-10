@@ -17,6 +17,11 @@ limitations under the License.
 package grpc
 
 import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
 	"github.com/lastbackend/toolkit/pkg/context/metadata"
 	"github.com/lastbackend/toolkit/pkg/network/resolver"
 	"github.com/lastbackend/toolkit/pkg/util/backoff"
@@ -26,11 +31,6 @@ import (
 	"google.golang.org/grpc/encoding"
 	grpc_md "google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-
-	"context"
-	"fmt"
-	"strings"
-	"time"
 )
 
 func init() {
@@ -38,6 +38,7 @@ func init() {
 }
 
 const (
+	defaultPort = 9000
 	// The default number of times a request is tried
 	defaultRetries = 0 * time.Second
 	// The default request timeout
@@ -50,8 +51,6 @@ const (
 	defaultMaxRecvMsgSize = 1024 * 1024 * 16
 	// DefaultMaxSendMsgSize maximum message that client can send (16 MB).
 	defaultMaxSendMsgSize = 1024 * 1024 * 16
-
-	defaultAddress = ":9000"
 )
 
 type GRPCClient struct { // nolint
@@ -100,7 +99,7 @@ func (c *GRPCClient) Call(ctx context.Context, service, method string, body, res
 
 	addresses := routes.Addresses()
 	if len(addresses) == 0 {
-		addresses = []string{defaultAddress}
+		addresses = []string{fmt.Sprintf("%s:%d", c.opts.Host, c.opts.Port)}
 	}
 
 	next, err := c.opts.Selector.Select(addresses)
@@ -154,7 +153,7 @@ func (c *GRPCClient) Stream(ctx context.Context, service, method string, body in
 
 	addresses := routes.Addresses()
 	if len(addresses) == 0 {
-		addresses = []string{defaultAddress}
+		addresses = []string{fmt.Sprintf("%s:%d", c.opts.Host, c.opts.Port)}
 	}
 
 	next, err := c.opts.Selector.Select(addresses)

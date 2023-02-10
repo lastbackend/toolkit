@@ -51,8 +51,9 @@ type Options struct {
 	MaxRecvMsgSize        *int
 	MaxSendMsgSize        *int
 	UserAgent             *string
-
-	Selector selector.Selector
+	Host                  string
+	Port                  int
+	Selector              selector.Selector
 
 	Pool        PoolOptions
 	CallOptions CallOptions
