@@ -55,7 +55,7 @@ func (g *Generator) Run() error {
 		desc := descriptor.NewDescriptor()
 
 		// Generate toolkit files
-		generatorEngine := gentoolkit.New(desc, &gentoolkit.Options{SourcePackage: sourcePkg.String()})
+		generatorToolkit := gentoolkit.New(desc, &gentoolkit.Options{SourcePackage: sourcePkg.String()})
 
 		if err := desc.LoadFromPlugin(gen); err != nil {
 			return err
@@ -69,7 +69,7 @@ func (g *Generator) Run() error {
 			g.targets = append(g.targets, f)
 		}
 
-		toolkitFiles, err := generatorEngine.Generate(g.targets)
+		toolkitFiles, err := generatorToolkit.Generate(g.targets)
 		if err != nil {
 			return err
 		}

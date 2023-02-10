@@ -19,8 +19,9 @@ package grpc
 import (
 	"context"
 	"fmt"
-	"github.com/lastbackend/toolkit"
 	"strings"
+
+	"github.com/lastbackend/toolkit/pkg/cmd"
 )
 
 const (
@@ -28,14 +29,19 @@ const (
 )
 
 type RPCClient interface {
-	toolkit.Client
-
+	Start(context.Context) error
+	Stop() error
 	Client() *GRPCClient
 }
 
 type Client interface {
 	Call(ctx context.Context, service, method string, req, rsp interface{}, opts ...CallOption) error
 	Stream(ctx context.Context, service, method string, body interface{}, opts ...CallOption) (Stream, error)
+}
+
+type CLI interface {
+	cmd.FlagSet
+	cmd.CommandSet
 }
 
 type CallOption func(*CallOptions)
@@ -60,7 +66,7 @@ type ClientOptions struct {
 }
 
 // NewClient - client the plugin implements rpc client using gRPC as a transport
-func NewClient(app toolkit.Service, opts *ClientOptions) RPCClient {
+func NewClient(cli CLI, opts ClientOptions) RPCClient {
 	c := new(rpcClient)
 	if len(opts.Name) == 0 {
 		c.prefix = defaultPrefix
@@ -69,7 +75,7 @@ func NewClient(app toolkit.Service, opts *ClientOptions) RPCClient {
 	c.opts = defaultOptions()
 	c.client = newClient(opts.Name)
 
-	c.addFlags(app)
+	c.addFlags(cli)
 
 	return c
 }
@@ -86,49 +92,49 @@ func (s *rpcClient) Stop() error {
 	return s.client.Close()
 }
 
-func (s *rpcClient) addFlags(app toolkit.Service) {
+func (s *rpcClient) addFlags(cli CLI) {
 
-	app.CLI().AddIntFlag(s.withPrefix("pool-size"), s.opts.Pool.Size).
+	cli.AddIntFlag(s.withPrefix("pool-size"), s.opts.Pool.Size).
 		Env(s.withEnvPrefix("POOL_SIZE")).
 		Usage("Set pool size").
 		Default(defaultPoolSize)
 
-	app.CLI().AddDurationFlag(s.withPrefix("pool-ttl"), s.opts.Pool.TTL).
+	cli.AddDurationFlag(s.withPrefix("pool-ttl"), s.opts.Pool.TTL).
 		Env(s.withEnvPrefix("POOL_TTL")).
 		Usage("Set pool ttl").
 		Default(defaultPoolTTL)
 
-	app.CLI().AddIntFlag(s.withPrefix("max-recv-msg-size"), s.opts.MaxRecvMsgSize).
+	cli.AddIntFlag(s.withPrefix("max-recv-msg-size"), s.opts.MaxRecvMsgSize).
 		Env(s.withEnvPrefix("MAX_RECV_MSG_SIZE")).
 		Usage("Sets the maximum message size in bytes the client can receive (default 16 MB)").
 		Default(defaultMaxRecvMsgSize)
 
-	app.CLI().AddIntFlag(s.withPrefix("max-send-msg-size"), s.opts.MaxSendMsgSize).
+	cli.AddIntFlag(s.withPrefix("max-send-msg-size"), s.opts.MaxSendMsgSize).
 		Env(s.withEnvPrefix("MAX_SEND_MSG_SIZE")).
 		Usage("Sets the maximum message size in bytes the client can send (default 16 MB)").
 		Default(defaultMaxSendMsgSize)
 
-	app.CLI().AddInt32Flag(s.withPrefix("max-header-list-size"), s.opts.MaxHeaderListSize).
+	cli.AddInt32Flag(s.withPrefix("max-header-list-size"), s.opts.MaxHeaderListSize).
 		Env(s.withEnvPrefix("MAX_HEADER_LIST_SIZE")).
 		Usage("Sets the specifies the maximum (uncompressed) size of header list that the client is prepared to accept")
 
-	app.CLI().AddIntFlag(s.withPrefix("write-buffer-size"), s.opts.WriteBufferSize).
+	cli.AddIntFlag(s.withPrefix("write-buffer-size"), s.opts.WriteBufferSize).
 		Env(s.withEnvPrefix("WRITE_BUFFER_SIZE")).
 		Usage("Sets the how much data can be batched before doing a write on the wire.\nThe corresponding memory allocation for this buffer will be twice the size to keep syscalls low.\nZero will disable the write buffer (default 32 KB)")
 
-	app.CLI().AddIntFlag(s.withPrefix("read-buffer-size"), s.opts.ReadBufferSize).
+	cli.AddIntFlag(s.withPrefix("read-buffer-size"), s.opts.ReadBufferSize).
 		Env(s.withEnvPrefix("READ_BUFFER_SIZE")).
 		Usage("Sets the size of the reading buffer, this determines how\nmuch data can be read at most for each read syscall. Zero will disable read buffer (default 32 KB)")
 
-	app.CLI().AddInt32Flag(s.withPrefix("initial-window-size"), s.opts.InitialWindowSize).
+	cli.AddInt32Flag(s.withPrefix("initial-window-size"), s.opts.InitialWindowSize).
 		Env(s.withEnvPrefix("INITIAL_WINDOW_SIZE")).
 		Usage("Sets the value for initial window size on a stream.\nThe lower bound for window size is 64K and any value smaller than that will be ignored.")
 
-	app.CLI().AddInt32Flag(s.withPrefix("initial-conn-window-size"), s.opts.InitialConnWindowSize).
+	cli.AddInt32Flag(s.withPrefix("initial-conn-window-size"), s.opts.InitialConnWindowSize).
 		Env(s.withEnvPrefix("INITIAL_CONN_WINDOW_SIZE")).
 		Usage("Sets the value for initial window size on a connection.\nThe lower bound for window size is 64K and any value smaller than that will be ignored.")
 
-	app.CLI().AddStringFlag(s.withPrefix("user-agent"), s.opts.UserAgent).
+	cli.AddStringFlag(s.withPrefix("user-agent"), s.opts.UserAgent).
 		Env(s.withEnvPrefix("USER_AGENT")).
 		Usage("Sets the specifies a user agent string for all the RPCs")
 

@@ -51,7 +51,7 @@ const (
 	// DefaultMaxSendMsgSize maximum message that client can send (16 MB).
 	defaultMaxSendMsgSize = 1024 * 1024 * 16
 
-	defaultAddress = ":50005"
+	defaultAddress = ":9000"
 )
 
 type GRPCClient struct { // nolint
@@ -103,7 +103,7 @@ func (c *GRPCClient) Call(ctx context.Context, service, method string, body, res
 		addresses = []string{defaultAddress}
 	}
 
-	next, err := c.opts.Selector.Select(routes.Addresses())
+	next, err := c.opts.Selector.Select(addresses)
 	if err != nil {
 		return err
 	}
@@ -157,7 +157,7 @@ func (c *GRPCClient) Stream(ctx context.Context, service, method string, body in
 		addresses = []string{defaultAddress}
 	}
 
-	next, err := c.opts.Selector.Select(routes.Addresses())
+	next, err := c.opts.Selector.Select(addresses)
 	if err != nil {
 		return nil, err
 	}

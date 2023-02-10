@@ -17,10 +17,12 @@ limitations under the License.
 package descriptor
 
 import (
-	"google.golang.org/protobuf/types/descriptorpb"
-
 	"fmt"
 	"strings"
+
+	toolkit_annotattions "github.com/lastbackend/toolkit/protoc-gen-toolkit/toolkit/options"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 func (d *Descriptor) loadServices(file *File) error {
@@ -31,11 +33,17 @@ func (d *Descriptor) loadServices(file *File) error {
 			ServiceDescriptorProto: service,
 		}
 		for _, md := range service.GetMethod() {
-			meth, err := d.newMethod(svc, md)
+			meth, isProxy, err := d.newMethod(svc, md)
 			if err != nil {
 				return err
 			}
-			svc.Methods = append(svc.Methods, meth)
+
+			if isProxy {
+				svc.ProxyMethods = append(svc.ProxyMethods, meth)
+			} else {
+				svc.RPCMethods = append(svc.RPCMethods, meth)
+			}
+
 		}
 		services = append(services, svc)
 	}
@@ -43,22 +51,27 @@ func (d *Descriptor) loadServices(file *File) error {
 	return nil
 }
 
-func (d *Descriptor) newMethod(svc *Service, md *descriptorpb.MethodDescriptorProto) (*Method, error) {
+func (d *Descriptor) newMethod(svc *Service, md *descriptorpb.MethodDescriptorProto) (*Method, bool, error) {
 	requestType, err := d.FindMessage(svc.File.GetPackage(), md.GetInputType())
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	responseType, err := d.FindMessage(svc.File.GetPackage(), md.GetOutputType())
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
+
+	isProxy := md.Options != nil &&
+		proto.HasExtension(md.Options, toolkit_annotattions.E_Proxy)
+
 	meth := &Method{
 		Service:               svc,
 		MethodDescriptorProto: md,
 		RequestType:           requestType,
 		ResponseType:          responseType,
 	}
-	return meth, nil
+
+	return meth, isProxy, nil
 }
 
 func (d *Descriptor) FindMessage(location, name string) (*Message, error) {

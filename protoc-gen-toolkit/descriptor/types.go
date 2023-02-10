@@ -117,8 +117,10 @@ func (e *Enum) FullyName() string {
 
 type Service struct {
 	*descriptorpb.ServiceDescriptorProto
-	File    *File
-	Methods []*Method
+	File         *File
+	ProxyMethods []*Method
+	RPCMethods   []*Method
+	Bindings     []*Binding
 }
 
 func (s *Service) FullyName() string {
@@ -148,4 +150,18 @@ type ResponseFile struct {
 	*pluginpb.CodeGeneratorResponse_File
 	GoPkg   GoPackage
 	Rewrite bool
+}
+
+type Binding struct {
+	RpcMethod    string
+	RpcPath      string
+	Service      string
+	HttpMethod   string
+	HttpPath     string
+	RawBody      string
+	HttpParams   []string
+	RequestType  *Message
+	ResponseType *Message
+	Stream       bool
+	Websocket    bool
 }

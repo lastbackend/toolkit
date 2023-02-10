@@ -274,6 +274,7 @@ func wordSepNormalizeFunc(_ *pflag.FlagSet, name string) pflag.NormalizedName {
 
 // printFlags logs the flags in the flagSet
 func printFlags(flags *pflag.FlagSet) {
+	fmt.Println("Flags:")
 	flags.VisitAll(func(flag *pflag.Flag) {
 		fmt.Printf("FLAG: --%s=%q\n", flag.Name, flag.Value)
 	})
