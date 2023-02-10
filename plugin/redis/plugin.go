@@ -23,9 +23,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-redis/redis/v9"
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/pkg/probe"
+	"github.com/redis/go-redis/v9"
 )
 
 const (
