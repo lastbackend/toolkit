@@ -99,7 +99,7 @@ func (c *GRPCClient) Call(ctx context.Context, service, method string, body, res
 
 	addresses := routes.Addresses()
 	if len(addresses) == 0 {
-		addresses = []string{fmt.Sprintf("%s:%d", c.opts.Host, c.opts.Port)}
+		addresses = []string{fmt.Sprintf(":%d", defaultPort)}
 	}
 
 	next, err := c.opts.Selector.Select(addresses)
@@ -153,7 +153,7 @@ func (c *GRPCClient) Stream(ctx context.Context, service, method string, body in
 
 	addresses := routes.Addresses()
 	if len(addresses) == 0 {
-		addresses = []string{fmt.Sprintf("%s:%d", c.opts.Host, c.opts.Port)}
+		addresses = []string{fmt.Sprintf(":%d", defaultPort)}
 	}
 
 	next, err := c.opts.Selector.Select(addresses)
