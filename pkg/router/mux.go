@@ -89,6 +89,11 @@ func New(cli cmd.FlagSet) Server {
 }
 
 func (s *server) Start(_ context.Context) error {
+
+	if s.opts.IsDisable {
+		return nil
+	}
+
 	s.RLock()
 	if s.isRunning {
 		s.RUnlock()
@@ -211,6 +216,10 @@ func (s *server) addFlags(cli cmd.FlagSet) {
 	cli.AddBoolFlag(s.withPrefix("enable-cors"), &s.opts.EnableCORS).
 		Env(s.withEnvPrefix("ENABLE_CORS")).
 		Usage("Server with CORS")
+
+	cli.AddBoolFlag(s.withPrefix("disable"), &s.opts.IsDisable).
+		Env(s.withEnvPrefix("DISABLE")).
+		Usage("Sets the disable server")
 }
 
 func (s *server) withPrefix(name string) string {

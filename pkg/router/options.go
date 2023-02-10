@@ -35,6 +35,7 @@ type Options struct {
 	Prefix  string
 
 	EnableCORS bool
+	IsDisable  bool
 
 	Wrappers  []Wrapper
 	TLSConfig *tls.Config
