@@ -39,7 +39,6 @@ var ServerTpl = `
 	}
 
 	{{ range $m := $svc.Methods }}
-// {{ $m.RequestType.Index }}
 		{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
 			func (h *{{ $svc.GetName | ToLower }}GrpcRpcServer) {{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}) (*{{ $m.ResponseType.GoType $m.Service.File.GoPkg.Path }}, error) {
 				return h.{{ $svc.GetName }}RpcServer.{{ $m.GetName }}(ctx, req)
