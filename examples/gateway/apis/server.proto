@@ -44,16 +44,6 @@ option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
 };
 
 // =====================================================
-// Dockerfile spec
-// =====================================================
-
-option (toolkit.dockerfile_spec) = {
-  expose: [8080],
-  commands: ["/usr/bin/service"],
-  rewrite_if_exists: false,
-};
-
-// =====================================================
 // HTTP proxy methods
 // =====================================================
 

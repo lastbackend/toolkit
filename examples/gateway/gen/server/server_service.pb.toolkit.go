@@ -353,8 +353,6 @@ type proxygatewayGrpcRpcServer struct {
 	ProxyGatewayRpcServer
 }
 
-// 0
-
 func (h *proxygatewayGrpcRpcServer) HelloWorld(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error) {
 	return h.ProxyGatewayRpcServer.HelloWorld(ctx, req)
 }
