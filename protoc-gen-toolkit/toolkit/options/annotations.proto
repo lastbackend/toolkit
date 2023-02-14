@@ -19,14 +19,7 @@ message Client {
 extend google.protobuf.FileOptions {
   repeated Plugin plugins = 50001;
   repeated Client clients = 50002;
-  DockerfileSpec dockerfile_spec = 50003;
   TestSpec tests_spec = 50004;
-}
-
-message DockerfileSpec {
-  repeated int32 expose = 1;
-  repeated string commands = 2;
-  bool rewrite_if_exists = 3;
 }
 
 message TestSpec {

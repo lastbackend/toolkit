@@ -362,13 +362,9 @@ type routerGrpcRpcServer struct {
 	RouterRpcServer
 }
 
-// 0
-
 func (h *routerGrpcRpcServer) Subscribe(ctx context.Context, req *SubscribeRequest) (*SubscribeResponse, error) {
 	return h.RouterRpcServer.Subscribe(ctx, req)
 }
-
-// 0
 
 func (h *routerGrpcRpcServer) HelloWorld(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error) {
 	return h.RouterRpcServer.HelloWorld(ctx, req)

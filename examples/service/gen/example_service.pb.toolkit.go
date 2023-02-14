@@ -302,8 +302,6 @@ type exampleGrpcRpcServer struct {
 	ExampleRpcServer
 }
 
-// 0
-
 func (h *exampleGrpcRpcServer) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error) {
 	return h.ExampleRpcServer.HelloWorld(ctx, req)
 }

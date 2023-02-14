@@ -8,15 +8,6 @@ import "github.com/lastbackend/toolkit/protoc-gen-toolkit/toolkit/options/annota
 import "github.com/lastbackend/toolkit/examples/service/apis/ptypes/messages.proto";
 
 // =====================================================
-// Dockerfile spec
-// =====================================================
-option (toolkit.dockerfile_spec) = {
-  expose: [3000]
-  commands: ["/usr/bin/service"]
-  rewrite_if_exists: false
-};
-
-// =====================================================
 // Generate mocks
 // =====================================================
 option (toolkit.tests_spec) = {
