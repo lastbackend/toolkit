@@ -33,7 +33,7 @@ for PROTO in $PROTOS; do
     --validate_out=lang=go:$GOPATH/src \
     --go_out=:$GOPATH/src \
     --go-grpc_out=require_unimplemented_servers=false:$GOPATH/src \
-    --toolkit_out=source_package=$SOURCE_PACKAGE:$GOPATH/src \
+    --toolkit_out=$GOPATH/src \
     $PROTO
 done
 

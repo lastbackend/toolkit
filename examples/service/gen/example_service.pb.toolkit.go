@@ -26,7 +26,9 @@ import (
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
-// Suppress "imported and not used" errors
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the toolkit package it is being compiled against and
+// suppress "imported and not used" errors
 var _ context.Context
 var _ logger.Logger
 var _ emptypb.Empty
@@ -70,7 +72,7 @@ type Service interface {
 }
 
 type RPC struct {
-	Grpc grpc.RPCClient
+	Grpc grpc.Client
 }
 
 func NewService(name string) Service {
@@ -195,7 +197,9 @@ func (s *service) Run(ctx context.Context) error {
 	opts = append(opts, fx.Invoke(s.registerClients))
 	opts = append(opts, fx.Invoke(s.registerExampleServer))
 	opts = append(opts, fx.Invoke(s.inv...))
-	opts = append(opts, fx.Invoke(s.mdw))
+	if s.mdw != nil {
+		opts = append(opts, fx.Invoke(s.mdw))
+	}
 	opts = append(opts, fx.Invoke(s.registerRouter))
 	opts = append(opts, fx.Invoke(s.runService))
 
@@ -225,11 +229,7 @@ func (s *service) registerClients() error {
 
 	// Register clients
 
-	s.rpc.Grpc = grpc.NewClient(s.toolkit.CLI(), grpc.ClientOptions{Name: "client-grpc"})
-
-	if err := s.toolkit.ClientRegister(s.rpc.Grpc); err != nil {
-		return err
-	}
+	s.rpc.Grpc = s.toolkit.Client()
 
 	return nil
 }
@@ -244,7 +244,7 @@ func (s *service) registerExampleServer(srv ExampleRpcServer) error {
 
 	h := &exampleGrpcRpcServer{srv.(ExampleRpcServer)}
 
-	grpcexampleServer := server.NewServer(s.toolkit, &server.ServerOptions{Name: "server-grpc"})
+	grpcexampleServer := server.NewServer(s.toolkit, &server.ServerOptions{Name: "grpc"})
 
 	if err := grpcexampleServer.Register(&Example_ServiceDesc, &ExampleGrpcRpcServer{h}); err != nil {
 		return err
@@ -268,6 +268,10 @@ func registerMiddleware(name string, mdw ...func(h http.Handler) http.Handler) {
 	for _, h := range mdw {
 		middlewares[name] = append(middlewares[name], h)
 	}
+}
+
+func HelloWorldMiddlewareAdd(mdw ...func(h http.Handler) http.Handler) {
+	registerMiddleware("HelloWorld", mdw...)
 }
 
 func (s *service) runService(lc fx.Lifecycle) error {
@@ -297,6 +301,8 @@ type ExampleRpcServer interface {
 type exampleGrpcRpcServer struct {
 	ExampleRpcServer
 }
+
+// 0
 
 func (h *exampleGrpcRpcServer) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error) {
 	return h.ExampleRpcServer.HelloWorld(ctx, req)

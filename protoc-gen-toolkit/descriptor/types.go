@@ -67,29 +67,32 @@ type Message struct {
 }
 
 func (m *Message) FullyName() string {
-	components := []string{""}
+	parts := []string{""}
 	if m.File.Package != nil {
-		components = append(components, m.File.GetPackage())
+		parts = append(parts, m.File.GetPackage())
 	}
-	components = append(components, m.Outers...)
-	components = append(components, m.GetName())
-	return strings.Join(components, ".")
+	parts = append(parts, m.Outers...)
+	parts = append(parts, m.GetName())
+	return strings.Join(parts, ".")
 }
 
-func (m *Message) GoType() string {
-	var components []string
-	components = append(components, m.Outers...)
-	components = append(components, m.GetName())
+func (m *Message) GoType(currentPackage string) string {
+	var parts []string
+	parts = append(parts, m.Outers...)
+	parts = append(parts, m.GetName())
 
-	name := strings.Join(components, "_")
+	name := strings.Join(parts, "_")
+	if m.File.GoPkg.Path == currentPackage {
+		return name
+	}
 	return fmt.Sprintf("%s.%s", m.File.Pkg(), name)
 }
 
 func (m *Message) GoName() string {
-	var components []string
-	components = append(components, m.Outers...)
-	components = append(components, m.GetName())
-	return strings.Join(components, "_")
+	var parts []string
+	parts = append(parts, m.Outers...)
+	parts = append(parts, m.GetName())
+	return strings.Join(parts, "_")
 }
 
 type Field struct {
@@ -106,30 +109,28 @@ type Enum struct {
 }
 
 func (e *Enum) FullyName() string {
-	components := []string{""}
+	parts := []string{""}
 	if e.File.Package != nil {
-		components = append(components, e.File.GetPackage())
+		parts = append(parts, e.File.GetPackage())
 	}
-	components = append(components, e.Outers...)
-	components = append(components, e.GetName())
-	return strings.Join(components, ".")
+	parts = append(parts, e.Outers...)
+	parts = append(parts, e.GetName())
+	return strings.Join(parts, ".")
 }
 
 type Service struct {
 	*descriptorpb.ServiceDescriptorProto
-	File         *File
-	ProxyMethods []*Method
-	RPCMethods   []*Method
-	Bindings     []*Binding
+	File    *File
+	Methods []*Method
 }
 
 func (s *Service) FullyName() string {
-	var components []string
+	var parts []string
 	if s.File.Package != nil {
-		components = append(components, s.File.GetPackage())
+		parts = append(parts, s.File.GetPackage())
 	}
-	components = append(components, s.GetName())
-	return strings.Join(components, ".")
+	parts = append(parts, s.GetName())
+	return strings.Join(parts, ".")
 }
 
 type Method struct {
@@ -137,13 +138,15 @@ type Method struct {
 	Service      *Service
 	RequestType  *Message
 	ResponseType *Message
+	Name         string
+	Bindings     []*Binding
 }
 
 func (m *Method) FullyName() string {
-	var components []string
-	components = append(components, m.Service.FullyName())
-	components = append(components, m.GetName())
-	return strings.Join(components, ".")
+	var parts []string
+	parts = append(parts, m.Service.FullyName())
+	parts = append(parts, m.GetName())
+	return strings.Join(parts, ".")
 }
 
 type ResponseFile struct {
@@ -153,6 +156,8 @@ type ResponseFile struct {
 }
 
 type Binding struct {
+	Method       *Method
+	Index        int
 	RpcMethod    string
 	RpcPath      string
 	Service      string

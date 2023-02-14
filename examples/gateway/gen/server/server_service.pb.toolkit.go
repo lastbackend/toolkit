@@ -24,7 +24,9 @@ import (
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
-// Suppress "imported and not used" errors
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the toolkit package it is being compiled against and
+// suppress "imported and not used" errors
 var _ context.Context
 var _ logger.Logger
 var _ emptypb.Empty
@@ -35,6 +37,7 @@ var _ errors.Err
 var _ io.Reader
 var _ json.Marshaler
 var _ ws.Client
+var _ server.Server
 
 type middleware map[string][]func(h http.Handler) http.Handler
 
@@ -59,6 +62,7 @@ type Service interface {
 	Run(ctx context.Context) error
 
 	SetConfig(cfg interface{})
+	SetServer(srv interface{})
 
 	AddPackage(pkg interface{})
 	AddMiddleware(mdw interface{})
@@ -66,12 +70,13 @@ type Service interface {
 }
 
 type RPC struct {
-	Grpc grpc.RPCClient
+	Grpc grpc.Client
 }
 
 func NewService(name string) Service {
 	return &service{
 		toolkit: toolkit.NewService(name),
+		srv:     make([]interface{}, 0),
 		pkg:     make([]interface{}, 0),
 		inv:     make([]interface{}, 0),
 		rpc:     new(RPC),
@@ -81,6 +86,7 @@ func NewService(name string) Service {
 type service struct {
 	toolkit toolkit.Service
 	rpc     *RPC
+	srv     []interface{}
 	pkg     []interface{}
 	inv     []interface{}
 	cfg     interface{}
@@ -109,6 +115,13 @@ func (s *service) Client() grpc.Client {
 
 func (s *service) SetConfig(cfg interface{}) {
 	s.cfg = cfg
+}
+
+func (s *service) SetServer(srv interface{}) {
+	if srv == nil {
+		return
+	}
+	s.srv = append(s.srv, srv)
 }
 
 func (s *service) AddPackage(pkg interface{}) {
@@ -147,6 +160,7 @@ func (s *service) Run(ctx context.Context) error {
 	)
 
 	provide = append(provide, s.pkg...)
+	provide = append(provide, s.srv...)
 
 	opts := make([]fx.Option, 0)
 
@@ -156,8 +170,11 @@ func (s *service) Run(ctx context.Context) error {
 
 	opts = append(opts, fx.Provide(provide...))
 	opts = append(opts, fx.Invoke(s.registerClients))
+	opts = append(opts, fx.Invoke(s.registerProxyGatewayServer))
 	opts = append(opts, fx.Invoke(s.inv...))
-	opts = append(opts, fx.Invoke(s.mdw))
+	if s.mdw != nil {
+		opts = append(opts, fx.Invoke(s.mdw))
+	}
 	opts = append(opts, fx.Invoke(s.registerRouter))
 	opts = append(opts, fx.Invoke(s.runService))
 
@@ -187,9 +204,28 @@ func (s *service) registerClients() error {
 
 	// Register clients
 
-	s.rpc.Grpc = grpc.NewClient(s.toolkit.CLI(), grpc.ClientOptions{Name: "client-grpc"})
+	s.rpc.Grpc = s.toolkit.Client()
 
-	if err := s.toolkit.ClientRegister(s.rpc.Grpc); err != nil {
+	return nil
+}
+
+func (s *service) registerProxyGatewayServer(srv ProxyGatewayRpcServer) error {
+
+	// Register servers
+
+	type ProxyGatewayGrpcRpcServer struct {
+		ProxyGatewayServer
+	}
+
+	h := &proxygatewayGrpcRpcServer{srv.(ProxyGatewayRpcServer)}
+
+	grpcproxygatewayServer := server.NewServer(s.toolkit, &server.ServerOptions{Name: "grpc"})
+
+	if err := grpcproxygatewayServer.Register(&ProxyGateway_ServiceDesc, &ProxyGatewayGrpcRpcServer{h}); err != nil {
+		return err
+	}
+
+	if err := s.toolkit.ServerRegister(grpcproxygatewayServer); err != nil {
 		return err
 	}
 
@@ -307,3 +343,20 @@ var shutdownSignals = []os.Signal{
 	syscall.SIGQUIT,
 	syscall.SIGKILL,
 }
+
+// Server API for Api service
+type ProxyGatewayRpcServer interface {
+	HelloWorld(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error)
+}
+
+type proxygatewayGrpcRpcServer struct {
+	ProxyGatewayRpcServer
+}
+
+// 0
+
+func (h *proxygatewayGrpcRpcServer) HelloWorld(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error) {
+	return h.ProxyGatewayRpcServer.HelloWorld(ctx, req)
+}
+
+func (proxygatewayGrpcRpcServer) mustEmbedUnimplementedProxyGatewayServer() {}
