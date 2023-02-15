@@ -7,7 +7,6 @@ import (
 	context "context"
 
 	"github.com/lastbackend/toolkit/examples/helloworld/gen"
-	"github.com/lastbackend/toolkit/examples/wss/gen/server"
 	grpc "github.com/lastbackend/toolkit/pkg/client/grpc"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
@@ -23,22 +22,12 @@ func NewRouterRPCClient(service string, c grpc.Client) RouterRPCClient {
 
 // Client gRPC API for Router service
 type RouterRPCClient interface {
-	Subscribe(ctx context.Context, req *SubscribeRequest, opts ...grpc.CallOption) (*SubscribeResponse, error)
-
 	HelloWorld(ctx context.Context, req *servicepb.HelloRequest, opts ...grpc.CallOption) (*servicepb.HelloReply, error)
 }
 
 type routerGrpcRPCClient struct {
 	service string
 	cli     grpc.Client
-}
-
-func (c *routerGrpcRPCClient) Subscribe(ctx context.Context, req *SubscribeRequest, opts ...grpc.CallOption) (*SubscribeResponse, error) {
-	resp := new(SubscribeResponse)
-	if err := c.cli.Call(ctx, c.service, Router_SubscribeMethod, req, resp, opts...); err != nil {
-		return nil, err
-	}
-	return resp, nil
 }
 
 func (c *routerGrpcRPCClient) HelloWorld(ctx context.Context, req *servicepb.HelloRequest, opts ...grpc.CallOption) (*servicepb.HelloReply, error) {

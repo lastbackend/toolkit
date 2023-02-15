@@ -30,14 +30,16 @@ var _ emptypb.Empty
 	// Client gRPC API for {{ $svc.GetName }} service
 	type {{ $svc.GetName }}RPCClient interface {
 		{{ range $m := $svc.Methods }}
+			{{ if not $m.IsWebsocket }}
 				{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
-					{{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}, opts ...grpc.CallOption) (*{{ $m.ResponseType.GoType $m.Service.File.GoPkg.Path }}, error)
+					{{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType "" }}, opts ...grpc.CallOption) (*{{ $m.ResponseType.GoType "" }}, error)
 				{{ else }}
 					{{ if not $m.GetClientStreaming }}
-						{{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}, opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error)
+						{{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType "" }}, opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error)
 					{{ else }}
 						{{ $m.GetName }}(ctx context.Context, opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error)
 					{{ end }}
+				{{ end }}
 			{{ end }}
 		{{ end }}
 	}
@@ -50,73 +52,75 @@ var _ emptypb.Empty
 	}
 
 	{{ range $m := $svc.Methods }}
-		{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
-			func (c *{{ $svc.GetName | ToLower }}GrpcRPCClient) {{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}, opts ...grpc.CallOption) (*{{ $m.ResponseType.GoType $m.Service.File.GoPkg.Path }}, error) {
-				resp := new({{ $m.ResponseType.GoType $m.Service.File.GoPkg.Path }})
-				if err := c.cli.Call(ctx, c.service, {{ $svc.GetName }}_{{ $m.GetName }}Method, req, resp, opts...); err != nil {
-					return nil, err
-				}
-				return resp, nil
-			}
-		{{ else }}
-			{{ if not $m.GetClientStreaming }}
-				func (c *{{ $svc.GetName | ToLower }}GrpcRPCClient) {{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}, opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error) {
-					stream, err := c.cli.Stream(ctx, c.service, {{ $svc.GetName }}_{{ $m.GetName }}Method, req, opts...)
-					if err != nil {
+		{{ if not $m.IsWebsocket }}
+			{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
+				func (c *{{ $svc.GetName | ToLower }}GrpcRPCClient) {{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType "" }}, opts ...grpc.CallOption) (*{{ $m.ResponseType.GoType "" }}, error) {
+					resp := new({{ $m.ResponseType.GoType "" }})
+					if err := c.cli.Call(ctx, c.service, {{ $svc.GetName }}_{{ $m.GetName }}Method, req, resp, opts...); err != nil {
 						return nil, err
 					}
-					if err := stream.SendMsg(req); err != nil {
-						return nil, err
-					}
-					return &{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service{stream}, nil
+					return resp, nil
 				}
 			{{ else }}
-				func (c *{{ $svc.GetName | ToLower }}GrpcRPCClient) {{ $m.GetName }}(ctx context.Context,  opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error) {
-					stream, err := c.cli.Stream(ctx, c.service, {{ $svc.GetName }}_{{ $m.GetName }}Method, nil, opts...)
+				{{ if not $m.GetClientStreaming }}
+					func (c *{{ $svc.GetName | ToLower }}GrpcRPCClient) {{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType "" }}, opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error) {
+						stream, err := c.cli.Stream(ctx, c.service, {{ $svc.GetName }}_{{ $m.GetName }}Method, req, opts...)
+						if err != nil {
+							return nil, err
+						}
+						if err := stream.SendMsg(req); err != nil {
+							return nil, err
+						}
+						return &{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service{stream}, nil
+					}
+				{{ else }}
+					func (c *{{ $svc.GetName | ToLower }}GrpcRPCClient) {{ $m.GetName }}(ctx context.Context,  opts ...grpc.CallOption) ({{ $svc.GetName }}_{{ $m.GetName }}Service, error) {
+						stream, err := c.cli.Stream(ctx, c.service, {{ $svc.GetName }}_{{ $m.GetName }}Method, nil, opts...)
+						if err != nil {
+							return nil, err
+						}
+						return &{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service{stream}, nil
+					}
+				{{ end }}
+	
+				type {{ $svc.GetName }}_{{ $m.GetName }}Service interface {
+					SendMsg(interface{}) error
+					RecvMsg(interface{}) error
+					Close() error
+					Recv() (*{{ $m.ResponseType.GoType "" }}, error)
+					{{ if $m.GetClientStreaming }}Send(*{{ $m.RequestType.GoType "" }}) error{{ end }}
+				}
+	
+				type {{ $svc.GetName | ToLower }}{{ $m.GetName }}Service struct {
+					stream grpc.Stream
+				}
+	
+				func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) Close() error {
+					return x.stream.CloseSend()
+				}
+	
+				func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) SendMsg(m interface{}) error {
+					return x.stream.SendMsg(m)
+				}
+	
+				func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) RecvMsg(m interface{}) error {
+					return x.stream.RecvMsg(m)
+				}
+	
+				func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) Recv() (*{{ $m.ResponseType.GoType "" }}, error) {
+					m := new({{ $m.ResponseType.GoType "" }})
+					err := x.stream.RecvMsg(m)
 					if err != nil {
 						return nil, err
 					}
-					return &{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service{stream}, nil
+					return m, nil
 				}
-			{{ end }}
-
-			type {{ $svc.GetName }}_{{ $m.GetName }}Service interface {
-				SendMsg(interface{}) error
-				RecvMsg(interface{}) error
-				Close() error
-				Recv() (*{{ $m.ResponseType.GoType $m.Service.File.GoPkg.Path }}, error)
-				{{ if $m.GetClientStreaming }}Send(*{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}) error{{ end }}
-			}
-
-			type {{ $svc.GetName | ToLower }}{{ $m.GetName }}Service struct {
-				stream grpc.Stream
-			}
-
-			func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) Close() error {
-				return x.stream.CloseSend()
-			}
-
-			func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) SendMsg(m interface{}) error {
-				return x.stream.SendMsg(m)
-			}
-
-			func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) RecvMsg(m interface{}) error {
-				return x.stream.RecvMsg(m)
-			}
-
-			func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) Recv() (*{{ $m.ResponseType.GoType $m.Service.File.GoPkg.Path }}, error) {
-				m := new({{ $m.ResponseType.GoType $m.Service.File.GoPkg.Path }})
-				err := x.stream.RecvMsg(m)
-				if err != nil {
-					return nil, err
+	
+				{{ if $m.GetClientStreaming }}
+				func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) Send(m *{{ $m.RequestType.GoType "" }}) error {
+					return x.stream.SendMsg(m)
 				}
-				return m, nil
-			}
-
-			{{ if $m.GetClientStreaming }}
-			func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) Send(m *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}) error {
-				return x.stream.SendMsg(m)
-			}
+				{{ end }}
 			{{ end }}
 		{{ end }}
 	{{ end }}

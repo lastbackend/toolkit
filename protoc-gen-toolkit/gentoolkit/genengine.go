@@ -235,7 +235,16 @@ func (g *generator) generateClient(file *descriptor.File) ([]byte, error) {
 
 	for _, svc := range file.Services {
 		for _, m := range svc.Methods {
-			imports = append(imports, m.RequestType.File.GoPkg)
+			if m.IsWebsocket {
+				continue
+			}
+
+			pkg := m.RequestType.File.GoPkg
+			if strings.HasPrefix(m.RequestType.File.GoPkg.Path, "./") {
+				pkg.Path = filepath.Join(file.GoPkg.Name, m.RequestType.File.GoPkg.Path)
+			}
+
+			imports = append(imports, pkg)
 		}
 	}
 
