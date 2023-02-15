@@ -125,6 +125,8 @@ func setBindingsToMethod(method *Method) error {
 				Websocket:    true,
 			}
 
+			method.IsWebsocket = true
+
 			method.Bindings = append(method.Bindings, binding)
 		case pOpts.GetHttp() != nil && proto.HasExtension(method.Options, options.E_Http):
 			rOpts := pOpts.GetHttp()

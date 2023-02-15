@@ -139,6 +139,7 @@ type Method struct {
 	RequestType  *Message
 	ResponseType *Message
 	Name         string
+	IsWebsocket  bool
 	Bindings     []*Binding
 }
 
