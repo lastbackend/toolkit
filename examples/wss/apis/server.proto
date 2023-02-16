@@ -56,7 +56,7 @@ service Router {
     };
   };
   rpc SayHello(helloworld.HelloRequest) returns (helloworld.HelloReply) {
-    option (toolkit.server).subscribe_ws = {
+    option (toolkit.server).websocket_proxy = {
       service: "helloworld"
       method: "/helloworld.Greeter/SayHello"
     };

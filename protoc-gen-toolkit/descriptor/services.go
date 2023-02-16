@@ -132,21 +132,21 @@ func setBindingsToMethod(method *Method) error {
 			}
 			method.Bindings = append(method.Bindings, binding)
 
-		case pOpts.GetSubscribeWs() != nil:
-			rOpts := pOpts.GetSubscribeWs()
+		case pOpts.GetWebsocketProxy() != nil:
+			rOpts := pOpts.GetWebsocketProxy()
 
 			method.IsWebsocket = true
 
 			binding := &Binding{
-				Method:       method,
-				Index:        len(method.Bindings),
-				Service:      rOpts.GetService(),
-				RpcPath:      rOpts.GetMethod(),
-				RpcMethod:    method.GetName(),
-				HttpMethod:   http.MethodGet,
-				RequestType:  method.RequestType,
-				ResponseType: method.ResponseType,
-				Subscribe:    true,
+				Method:         method,
+				Index:          len(method.Bindings),
+				Service:        rOpts.GetService(),
+				RpcPath:        rOpts.GetMethod(),
+				RpcMethod:      method.GetName(),
+				HttpMethod:     http.MethodGet,
+				RequestType:    method.RequestType,
+				ResponseType:   method.ResponseType,
+				WebsocketProxy: true,
 			}
 
 			method.Bindings = append(method.Bindings, binding)
