@@ -44,5 +44,7 @@ func (routerGrpcRPCClient) mustEmbedUnimplementedRouterClient() {}
 const (
 	Router_SubscribeMethod = "/gateway.Router/Subscribe"
 
+	Router_SayHelloMethod = "/gateway.Router/SayHello"
+
 	Router_HelloWorldMethod = "/gateway.Router/HelloWorld"
 )

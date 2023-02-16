@@ -55,6 +55,12 @@ service Router {
       get: "/events"
     };
   };
+  rpc SayHello(helloworld.HelloRequest) returns (helloworld.HelloReply) {
+    option (toolkit.server).subscribe_ws = {
+      service: "helloworld"
+      method: "/helloworld.Greeter/SayHello"
+    };
+  };
   rpc HelloWorld(helloworld.HelloRequest) returns (helloworld.HelloReply) {
     option (toolkit.server).http_proxy = {
       service: "helloworld"

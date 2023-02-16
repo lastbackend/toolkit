@@ -237,6 +237,32 @@ func (s *service) registerRouter() {
 	s.toolkit.Router().Handle(http.MethodGet, "/events", s.Router().ServerWS,
 		router.HandleOptions{Middlewares: middlewares.getMiddleware("Subscribe")})
 
+	s.toolkit.Router().Subscribe("SayHello", func(ctx context.Context, event ws.Event, c *ws.Client) error {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		var protoRequest servicepb.HelloRequest
+		var protoResponse servicepb.HelloReply
+
+		if err := json.Unmarshal(event.Payload, &protoRequest); err != nil {
+			return err
+		}
+
+		callOpts := make([]grpc.CallOption, 0)
+
+		if headers := ctx.Value(ws.RequestHeaders); headers != nil {
+			if v, ok := headers.(map[string]string); ok {
+				callOpts = append(callOpts, grpc.Headers(v))
+			}
+		}
+
+		if err := s.toolkit.Client().Call(ctx, "helloworld", "/helloworld.Greeter/SayHello", &protoRequest, &protoResponse, callOpts...); err != nil {
+			return err
+		}
+
+		return c.WriteJSON(protoResponse)
+	})
+
 	s.toolkit.Router().Subscribe("HelloWorld", func(ctx context.Context, event ws.Event, c *ws.Client) error {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -263,7 +289,7 @@ func (s *service) registerRouter() {
 		return c.WriteJSON(protoResponse)
 	})
 
-	s.toolkit.Router().Handle(http.MethodPost, "/hello", func(w http.ResponseWriter, r *http.Request) {
+	s.toolkit.Router().Handle("http.MethodPost", "/hello", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
@@ -328,6 +354,10 @@ func SubscribeMiddlewareAdd(mdw ...func(h http.Handler) http.Handler) {
 	registerMiddleware("Subscribe", mdw...)
 }
 
+func SayHelloMiddlewareAdd(mdw ...func(h http.Handler) http.Handler) {
+	registerMiddleware("SayHello", mdw...)
+}
+
 func HelloWorldMiddlewareAdd(mdw ...func(h http.Handler) http.Handler) {
 	registerMiddleware("HelloWorld", mdw...)
 }
@@ -355,6 +385,8 @@ var shutdownSignals = []os.Signal{
 type RouterRpcServer interface {
 	Subscribe(ctx context.Context, req *SubscribeRequest) (*SubscribeResponse, error)
 
+	SayHello(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error)
+
 	HelloWorld(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error)
 }
 
@@ -364,6 +396,10 @@ type routerGrpcRpcServer struct {
 
 func (h *routerGrpcRpcServer) Subscribe(ctx context.Context, req *SubscribeRequest) (*SubscribeResponse, error) {
 	return h.RouterRpcServer.Subscribe(ctx, req)
+}
+
+func (h *routerGrpcRpcServer) SayHello(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error) {
+	return h.RouterRpcServer.SayHello(ctx, req)
 }
 
 func (h *routerGrpcRpcServer) HelloWorld(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error) {

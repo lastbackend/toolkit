@@ -24,6 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type RouterClient interface {
 	Subscribe(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (*SubscribeResponse, error)
+	SayHello(ctx context.Context, in *gen.HelloRequest, opts ...grpc.CallOption) (*gen.HelloReply, error)
 	HelloWorld(ctx context.Context, in *gen.HelloRequest, opts ...grpc.CallOption) (*gen.HelloReply, error)
 }
 
@@ -44,6 +45,15 @@ func (c *routerClient) Subscribe(ctx context.Context, in *SubscribeRequest, opts
 	return out, nil
 }
 
+func (c *routerClient) SayHello(ctx context.Context, in *gen.HelloRequest, opts ...grpc.CallOption) (*gen.HelloReply, error) {
+	out := new(gen.HelloReply)
+	err := c.cc.Invoke(ctx, "/gateway.Router/SayHello", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *routerClient) HelloWorld(ctx context.Context, in *gen.HelloRequest, opts ...grpc.CallOption) (*gen.HelloReply, error) {
 	out := new(gen.HelloReply)
 	err := c.cc.Invoke(ctx, "/gateway.Router/HelloWorld", in, out, opts...)
@@ -58,6 +68,7 @@ func (c *routerClient) HelloWorld(ctx context.Context, in *gen.HelloRequest, opt
 // for forward compatibility
 type RouterServer interface {
 	Subscribe(context.Context, *SubscribeRequest) (*SubscribeResponse, error)
+	SayHello(context.Context, *gen.HelloRequest) (*gen.HelloReply, error)
 	HelloWorld(context.Context, *gen.HelloRequest) (*gen.HelloReply, error)
 }
 
@@ -67,6 +78,9 @@ type UnimplementedRouterServer struct {
 
 func (UnimplementedRouterServer) Subscribe(context.Context, *SubscribeRequest) (*SubscribeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Subscribe not implemented")
+}
+func (UnimplementedRouterServer) SayHello(context.Context, *gen.HelloRequest) (*gen.HelloReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SayHello not implemented")
 }
 func (UnimplementedRouterServer) HelloWorld(context.Context, *gen.HelloRequest) (*gen.HelloReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HelloWorld not implemented")
@@ -101,6 +115,24 @@ func _Router_Subscribe_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Router_SayHello_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(gen.HelloRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RouterServer).SayHello(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gateway.Router/SayHello",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RouterServer).SayHello(ctx, req.(*gen.HelloRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Router_HelloWorld_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(gen.HelloRequest)
 	if err := dec(in); err != nil {
@@ -129,6 +161,10 @@ var Router_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Subscribe",
 			Handler:    _Router_Subscribe_Handler,
+		},
+		{
+			MethodName: "SayHello",
+			Handler:    _Router_SayHello_Handler,
 		},
 		{
 			MethodName: "HelloWorld",

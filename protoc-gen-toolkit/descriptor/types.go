@@ -170,4 +170,5 @@ type Binding struct {
 	ResponseType *Message
 	Stream       bool
 	Websocket    bool
+	Subscribe    bool
 }
