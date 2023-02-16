@@ -21,7 +21,7 @@ import (
 	ws "github.com/lastbackend/toolkit/pkg/router/ws"
 	server "github.com/lastbackend/toolkit/pkg/server"
 	"github.com/lastbackend/toolkit/plugin/postgres_gorm"
-	"github.com/lastbackend/toolkit/plugin/redis_cache"
+	"github.com/lastbackend/toolkit/plugin/redis"
 	fx "go.uber.org/fx"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
@@ -149,14 +149,14 @@ type PgsqlPlugin interface {
 }
 
 type RedisPlugin interface {
-	redis_cache.Plugin
+	redis.Plugin
 }
 
 func (s *service) Run(ctx context.Context) error {
 
 	plugin_0 := postgres_gorm.NewPlugin(s.toolkit, &postgres_gorm.Options{Name: "pgsql"})
 
-	plugin_1 := redis_cache.NewPlugin(s.toolkit, &redis_cache.Options{Name: "redis"})
+	plugin_1 := redis.NewPlugin(s.toolkit, &redis.Options{Name: "redis"})
 
 	provide := make([]interface{}, 0)
 	provide = append(provide,

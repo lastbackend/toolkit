@@ -68,7 +68,7 @@ func (d *Descriptor) newMethod(svc *Service, md *descriptorpb.MethodDescriptorPr
 		ResponseType:          responseType,
 	}
 
-	if method.Options != nil && proto.HasExtension(method.Options, toolkit_annotattions.E_Proxy) {
+	if method.Options != nil && proto.HasExtension(method.Options, toolkit_annotattions.E_Server) {
 		err = setBindingsToMethod(method)
 		if err != nil {
 			return nil, err
@@ -111,15 +111,19 @@ func setBindingsToMethod(method *Method) error {
 
 	if pOpts != nil {
 		switch true {
-		case pOpts.GetWs() != nil:
-			wsOpts := pOpts.GetWs()
+		case pOpts.GetWebsocket():
+			opts, err := getHTTPOptions(method)
+			if err != nil {
+				return err
+			}
+
 			binding := &Binding{
 				Method:       method,
 				Index:        len(method.Bindings),
 				RpcMethod:    method.GetName(),
 				HttpMethod:   http.MethodGet,
-				HttpPath:     wsOpts.Path,
-				HttpParams:   getVariablesFromPath(wsOpts.Path),
+				HttpPath:     opts.GetGet(),
+				HttpParams:   getVariablesFromPath(opts.GetGet()),
 				RequestType:  method.RequestType,
 				ResponseType: method.ResponseType,
 				Websocket:    true,
@@ -128,8 +132,8 @@ func setBindingsToMethod(method *Method) error {
 			method.IsWebsocket = true
 
 			method.Bindings = append(method.Bindings, binding)
-		case pOpts.GetHttp() != nil && proto.HasExtension(method.Options, options.E_Http):
-			rOpts := pOpts.GetHttp()
+		case pOpts.GetHttpProxy() != nil && proto.HasExtension(method.Options, options.E_Http):
+			rOpts := pOpts.GetHttpProxy()
 
 			opts, err := getHTTPOptions(method)
 			if err != nil {
@@ -215,15 +219,15 @@ func getHTTPOptions(method *Method) (*options.HttpRule, error) {
 	return opts, nil
 }
 
-func getProxyOptions(m *Method) (*toolkit_annotattions.Proxy, error) {
+func getProxyOptions(m *Method) (*toolkit_annotattions.Server, error) {
 	if m.Options == nil {
 		return nil, nil
 	}
-	if !proto.HasExtension(m.Options, toolkit_annotattions.E_Proxy) {
+	if !proto.HasExtension(m.Options, toolkit_annotattions.E_Server) {
 		return nil, nil
 	}
-	ext := proto.GetExtension(m.Options, toolkit_annotattions.E_Proxy)
-	opts, ok := ext.(*toolkit_annotattions.Proxy)
+	ext := proto.GetExtension(m.Options, toolkit_annotattions.E_Server)
+	opts, ok := ext.(*toolkit_annotattions.Server)
 	if !ok {
 		return nil, fmt.Errorf("extension is not an Proxy")
 	}

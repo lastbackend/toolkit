@@ -67,7 +67,7 @@ service ProxyGateway {
         };
       };
     };
-    option (toolkit.proxy).http = {
+    option (toolkit.server).http_proxy = {
       service: "helloworld",
       method: "/helloworld.Greeter/SayHello",
     };

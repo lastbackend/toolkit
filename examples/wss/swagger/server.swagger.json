@@ -26,6 +26,41 @@
     "application/json"
   ],
   "paths": {
+    "/events": {
+      "get": {
+        "operationId": "Router_Subscribe",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gatewaySubscribeResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "format": "object",
+              "example": {
+                "code": 500,
+                "status": "Internal Server Error",
+                "message": "Internal Server Error"
+              },
+              "readOnly": true
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Router"
+        ]
+      }
+    },
     "/hello": {
       "post": {
         "operationId": "Router_HelloWorld",
