@@ -37,11 +37,17 @@ extend google.protobuf.MethodOptions {
 message Server {
   oneof server {
     HttpProxy http_proxy = 1;
-    bool websocket = 2;
+    Subscribe subscribe_ws = 2;
+    bool websocket = 3;
   }
 }
 
 message HttpProxy {
+  string service = 1;
+  string method = 2;
+}
+
+message Subscribe {
   string service = 1;
   string method = 2;
 }

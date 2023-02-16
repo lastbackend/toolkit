@@ -117,6 +117,8 @@ func setBindingsToMethod(method *Method) error {
 				return err
 			}
 
+			method.IsWebsocket = true
+
 			binding := &Binding{
 				Method:       method,
 				Index:        len(method.Bindings),
@@ -128,10 +130,27 @@ func setBindingsToMethod(method *Method) error {
 				ResponseType: method.ResponseType,
 				Websocket:    true,
 			}
+			method.Bindings = append(method.Bindings, binding)
+
+		case pOpts.GetSubscribeWs() != nil:
+			rOpts := pOpts.GetSubscribeWs()
 
 			method.IsWebsocket = true
 
+			binding := &Binding{
+				Method:       method,
+				Index:        len(method.Bindings),
+				Service:      rOpts.GetService(),
+				RpcPath:      rOpts.GetMethod(),
+				RpcMethod:    method.GetName(),
+				HttpMethod:   http.MethodGet,
+				RequestType:  method.RequestType,
+				ResponseType: method.ResponseType,
+				Subscribe:    true,
+			}
+
 			method.Bindings = append(method.Bindings, binding)
+
 		case pOpts.GetHttpProxy() != nil && proto.HasExtension(method.Options, options.E_Http):
 			rOpts := pOpts.GetHttpProxy()
 

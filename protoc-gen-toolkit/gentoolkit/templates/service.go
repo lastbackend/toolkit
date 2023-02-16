@@ -274,12 +274,13 @@ func (s *service) registerRouter() {
 	{{ range $svc := .Services }}
 		{{ range $m := $svc.Methods }}
 			{{ range $binding := $m.Bindings }}
+				
 				{{ if $binding.Websocket }}
 				s.toolkit.Router().Handle(http.MethodGet, "{{ $binding.HttpPath }}", s.Router().ServerWS,
 					router.HandleOptions{Middlewares: middlewares.getMiddleware("{{ $binding.RpcMethod }}")})
 				{{ end }}
-		
-				{{ if not $binding.Websocket }}
+			
+				{{ if or (not $binding.Websocket) ($binding.Subscribe) }}
 				s.toolkit.Router().Subscribe("{{ $binding.RpcMethod }}", func(ctx context.Context, event ws.Event, c *ws.Client) error {
 					ctx, cancel := context.WithCancel(ctx)
 					defer cancel()
@@ -306,87 +307,89 @@ func (s *service) registerRouter() {
 					return c.WriteJSON(protoResponse)
 				})
 		
-				s.toolkit.Router().Handle({{ $binding.HttpMethod }}, "{{ $binding.HttpPath }}", func(w http.ResponseWriter, r *http.Request) {
-					ctx, cancel := context.WithCancel(r.Context())
-					defer cancel()
-		
-					var protoRequest {{ $binding.RequestType.GoType $binding.Method.Service.File.GoPkg.Path }}
-					var protoResponse {{ $binding.ResponseType.GoType $binding.Method.Service.File.GoPkg.Path }}
+				{{ if not $binding.Subscribe }}
+					s.toolkit.Router().Handle("{{ $binding.HttpMethod }}", "{{ $binding.HttpPath }}", func(w http.ResponseWriter, r *http.Request) {
+						ctx, cancel := context.WithCancel(r.Context())
+						defer cancel()
 			
-					{{ if or (eq $binding.HttpMethod "http.MethodPost") (eq $binding.HttpMethod "http.MethodPut") (eq $binding.HttpMethod "http.MethodPatch") }}
-						{{ if eq $binding.RawBody "*" }}
-							im, om := router.GetMarshaler(s.toolkit.Router(), r)
-		
-							reader, err := router.NewReader(r.Body)
-							if err != nil {
-								errors.HTTP.InternalServerError(w)
-								return
-							}
-							
-							if err := im.NewDecoder(reader).Decode(&protoRequest); err != nil && err != io.EOF {
-								errors.HTTP.InternalServerError(w)
-								return
-							}
+						var protoRequest {{ $binding.RequestType.GoType $binding.Method.Service.File.GoPkg.Path }}
+						var protoResponse {{ $binding.ResponseType.GoType $binding.Method.Service.File.GoPkg.Path }}
+				
+						{{ if or (eq $binding.HttpMethod "http.MethodPost") (eq $binding.HttpMethod "http.MethodPut") (eq $binding.HttpMethod "http.MethodPatch") }}
+							{{ if eq $binding.RawBody "*" }}
+								im, om := router.GetMarshaler(s.toolkit.Router(), r)
+			
+								reader, err := router.NewReader(r.Body)
+								if err != nil {
+									errors.HTTP.InternalServerError(w)
+									return
+								}
+								
+								if err := im.NewDecoder(reader).Decode(&protoRequest); err != nil && err != io.EOF {
+									errors.HTTP.InternalServerError(w)
+									return
+								}
+							{{ else }}
+								_, om := router.GetMarshaler(s.toolkit.Router(), r)
+			
+								if err := router.SetRawBodyToProto(r, &protoRequest, "{{ $binding.RawBody }}"); err != nil {
+									errors.HTTP.InternalServerError(w)
+									return
+								}
+			
+							{{ end }}
 						{{ else }}
 							_, om := router.GetMarshaler(s.toolkit.Router(), r)
-		
-							if err := router.SetRawBodyToProto(r, &protoRequest, "{{ $binding.RawBody }}"); err != nil {
+			
+							if err := r.ParseForm(); err != nil {
 								errors.HTTP.InternalServerError(w)
 								return
 							}
-		
+				
+							if err := router.ParseRequestQueryParametersToProto(&protoRequest, r.Form); err != nil {
+								errors.HTTP.InternalServerError(w)
+								return
+							}
 						{{ end }}
-					{{ else }}
-						_, om := router.GetMarshaler(s.toolkit.Router(), r)
-		
-						if err := r.ParseForm(); err != nil {
+			
+						{{ range $param := $binding.HttpParams }}
+						if err := router.ParseRequestUrlParametersToProto(r, &protoRequest, "{{ $param | ToTrimRegexFromQueryParameter }}"); err != nil {
+							errors.HTTP.InternalServerError(w)
+							return
+						}
+						{{ end }}
+				
+						headers, err := router.PrepareHeaderFromRequest(r)
+						if err != nil {
 							errors.HTTP.InternalServerError(w)
 							return
 						}
 			
-						if err := router.ParseRequestQueryParametersToProto(&protoRequest, r.Form); err != nil {
+						callOpts := make([]grpc.CallOption, 0)
+						callOpts = append(callOpts, grpc.Headers(headers))
+			
+						if err := s.toolkit.Client().Call(ctx, "{{ $binding.Service }}", "{{ $binding.RpcPath }}", &protoRequest, &protoResponse, callOpts...); err != nil {
+							errors.GrpcErrorHandlerFunc(w, err)
+							return			
+						}
+				
+						buf, err := om.Marshal(protoResponse)
+						if err != nil {
 							errors.HTTP.InternalServerError(w)
 							return
 						}
-					{{ end }}
-		
-					{{ range $param := $binding.HttpParams }}
-					if err := router.ParseRequestUrlParametersToProto(r, &protoRequest, "{{ $param | ToTrimRegexFromQueryParameter }}"); err != nil {
-						errors.HTTP.InternalServerError(w)
-						return
-					}
-					{{ end }}
 			
-					headers, err := router.PrepareHeaderFromRequest(r)
-					if err != nil {
-						errors.HTTP.InternalServerError(w)
-						return
-					}
-		
-					callOpts := make([]grpc.CallOption, 0)
-					callOpts = append(callOpts, grpc.Headers(headers))
-		
-					if err := s.toolkit.Client().Call(ctx, "{{ $binding.Service }}", "{{ $binding.RpcPath }}", &protoRequest, &protoResponse, callOpts...); err != nil {
-						errors.GrpcErrorHandlerFunc(w, err)
-						return			
-					}
+						w.Header().Set("Content-Type", om.ContentType())
 			
-					buf, err := om.Marshal(protoResponse)
-					if err != nil {
-						errors.HTTP.InternalServerError(w)
-						return
-					}
-		
-					w.Header().Set("Content-Type", om.ContentType())
-		
-					w.WriteHeader(http.StatusOK)
-					if _, err = w.Write(buf); err != nil {
-						s.toolkit.Logger().Infof("Failed to write response: %v", err)
-						return
-					}
-		
-				}, router.HandleOptions{Middlewares: middlewares.getMiddleware("{{ $binding.RpcMethod }}")})
-				{{ end }}
+						w.WriteHeader(http.StatusOK)
+						if _, err = w.Write(buf); err != nil {
+							s.toolkit.Logger().Infof("Failed to write response: %v", err)
+							return
+						}
+			
+					}, router.HandleOptions{Middlewares: middlewares.getMiddleware("{{ $binding.RpcMethod }}")})
+					{{ end }}
+				{{ end }} 
 			{{ end }} 
 		{{ end }}
 	{{ end }}
