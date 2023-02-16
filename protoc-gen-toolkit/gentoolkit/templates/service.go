@@ -280,7 +280,7 @@ func (s *service) registerRouter() {
 					router.HandleOptions{Middlewares: middlewares.getMiddleware("{{ $binding.RpcMethod }}")})
 				{{ end }}
 			
-				{{ if or (not $binding.Websocket) ($binding.Subscribe) }}
+				{{ if or (not $binding.Websocket) ($binding.WebsocketProxy) }}
 				s.toolkit.Router().Subscribe("{{ $binding.RpcMethod }}", func(ctx context.Context, event ws.Event, c *ws.Client) error {
 					ctx, cancel := context.WithCancel(ctx)
 					defer cancel()
@@ -307,7 +307,7 @@ func (s *service) registerRouter() {
 					return c.WriteJSON(protoResponse)
 				})
 		
-				{{ if not $binding.Subscribe }}
+				{{ if not $binding.WebsocketProxy }}
 					s.toolkit.Router().Handle("{{ $binding.HttpMethod }}", "{{ $binding.HttpPath }}", func(w http.ResponseWriter, r *http.Request) {
 						ctx, cancel := context.WithCancel(r.Context())
 						defer cancel()

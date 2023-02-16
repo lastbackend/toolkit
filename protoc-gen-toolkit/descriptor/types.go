@@ -157,18 +157,18 @@ type ResponseFile struct {
 }
 
 type Binding struct {
-	Method       *Method
-	Index        int
-	RpcMethod    string
-	RpcPath      string
-	Service      string
-	HttpMethod   string
-	HttpPath     string
-	RawBody      string
-	HttpParams   []string
-	RequestType  *Message
-	ResponseType *Message
-	Stream       bool
-	Websocket    bool
-	Subscribe    bool
+	Method         *Method
+	Index          int
+	RpcMethod      string
+	RpcPath        string
+	Service        string
+	HttpMethod     string
+	HttpPath       string
+	RawBody        string
+	HttpParams     []string
+	RequestType    *Message
+	ResponseType   *Message
+	Stream         bool
+	Websocket      bool
+	WebsocketProxy bool
 }
