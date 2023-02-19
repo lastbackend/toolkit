@@ -308,7 +308,7 @@ func (s *service) registerRouter() {
 				})
 		
 				{{ if not $binding.WebsocketProxy }}
-					s.toolkit.Router().Handle("{{ $binding.HttpMethod }}", "{{ $binding.HttpPath }}", func(w http.ResponseWriter, r *http.Request) {
+					s.toolkit.Router().Handle({{ $binding.HttpMethod }}, "{{ $binding.HttpPath }}", func(w http.ResponseWriter, r *http.Request) {
 						ctx, cancel := context.WithCancel(r.Context())
 						defer cancel()
 			
