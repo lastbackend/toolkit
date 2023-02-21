@@ -6,7 +6,7 @@ mkdir -p proto/google/api
 
 curl -s -o proto/google/api/annotations.proto -L https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/annotations.proto
 
-PROTOS=$(find . -type f -name '*.proto' | grep -v example | grep -v proto/google/api | grep -v proto/toolkit/options)
+PROTOS=$(find . -type f -name '*.proto' | grep -v examples | grep -v proto/google/api | grep -v proto/toolkit/options)
 
 for PROTO in $PROTOS; do
   protoc \
