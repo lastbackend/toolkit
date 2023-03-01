@@ -25,9 +25,9 @@ import (
 
 	pb "github.com/lastbackend/toolkit/examples/wss/gen/server"
 	"github.com/lastbackend/toolkit/examples/wss/middleware"
+	"github.com/lastbackend/toolkit/pkg/http"
+	"github.com/lastbackend/toolkit/pkg/http/ws"
 	"github.com/lastbackend/toolkit/pkg/logger"
-	"github.com/lastbackend/toolkit/pkg/router"
-	"github.com/lastbackend/toolkit/pkg/router/ws"
 )
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +62,7 @@ func main() {
 
 	svc.Router().Subscribe("event:name", TestWSHandler)
 
-	svc.Router().Handle(http.MethodGet, "/health", HealthCheckHandler, router.HandleOptions{})
+	svc.Router().Handle(http.MethodGet, "/health", HealthCheckHandler, http.HandleOptions{})
 
 	if err := svc.Run(context.Background()); err != nil {
 		os.Exit(1)

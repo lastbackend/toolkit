@@ -6,23 +6,24 @@ package servicepb
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+
+	"github.com/lastbackend/toolkit/pkg/runtime"
+
+	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
 	"io"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 
 	toolkit "github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/gen/ptypes"
 	grpc "github.com/lastbackend/toolkit/pkg/client/grpc"
 	logger "github.com/lastbackend/toolkit/pkg/logger"
-	router "github.com/lastbackend/toolkit/pkg/router"
-	errors "github.com/lastbackend/toolkit/pkg/router/errors"
-	ws "github.com/lastbackend/toolkit/pkg/router/ws"
 	server "github.com/lastbackend/toolkit/pkg/server"
+
+	errors "github.com/lastbackend/toolkit/pkg/server/http/errors"
+	ws "github.com/lastbackend/toolkit/pkg/server/http/websockets"
 	"github.com/lastbackend/toolkit/plugin/postgres_gorm"
-	"github.com/lastbackend/toolkit/plugin/redis_cache"
-	fx "go.uber.org/fx"
+	"github.com/lastbackend/toolkit/plugin/redis"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -30,7 +31,6 @@ import (
 var _ context.Context
 var _ logger.Logger
 var _ emptypb.Empty
-var _ server.Server
 var _ grpc.Client
 var _ http.Handler
 var _ errors.Err
@@ -39,259 +39,24 @@ var _ json.Marshaler
 var _ ws.Client
 var _ server.Server
 
-type middleware map[string][]func(h http.Handler) http.Handler
-
-func (m middleware) getMiddleware(name string) router.Middleware {
-	middleware := router.Middleware{}
-	if m[name] != nil {
-		for _, mdw := range m[name] {
-			middleware.Add(mdw)
-		}
-	}
-	return middleware
-}
-
-var middlewares = make(middleware, 0)
-
-type Service interface {
-	Logger() logger.Logger
-	Meta() toolkit.Meta
-	CLI() toolkit.CLI
-	Client() grpc.Client
-	Router() router.Server
-	Run(ctx context.Context) error
-
-	SetConfig(cfg interface{})
-	SetServer(srv interface{})
-
-	AddPackage(pkg interface{})
-	AddMiddleware(mdw interface{})
-	Invoke(fn interface{})
-}
-
-type RPC struct {
-	Grpc grpc.RPCClient
-}
-
-func NewService(name string) Service {
-	return &service{
-		toolkit: toolkit.NewService(name),
-		srv:     make([]interface{}, 0),
-		pkg:     make([]interface{}, 0),
-		inv:     make([]interface{}, 0),
-		rpc:     new(RPC),
-	}
-}
-
+// Definitions
 type service struct {
-	toolkit toolkit.Service
-	rpc     *RPC
-	srv     []interface{}
-	pkg     []interface{}
-	inv     []interface{}
-	cfg     interface{}
-	mdw     interface{}
+	toolkit toolkit.Runtime
 }
 
-func (s *service) Meta() toolkit.Meta {
-	return s.toolkit.Meta()
-}
-
-func (s *service) CLI() toolkit.CLI {
-	return s.toolkit.CLI()
-}
-
-func (s *service) Logger() logger.Logger {
-	return s.toolkit.Logger()
-}
-
-func (s *service) Router() router.Server {
-	return s.toolkit.Router()
-}
-
-func (s *service) Client() grpc.Client {
-	return s.toolkit.Client()
-}
-
-func (s *service) SetConfig(cfg interface{}) {
-	s.cfg = cfg
-}
-
-func (s *service) SetServer(srv interface{}) {
-	if srv == nil {
-		return
-	}
-	s.srv = append(s.srv, srv)
-}
-
-func (s *service) AddPackage(pkg interface{}) {
-	if pkg == nil {
-		return
-	}
-	s.pkg = append(s.pkg, pkg)
-}
-
-func (s *service) AddMiddleware(mdw interface{}) {
-	s.mdw = mdw
-}
-
-func (s *service) Invoke(fn interface{}) {
-	if fn == nil {
-		return
-	}
-	s.inv = append(s.inv, fn)
-}
-
+// Plugins define
 type PgsqlPlugin interface {
 	postgres_gorm.Plugin
 }
 
 type RedisPlugin interface {
-	redis_cache.Plugin
+	redis.Plugin
 }
 
-func (s *service) Run(ctx context.Context) error {
-
-	plugin_0 := postgres_gorm.NewPlugin(s.toolkit, &postgres_gorm.Options{Name: "pgsql"})
-
-	plugin_1 := redis_cache.NewPlugin(s.toolkit, &redis_cache.Options{Name: "redis"})
-
-	provide := make([]interface{}, 0)
-	provide = append(provide,
-		fx.Annotate(
-			func() toolkit.Service {
-				return s.toolkit
-			},
-		),
-		func() Service {
-			return s
-		},
-		func() *RPC {
-			return s.rpc
-		},
-		fx.Annotate(
-			func() PgsqlPlugin {
-				return plugin_0
-			},
-		),
-
-		fx.Annotate(
-			func() RedisPlugin {
-				return plugin_1
-			},
-		),
-	)
-
-	provide = append(provide, s.pkg...)
-	provide = append(provide, s.srv...)
-
-	opts := make([]fx.Option, 0)
-
-	if s.cfg != nil {
-		opts = append(opts, fx.Supply(s.cfg))
-	}
-
-	opts = append(opts, fx.Provide(provide...))
-	opts = append(opts, fx.Invoke(s.registerClients))
-	opts = append(opts, fx.Invoke(s.registerExampleServer))
-	opts = append(opts, fx.Invoke(s.inv...))
-	opts = append(opts, fx.Invoke(s.mdw))
-	opts = append(opts, fx.Invoke(s.registerRouter))
-	opts = append(opts, fx.Invoke(s.runService))
-
-	app := fx.New(
-		fx.Options(opts...),
-		fx.NopLogger,
-	)
-
-	if err := app.Start(ctx); err != nil {
-		return err
-	}
-
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, shutdownSignals...)
-
-	select {
-	// wait on kill signal
-	case <-signalCh:
-	// wait on context cancel
-	case <-ctx.Done():
-	}
-
-	return app.Stop(ctx)
-}
-
-func (s *service) registerClients() error {
-
-	// Register clients
-
-	s.rpc.Grpc = grpc.NewClient(s.toolkit.CLI(), grpc.ClientOptions{Name: "client-grpc"})
-
-	if err := s.toolkit.ClientRegister(s.rpc.Grpc); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *service) registerExampleServer(srv ExampleRpcServer) error {
-
-	// Register servers
-
-	type ExampleGrpcRpcServer struct {
-		ExampleServer
-	}
-
-	h := &exampleGrpcRpcServer{srv.(ExampleRpcServer)}
-
-	grpcexampleServer := server.NewServer(s.toolkit, &server.ServerOptions{Name: "server-grpc"})
-
-	if err := grpcexampleServer.Register(&Example_ServiceDesc, &ExampleGrpcRpcServer{h}); err != nil {
-		return err
-	}
-
-	if err := s.toolkit.ServerRegister(grpcexampleServer); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *service) registerRouter() {
-
-}
-
-func registerMiddleware(name string, mdw ...func(h http.Handler) http.Handler) {
-	if middlewares[name] == nil {
-		middlewares[name] = make([]func(h http.Handler) http.Handler, 0)
-	}
-	for _, h := range mdw {
-		middlewares[name] = append(middlewares[name], h)
-	}
-}
-
-func (s *service) runService(lc fx.Lifecycle) error {
-	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			return s.toolkit.Start(ctx)
-		},
-		OnStop: func(ctx context.Context) error {
-			return s.toolkit.Stop(ctx)
-		},
-	})
-	return nil
-}
-
-var shutdownSignals = []os.Signal{
-	syscall.SIGTERM,
-	syscall.SIGINT,
-	syscall.SIGQUIT,
-	syscall.SIGKILL,
-}
-
-// Server API for Api service
+// GRPC servers define
 type ExampleRpcServer interface {
 	HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error)
+	mustEmbedUnimplementedExampleServer()
 }
 
 type exampleGrpcRpcServer struct {
@@ -303,3 +68,61 @@ func (h *exampleGrpcRpcServer) HelloWorld(ctx context.Context, req *typespb.Hell
 }
 
 func (exampleGrpcRpcServer) mustEmbedUnimplementedExampleServer() {}
+
+func registerExampleGRPCServer(runtime toolkit.Runtime, srv ExampleRpcServer) error {
+	runtime.Manager().Server().GRPC().RegisterService(&exampleGrpcRpcServer{srv})
+	return nil
+}
+
+// HTTP server middleware
+func exampleHTTPServerMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("Call: ExampleMiddleware")
+
+		// Set example data to request context
+		ctx := context.WithValue(r.Context(), "test-data", "example context data")
+
+		h.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// HTTP server custom handler
+func exampleHTTPServerSubscribeHandler(w http.ResponseWriter, r *http.Request) {
+	return
+}
+
+func NewService(name string, opts ...toolkit.Option) (toolkit.Service, error) {
+
+	var (
+		err error
+	)
+
+	app := new(service)
+
+	app.toolkit, err = runtime.NewRuntime(context.Background(), name, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	// loop over plugins and initialize plugin instance
+	plugin_pgsql := postgres_gorm.NewPlugin(app.toolkit, &postgres_gorm.Options{Name: "pgsql"})
+	plugin_redis := redis.NewPlugin(app.toolkit, &redis.Options{Name: "redis"})
+
+	// loop over plugins and register plugin in toolkit
+	app.toolkit.Manager().Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
+	app.toolkit.Manager().Plugin().Provide(func() RedisPlugin { return plugin_redis })
+
+	// set descriptor to Example grpc server
+	app.toolkit.Manager().Server().GRPCNew(name, nil)
+
+	app.toolkit.Manager().Server().GRPC().SetDescriptor(Example_ServiceDesc)
+	app.toolkit.Manager().Server().GRPC().SetConstructor(registerExampleGRPCServer)
+
+	// create new Example http server
+	app.toolkit.Manager().Server().HTTPNew(name, nil)
+
+	app.toolkit.Manager().Server().HTTP().AddMiddleware("middleware1", exampleHTTPServerMiddleware)
+	app.toolkit.Manager().Server().HTTP().AddHandler(http.MethodPost, "/hello", exampleHTTPServerSubscribeHandler, tk_http.WithMiddleware("middleware1"))
+
+	return app.toolkit, nil
+}

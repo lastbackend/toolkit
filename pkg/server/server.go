@@ -17,11 +17,17 @@ limitations under the License.
 package server
 
 import (
-	"google.golang.org/grpc"
+	"context"
 )
 
 type Server interface {
-	Register(sd *grpc.ServiceDesc, ss interface{}) error
-	Start() error
+	Type() string
+
+	Host() string
+	Port() string
+
+	Register() error
+
+	Start(ctx context.Context) error
 	Stop() error
 }

@@ -18,26 +18,16 @@ package rabbitmq
 
 import (
 	"github.com/lastbackend/toolkit"
+	"github.com/lastbackend/toolkit/pkg/config"
 	"github.com/streadway/amqp"
 	"sync"
 
 	"context"
 	"fmt"
-	"os"
-	"strconv"
-	"strings"
 )
 
 const (
-	defaultPrefix = "amqp"
-	defaultPort   = 5672
-)
-
-const (
-	envHostName     = "HOST"
-	envPortName     = "PORT"
-	envUserName     = "USERNAME"
-	envPasswordName = "PASSWORD"
+	defaultPrefix = "rabbitmq"
 )
 
 type Plugin interface {
@@ -54,17 +44,36 @@ type Options struct {
 	Name string
 }
 
+type Config struct {
+	DSN      string `env:"DSN" envDefault:"" comment:"DSN = complete connection string (amqp://guest:guest@127.0.0.1:5672)"`
+	Host     string `env:"HOST" envDefault:"127.0.0.1"  comment:"The host to connect to (required)"`
+	Port     int32  `env:"PORT" envDefault:"5672" comment:"The port to bind to (default: 5672)"`
+	Vhost    string `env:"VHOST" envDefault:"/" comment:"The default host connect to (default: / )"`
+	Username string `env:"USERNAME" comment:"The username to connect with (not required, guest by default)"`
+	Password string `env:"PASSWORD" comment:"The password to connect with(not required, guest by default) "`
+
+	TLSVerify bool   `env:"TLS_VERIFY" comment:"Use SSL in rabbitmq connection"`
+	TLSCA     string `env:"TLS_CA" comment:"TLS CA file content used in connection"`
+	TLSCert   string `env:"TLS_CERT" comment:"TLS Cert file content used in connection"`
+	TLSKey    string `env:"TLS_KEY"  comment:"TLS Key file content used in connection"`
+
+	PrefetchCount  int  `env:"PREFETCH_COUNT"  comment:"Limit the number of unacknowledged messages on a channel (or connection) when consuming"`
+	PrefetchGlobal bool `env:"PREFETCH_GLOBAL"  comment:"Set prefetch limit number globally"`
+
+	DefaultExchange *Exchange
+}
+
 type plugin struct {
 	sync.RWMutex
 
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	prefix    string
-	envPrefix string
-	service   string
+	prefix  string
+	service string
 
-	opts   brokerOptions
+	opts Config
+
 	broker *broker
 	probe  toolkit.Probe
 
@@ -73,8 +82,16 @@ type plugin struct {
 
 func NewPlugin(service toolkit.Service, opts *Options) Plugin {
 	p := new(plugin)
-	p.envPrefix = service.Meta().GetEnvPrefix()
-	p.service = service.Meta().GetName()
+
+	p.prefix = opts.Name
+	if p.prefix == "" {
+		p.prefix = defaultPrefix
+	}
+
+	if err := config.Parse(&p.opts, p.prefix); err != nil {
+		return nil
+	}
+
 	p.probe = service.Probe()
 	p.subscribers = make(map[string]bool, 0)
 	err := p.Register(service, opts)
@@ -84,14 +101,8 @@ func NewPlugin(service toolkit.Service, opts *Options) Plugin {
 	return p
 }
 
-// Register - registers the plugin implements storage using Rabbitmq as a broker service
-func (p *plugin) Register(app toolkit.Service, opts *Options) error {
-	p.prefix = opts.Name
-	if p.prefix == "" {
-		p.prefix = defaultPrefix
-	}
-
-	p.addFlags(app)
+// Register - registers the plugin implements amqp using rabbitmq as broker
+func (p *plugin) Register(app toolkit.Service, _ *Options) error {
 
 	if err := app.PluginRegister(p); err != nil {
 		return err
@@ -104,13 +115,13 @@ func (p *plugin) Start(ctx context.Context) error {
 
 	p.ctx, p.cancel = context.WithCancel(ctx)
 
-	if p.opts.Endpoint == "" {
-		config := p.getAMQPConfig()
-		if config.Host == "" {
-			return fmt.Errorf("%s flag or %s environment variable required but not set",
-				p.withPrefix("endpoint"), p.generateWithEnvPrefix(envHostName))
+	if p.opts.DSN == "" {
+		if p.opts.Host == "" {
+			return fmt.Errorf("%s_DSN or %s_Host environment variable required but not set",
+				p.prefix, p.prefix)
 		}
-		p.opts.Endpoint = config.getConnectionString()
+		p.opts.DSN = fmt.Sprintf("amqp://%s:%s@%s:%d/%s",
+			p.opts.Username, p.opts.Password, p.opts.Host, p.opts.Port, p.opts.Vhost)
 	}
 
 	p.opts.DefaultExchange = &Exchange{
@@ -173,92 +184,4 @@ func (p *plugin) Subscribe(service, event string, handler Handler, opts *Subscri
 
 func (p *plugin) Channel() (*amqp.Channel, error) {
 	return p.broker.Channel()
-}
-
-func (p *plugin) genUsage() string {
-	return fmt.Sprintf(`Rabbitmq connection string (Ex: amqp://guest:guest@127.0.0.1:5672)
-or use environment variables: 
-	%s - The host to connect to (required), 
-	%s - The port to bind to (default: 5672), 
-	%s - The username to connect with (not required, guest by default), 
-	%s - The password to connect with (not required, guest by default)`,
-		p.generateWithEnvPrefix(envHostName), p.generateWithEnvPrefix(envPortName),
-		p.generateWithEnvPrefix(envUserName), p.generateWithEnvPrefix(envPasswordName))
-}
-
-func (p *plugin) addFlags(app toolkit.Service) {
-	app.CLI().AddStringFlag(p.withPrefix("endpoint"), &p.opts.Endpoint).
-		Env(p.generateEnvName("ENDPOINT")).
-		Usage(p.genUsage())
-
-	app.CLI().AddBoolFlag(p.withPrefix("tls-verify"), &p.opts.TLSVerify).
-		Env(p.generateEnvName("TLS_VERIFY")).
-		Usage("Sets the tls verify")
-
-	app.CLI().AddStringFlag(p.withPrefix("tls-cert"), &p.opts.TLSCert).
-		Env(p.generateEnvName("TLS_CERT")).
-		Usage("Sets the certificate file")
-
-	app.CLI().AddStringFlag(p.withPrefix("tls-key"), &p.opts.TLSKey).
-		Env(p.generateEnvName("TLS_KEY")).
-		Usage("Sets the private key file")
-
-	app.CLI().AddIntFlag(p.withPrefix("prefetch-count"), &p.opts.PrefetchCount).
-		Env(p.generateEnvName("PREFETCH_COUNT")).
-		Default(DefaultPrefetchCount).
-		Usage("Sets the prefetch count")
-
-	app.CLI().AddBoolFlag(p.withPrefix("prefetch-global"), &p.opts.PrefetchGlobal).
-		Env(p.generateEnvName("PREFETCH_GLOBAL")).
-		Usage("Sets the prefetch global")
-}
-
-type amqpConfig struct {
-	Host     string
-	Port     int32
-	Username string
-	Password string
-}
-
-func (c *amqpConfig) getConnectionString() string {
-	if c.Username == "" {
-		c.Username = "guest"
-	}
-	if c.Password == "" {
-		c.Password = "guest"
-	}
-	return fmt.Sprintf("amqp://%s:%s@%s:%d", c.Username, c.Password, c.Host, c.Port)
-}
-
-func (p *plugin) getAMQPConfig() amqpConfig {
-	config := amqpConfig{Port: defaultPort}
-
-	if host, ok := os.LookupEnv(p.generateWithEnvPrefix(envHostName)); ok {
-		config.Host = host
-	}
-	if port, ok := os.LookupEnv(p.generateWithEnvPrefix(envPortName)); ok {
-		if value, err := strconv.ParseInt(port, 10, 32); err == nil {
-			config.Port = int32(value)
-		}
-	}
-	if user, ok := os.LookupEnv(p.generateWithEnvPrefix(envUserName)); ok {
-		config.Username = user
-	}
-	if password, ok := os.LookupEnv(p.generateWithEnvPrefix(envPasswordName)); ok {
-		config.Password = password
-	}
-
-	return config
-}
-
-func (p *plugin) withPrefix(name string) string {
-	return fmt.Sprintf("%s-%s", p.prefix, name)
-}
-
-func (p *plugin) generateEnvName(name string) string {
-	return strings.ToUpper(fmt.Sprintf("%s_%s", p.prefix, strings.Replace(name, "-", "_", -1)))
-}
-
-func (p *plugin) generateWithEnvPrefix(name string) string {
-	return strings.ToUpper(fmt.Sprintf("%s_%s", p.envPrefix, p.generateEnvName(name)))
 }

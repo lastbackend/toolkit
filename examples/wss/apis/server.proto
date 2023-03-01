@@ -76,6 +76,15 @@ service Router {
 }
 
 
+service RouterTest {
+  rpc Subscribe(SubscribeRequest) returns (SubscribeResponse) {
+    option (toolkit.proxy).ws = {
+      path: "/test/events",
+    };
+  };
+}
+
+
 message SubscribeRequest {}
 
 message SubscribeResponse {}

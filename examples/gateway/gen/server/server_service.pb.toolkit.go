@@ -16,10 +16,10 @@ import (
 	"github.com/lastbackend/toolkit/examples/helloworld/gen"
 	grpc "github.com/lastbackend/toolkit/pkg/client/grpc"
 	logger "github.com/lastbackend/toolkit/pkg/logger"
-	router "github.com/lastbackend/toolkit/pkg/router"
-	errors "github.com/lastbackend/toolkit/pkg/router/errors"
-	ws "github.com/lastbackend/toolkit/pkg/router/ws"
 	server "github.com/lastbackend/toolkit/pkg/server"
+	serverHTTP "github.com/lastbackend/toolkit/pkg/server/http"
+	errors "github.com/lastbackend/toolkit/pkg/server/http/errors"
+	websockets "github.com/lastbackend/toolkit/pkg/server/http/websockets"
 	fx "go.uber.org/fx"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
@@ -34,12 +34,12 @@ var _ http.Handler
 var _ errors.Err
 var _ io.Reader
 var _ json.Marshaler
-var _ ws.Client
+var _ websockets.Client
 
 type middleware map[string][]func(h http.Handler) http.Handler
 
-func (m middleware) getMiddleware(name string) router.Middleware {
-	middleware := router.Middleware{}
+func (m middleware) getMiddleware(name string) serverHTTP.Middleware {
+	middleware := serverHTTP.Middleware{}
 	if m[name] != nil {
 		for _, mdw := range m[name] {
 			middleware.Add(mdw)
@@ -55,7 +55,9 @@ type Service interface {
 	Meta() toolkit.Meta
 	CLI() toolkit.CLI
 	Client() grpc.Client
-	Router() router.Server
+
+	ServerHTTP() serverHTTP.Server
+
 	Run(ctx context.Context) error
 
 	SetConfig(cfg interface{})
@@ -99,8 +101,8 @@ func (s *service) Logger() logger.Logger {
 	return s.toolkit.Logger()
 }
 
-func (s *service) Router() router.Server {
-	return s.toolkit.Router()
+func (s *service) ServerHTTP() serverHTTP.Server {
+	return s.toolkit.ServerHTTP()
 }
 
 func (s *service) Client() grpc.Client {
@@ -158,7 +160,7 @@ func (s *service) Run(ctx context.Context) error {
 	opts = append(opts, fx.Invoke(s.registerClients))
 	opts = append(opts, fx.Invoke(s.inv...))
 	opts = append(opts, fx.Invoke(s.mdw))
-	opts = append(opts, fx.Invoke(s.registerRouter))
+	opts = append(opts, fx.Invoke(s.registerServerHTTP))
 	opts = append(opts, fx.Invoke(s.runService))
 
 	app := fx.New(
@@ -196,9 +198,9 @@ func (s *service) registerClients() error {
 	return nil
 }
 
-func (s *service) registerRouter() {
+func (s *service) registerServerHTTP() {
 
-	s.toolkit.Router().Subscribe("HelloWorld", func(ctx context.Context, event ws.Event, c *ws.Client) error {
+	s.toolkit.ServerHTTP().Subscribe("HelloWorld", func(ctx context.Context, event websockets.Event, c *websockets.Client) error {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
@@ -211,7 +213,7 @@ func (s *service) registerRouter() {
 
 		callOpts := make([]grpc.CallOption, 0)
 
-		if headers := ctx.Value(ws.RequestHeaders); headers != nil {
+		if headers := ctx.Value(websockets.RequestHeaders); headers != nil {
 			if v, ok := headers.(map[string]string); ok {
 				callOpts = append(callOpts, grpc.Headers(v))
 			}
@@ -224,16 +226,16 @@ func (s *service) registerRouter() {
 		return c.WriteJSON(protoResponse)
 	})
 
-	s.toolkit.Router().Handle(http.MethodPost, "/hello", func(w http.ResponseWriter, r *http.Request) {
+	s.toolkit.ServerHTTP().Handle(http.MethodPost, "/hello", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
 		var protoRequest servicepb.HelloRequest
 		var protoResponse servicepb.HelloReply
 
-		im, om := router.GetMarshaler(s.toolkit.Router(), r)
+		im, om := serverHTTP.GetMarshaler(s.toolkit.ServerHTTP(), r)
 
-		reader, err := router.NewReader(r.Body)
+		reader, err := serverHTTP.NewReader(r.Body)
 		if err != nil {
 			errors.HTTP.InternalServerError(w)
 			return
@@ -244,7 +246,7 @@ func (s *service) registerRouter() {
 			return
 		}
 
-		headers, err := router.PrepareHeaderFromRequest(r)
+		headers, err := serverHTTP.PrepareHeaderFromRequest(r)
 		if err != nil {
 			errors.HTTP.InternalServerError(w)
 			return
@@ -272,7 +274,7 @@ func (s *service) registerRouter() {
 			return
 		}
 
-	}, router.HandleOptions{Middlewares: middlewares.getMiddleware("HelloWorld")})
+	}, serverHTTP.HandleOptions{Middlewares: middlewares.getMiddleware("HelloWorld")})
 
 }
 

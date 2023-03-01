@@ -43,7 +43,7 @@ type broker struct {
 	mtx sync.Mutex
 
 	conn           *amqpConn
-	opts           brokerOptions
+	opts           Config
 	endpoints      []string
 	prefetchCount  int
 	prefetchGlobal bool
@@ -57,7 +57,7 @@ type message struct {
 	Payload string `json:"payload"`
 }
 
-func newBroker(opts brokerOptions) *broker {
+func newBroker(opts Config) *broker {
 
 	exchange := DefaultExchange
 	if opts.DefaultExchange != nil {
@@ -65,7 +65,7 @@ func newBroker(opts brokerOptions) *broker {
 	}
 
 	return &broker{
-		endpoints: []string{opts.Endpoint},
+		endpoints: []string{opts.DSN},
 		opts:      opts,
 		exchange:  exchange,
 	}
@@ -186,7 +186,7 @@ func (r *broker) Connect() error {
 	conf := defaultAmqpConfig
 
 	if r.opts.TLSVerify {
-		cer, err := tls.LoadX509KeyPair(r.opts.TLSCert, r.opts.TLSKey)
+		cer, err := tls.X509KeyPair([]byte(r.opts.TLSCert), []byte(r.opts.TLSKey))
 		if err != nil {
 			return err
 		}

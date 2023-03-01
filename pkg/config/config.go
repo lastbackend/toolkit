@@ -16,11 +16,51 @@ limitations under the License.
 
 package config
 
+import (
+	"fmt"
+	"github.com/caarlos0/env/v7"
+	"github.com/fatih/structs"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
+	"strings"
+)
+
 type Config struct {
 	Debug         bool
 	ServerAddress string
 }
 
-func New() *Config {
-	return new(Config)
+func Parse(v interface{}, prefix string, opts ...env.Options) error {
+	opts = append(opts, env.Options{Prefix: strings.ToUpper(prefix)})
+	return env.Parse(v, opts...)
+}
+
+func Print(v interface{}, prefix string) {
+
+	tw := table.NewWriter()
+	tw.AppendHeader(table.Row{"ENVIRONMENT", "DEFAULT VALUE", "REQUIRED", "DESCRIPTION"})
+	tw.Style().Options.DrawBorder = true
+	tw.Style().Options.SeparateColumns = true
+	tw.Style().Options.SeparateFooter = false
+	tw.Style().Options.SeparateHeader = true
+	tw.Style().Options.SeparateRows = true
+
+	tw.SetCaption("(c) No one!")
+
+	fields := structs.Fields(v)
+	for _, field := range fields {
+
+		tagE := field.Tag("env")
+		tagD := field.Tag("envDefault")
+		tagR := field.Tag("required")
+		tagC := field.Tag("comment")
+
+		if tagE != "" {
+			tw.AppendRows([]table.Row{
+				{fmt.Sprintf("%s_%s", strings.ToUpper(prefix), tagE), tagD, tagR, text.WrapText(tagC, 120)},
+			})
+		}
+	}
+
+	fmt.Println(tw.Render())
 }

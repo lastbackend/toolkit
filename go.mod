@@ -3,11 +3,12 @@ module github.com/lastbackend/toolkit
 go 1.19
 
 require (
+	github.com/caarlos0/env/v7 v7.0.0
 	github.com/centrifugal/centrifuge-go v0.9.4
 	github.com/envoyproxy/protoc-gen-validate v0.1.0
+	github.com/fatih/structs v1.1.0
 	github.com/getsentry/sentry-go v0.13.0
 	github.com/go-pg/pg/v10 v10.10.6
-	github.com/go-redis/cache/v9 v9.0.0-beta.1
 	github.com/golang-migrate/migrate/v4 v4.15.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
@@ -15,8 +16,8 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.0
 	github.com/hashicorp/consul/api v1.12.0
 	github.com/improbable-eng/grpc-web v0.15.0
+	github.com/jedib0t/go-pretty/v6 v6.4.4
 	github.com/jmoiron/sqlx v1.3.5
-	github.com/jpillora/backoff v1.0.0
 	github.com/lib/pq v1.10.5
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.0.2
@@ -40,11 +41,11 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/centrifugal/protocol v0.8.11 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be // indirect
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fatih/color v1.9.0 // indirect
 	github.com/go-pg/zerochecker v0.2.0 // indirect
-	github.com/go-redis/redis/v9 v9.0.0-rc.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
@@ -66,19 +67,25 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.4 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
+	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
+	github.com/kr/pretty v0.3.0 // indirect
+	github.com/magefile/mage v1.14.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.1.2 // indirect
+	github.com/onsi/ginkgo v1.16.5 // indirect
+	github.com/onsi/gomega v1.24.1 // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/segmentio/encoding v0.3.5 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/bufpool v0.1.11 // indirect
-	github.com/vmihailenco/go-tinylfu v0.2.2 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
 	github.com/vmihailenco/tagparser v0.1.2 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect

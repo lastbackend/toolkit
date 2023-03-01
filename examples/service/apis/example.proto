@@ -35,7 +35,7 @@ option (toolkit.plugins) = {
 
 option (toolkit.plugins) = {
   prefix: "redis"
-  plugin: "redis_cache"
+  plugin: "redis"
 };
 
 // =====================================================

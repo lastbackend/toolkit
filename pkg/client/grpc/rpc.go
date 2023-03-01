@@ -66,7 +66,7 @@ type ClientOptions struct {
 }
 
 // NewClient - client the plugin implements rpc client using gRPC as a transport
-func NewClient(cli CLI, opts ClientOptions) RPCClient {
+func NewClient(opts ClientOptions) *GRPCClient {
 	c := new(rpcClient)
 	if len(opts.Name) == 0 {
 		c.prefix = defaultPrefix
@@ -75,9 +75,7 @@ func NewClient(cli CLI, opts ClientOptions) RPCClient {
 	c.opts = defaultOptions()
 	c.client = newClient(opts.Name)
 
-	c.addFlags(cli)
-
-	return c
+	return c.Client()
 }
 
 func (s *rpcClient) Client() *GRPCClient {

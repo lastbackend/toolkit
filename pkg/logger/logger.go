@@ -27,8 +27,8 @@ var (
 type Fields map[string]interface{}
 
 type Options struct {
-	Level           Level
-	VerboseLevel    Level
+	Level           Level `env:"DEBUG"`
+	VerboseLevel    Level `env:"VERBOSE"`
 	JSONFormat      bool
 	CallerSkipCount int
 	Fields          Fields
