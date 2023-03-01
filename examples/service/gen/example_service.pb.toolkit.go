@@ -7,13 +7,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/runtime/controller"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 
 	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
-	"io"
-	"net/http"
 
 	toolkit "github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/gen/ptypes"
@@ -27,15 +28,17 @@ import (
 )
 
 // Suppress "imported and not used" errors
-var _ context.Context
-var _ logger.Logger
-var _ emptypb.Empty
-var _ grpc.Client
-var _ http.Handler
-var _ errors.Err
-var _ io.Reader
-var _ json.Marshaler
-var _ ws.Client
+var (
+	_ context.Context
+	_ logger.Logger
+	_ emptypb.Empty
+	_ grpc.Client
+	_ http.Handler
+	_ errors.Err
+	_ io.Reader
+	_ json.Marshaler
+	_ ws.Client
+)
 
 // Definitions
 type service struct {
@@ -90,10 +93,7 @@ func exampleHTTPServerSubscribeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func NewService(name string, opts ...runtime.Option) (toolkit.Service, error) {
-
-	var (
-		err error
-	)
+	var err error
 
 	app := new(service)
 

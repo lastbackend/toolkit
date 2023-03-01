@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/config"
 	servicepb "github.com/lastbackend/toolkit/examples/service/gen"
@@ -26,18 +27,17 @@ func (Tk) TableName() string {
 }
 
 func (r *Repository) Meta(_ context.Context) {
-	var val = new(Tk)
+	val := new(Tk)
 	r.DB().First(val)
 	r.log.Info(">> meta count:", val.Count)
 }
 
 func (r *Repository) PreStart(ctx context.Context) {
-	var val = new(Tk)
+	val := new(Tk)
 	r.DB().First(val)
 	r.log.Info(">> pre start count:", val.Count)
 	val.Count = val.Count + 1
 	r.DB().Save(val)
-
 }
 
 // NewRepository Model with given configurations.

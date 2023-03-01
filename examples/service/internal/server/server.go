@@ -18,6 +18,7 @@ package server
 
 import (
 	"context"
+
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/config"
 	servicepb "github.com/lastbackend/toolkit/examples/service/gen"
@@ -32,11 +33,9 @@ type Handlers struct {
 }
 
 func (h Handlers) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error) {
-	//TODO implement me
+	// TODO implement me
 	return nil, nil
 }
-
-func (Handlers) mustEmbedUnimplementedExampleServer() {}
 
 func NewServer(app toolkit.Service, cfg *config.Config) servicepb.ExampleRpcServer {
 	return &Handlers{

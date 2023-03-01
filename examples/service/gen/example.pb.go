@@ -7,11 +7,12 @@
 package servicepb
 
 import (
+	reflect "reflect"
+
 	ptypes "github.com/lastbackend/toolkit/examples/service/gen/ptypes"
 	_ "github.com/lastbackend/toolkit/protoc-gen-toolkit/toolkit/options"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	reflect "reflect"
 )
 
 const (
@@ -67,6 +68,7 @@ var file_github_com_lastbackend_toolkit_examples_service_apis_example_proto_goTy
 	(*ptypes.HelloWorldRequest)(nil),  // 0: lastbackend.example.HelloWorldRequest
 	(*ptypes.HelloWorldResponse)(nil), // 1: lastbackend.example.HelloWorldResponse
 }
+
 var file_github_com_lastbackend_toolkit_examples_service_apis_example_proto_depIdxs = []int32{
 	0, // 0: lastbackend.example.Example.HelloWorld:input_type -> lastbackend.example.HelloWorldRequest
 	1, // 1: lastbackend.example.Example.HelloWorld:output_type -> lastbackend.example.HelloWorldResponse

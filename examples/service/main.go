@@ -19,10 +19,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/lastbackend/toolkit/examples/service/internal/server"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/server/http"
-	"os"
 
 	"github.com/lastbackend/toolkit/examples/service/config"
 	servicepb "github.com/lastbackend/toolkit/examples/service/gen"
@@ -31,14 +32,12 @@ import (
 )
 
 func main() {
-
 	// define service with name and options
 	app, err := servicepb.NewService("example",
 		runtime.WithVersion("0.1.0"),
 		runtime.WithDescription("Example microservice"),
 		runtime.WithEnvPrefix("LB"),
 	)
-
 	if err != nil {
 		fmt.Println(err)
 	}

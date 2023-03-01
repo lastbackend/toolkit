@@ -7,11 +7,12 @@
 package typespb
 
 import (
+	reflect "reflect"
+	sync "sync"
+
 	_ "github.com/envoyproxy/protoc-gen-validate/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	reflect "reflect"
-	sync "sync"
 )
 
 const (
@@ -231,13 +232,16 @@ func file_github_com_lastbackend_toolkit_examples_service_apis_ptypes_messages_p
 	return file_github_com_lastbackend_toolkit_examples_service_apis_ptypes_messages_proto_rawDescData
 }
 
-var file_github_com_lastbackend_toolkit_examples_service_apis_ptypes_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_github_com_lastbackend_toolkit_examples_service_apis_ptypes_messages_proto_goTypes = []interface{}{
-	(*HelloWorldRequest)(nil),  // 0: lastbackend.example.HelloWorldRequest
-	(*HelloWorldResponse)(nil), // 1: lastbackend.example.HelloWorldResponse
-	nil,                        // 2: lastbackend.example.HelloWorldRequest.DataEntry
-	nil,                        // 3: lastbackend.example.HelloWorldResponse.DataEntry
-}
+var (
+	file_github_com_lastbackend_toolkit_examples_service_apis_ptypes_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+	file_github_com_lastbackend_toolkit_examples_service_apis_ptypes_messages_proto_goTypes  = []interface{}{
+		(*HelloWorldRequest)(nil),  // 0: lastbackend.example.HelloWorldRequest
+		(*HelloWorldResponse)(nil), // 1: lastbackend.example.HelloWorldResponse
+		nil,                        // 2: lastbackend.example.HelloWorldRequest.DataEntry
+		nil,                        // 3: lastbackend.example.HelloWorldResponse.DataEntry
+	}
+)
+
 var file_github_com_lastbackend_toolkit_examples_service_apis_ptypes_messages_proto_depIdxs = []int32{
 	2, // 0: lastbackend.example.HelloWorldRequest.data:type_name -> lastbackend.example.HelloWorldRequest.DataEntry
 	3, // 1: lastbackend.example.HelloWorldResponse.data:type_name -> lastbackend.example.HelloWorldResponse.DataEntry

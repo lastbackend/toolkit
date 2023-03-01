@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/config"
 	"github.com/lastbackend/toolkit/examples/service/internal/repository"
@@ -36,5 +37,4 @@ func NewController(app toolkit.Service, cfg *config.Config, repo *repository.Rep
 func Start(ctx context.Context, app toolkit.Service, ctr *Controller) {
 	app.Log().Info("---- controller start ----")
 	ctr.repo.DB().Raw("SELECT 1")
-	return
 }
