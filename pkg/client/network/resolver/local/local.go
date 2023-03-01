@@ -17,17 +17,17 @@ limitations under the License.
 package local
 
 import (
-	"github.com/lastbackend/toolkit/pkg/network/resolver"
-	"github.com/lastbackend/toolkit/pkg/network/resolver/route"
+	resolver2 "github.com/lastbackend/toolkit/pkg/client/network/resolver"
+	"github.com/lastbackend/toolkit/pkg/client/network/resolver/route"
 )
 
 type Resolver struct {
 	table   *table
-	options resolver.Options
+	options resolver2.Options
 }
 
-func NewResolver(opts ...resolver.Option) resolver.Resolver {
-	options := resolver.DefaultOptions()
+func NewResolver(opts ...resolver2.Option) resolver2.Resolver {
+	options := resolver2.DefaultOptions()
 	for _, o := range opts {
 		o(&options)
 	}
@@ -38,19 +38,19 @@ func NewResolver(opts ...resolver.Option) resolver.Resolver {
 	return r
 }
 
-func (c *Resolver) Lookup(service string, opts ...resolver.LookupOption) (route.List, error) {
-	q := resolver.NewLookup(opts...)
+func (c *Resolver) Lookup(service string, opts ...resolver2.LookupOption) (route.List, error) {
+	q := resolver2.NewLookup(opts...)
 	routes, err := c.table.Find(service)
 	if err != nil {
 		return nil, err
 	}
-	routes = resolver.Filter(routes, q)
+	routes = resolver2.Filter(routes, q)
 	if len(routes) == 0 {
 		return nil, route.ErrRouteNotFound
 	}
 	return routes, nil
 }
 
-func (c *Resolver) Table() resolver.Table {
+func (c *Resolver) Table() resolver2.Table {
 	return c.table
 }

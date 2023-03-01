@@ -21,11 +21,11 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/pkg/config"
+	"github.com/lastbackend/toolkit/pkg/extends/probes"
+	"github.com/lastbackend/toolkit/pkg/runtime"
 	"strings"
 	"time"
 
-	"github.com/lastbackend/toolkit/pkg/probes"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -71,13 +71,8 @@ type Config struct {
 }
 
 type Plugin interface {
-	toolkit.Plugin
-
 	DB() *redis.Client
 	ClusterDB() *redis.ClusterClient
-
-	Register(app toolkit.Service, opts *Options) error
-
 	Print()
 }
 
@@ -86,7 +81,8 @@ type Options struct {
 }
 
 type plugin struct {
-	prefix string
+	prefix  string
+	runtime runtime.Runtime
 
 	opts Config
 	db   *redis.Client
@@ -95,37 +91,24 @@ type plugin struct {
 	//probe toolkit.Probe
 }
 
-func NewPlugin(service toolkit.Service, opts *Options) Plugin {
+func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
 
 	p := new(plugin)
 
+	p.runtime = runtime
 	p.prefix = opts.Name
 	if p.prefix == "" {
 		p.prefix = defaultPrefix
 	}
 
-	if err := config.Parse(&p.opts, p.prefix); err != nil {
+	if err := runtime.Config().Parse(&p.opts, p.prefix); err != nil {
 		return nil
 	}
 
 	//p.probe = service.Probe()
-	err := p.Register(service, opts)
-
-	if err != nil {
-		return nil
-	}
+	runtime.Plugin().Register(p)
 
 	return p
-}
-
-// Register - registers the plugin implements storage using Postgres as a database storage
-func (p *plugin) Register(app toolkit.Service, opts *Options) error {
-
-	//if err := app.PluginRegister(p); err != nil {
-	//	return err
-	//}
-
-	return nil
 }
 
 func (p *plugin) DB() *redis.Client {
@@ -217,7 +200,7 @@ func (p *plugin) prepareClusterOptions(opts Config) *redis.ClusterOptions {
 }
 
 func (p *plugin) Print() {
-	config.Print(p.opts, p.prefix)
+	p.runtime.Config().Print(p.opts, p.prefix)
 }
 
 func redisClusterPingChecker(client *redis.ClusterClient, timeout time.Duration) probes.HandleFunc {

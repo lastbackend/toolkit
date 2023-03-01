@@ -17,8 +17,7 @@ limitations under the License.
 package local
 
 import (
-	rt "github.com/lastbackend/toolkit/pkg/network/resolver/route"
-
+	rt "github.com/lastbackend/toolkit/pkg/client/network/resolver/route"
 	"sync"
 	"time"
 )

@@ -17,7 +17,7 @@ limitations under the License.
 package resolver
 
 import (
-	"github.com/lastbackend/toolkit/pkg/network/resolver/route"
+	"github.com/lastbackend/toolkit/pkg/client/network/resolver/route"
 	"github.com/pkg/errors"
 )
 

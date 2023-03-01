@@ -5,7 +5,7 @@ import (
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/config"
 	servicepb "github.com/lastbackend/toolkit/examples/service/gen"
-	"github.com/lastbackend/toolkit/pkg/logger"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"github.com/lastbackend/toolkit/plugin/postgres_gorm"
 )
 

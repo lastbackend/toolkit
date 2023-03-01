@@ -5,7 +5,7 @@ import (
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/config"
 	"github.com/lastbackend/toolkit/examples/service/internal/repository"
-	"github.com/lastbackend/toolkit/pkg/logger"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 )
 
 type Controller struct {

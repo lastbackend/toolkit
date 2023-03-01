@@ -7,8 +7,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"github.com/lastbackend/toolkit/pkg/runtime"
+	"github.com/lastbackend/toolkit/pkg/runtime/controller"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 
 	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
 	"io"
@@ -17,8 +18,6 @@ import (
 	toolkit "github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/gen/ptypes"
 	grpc "github.com/lastbackend/toolkit/pkg/client/grpc"
-	logger "github.com/lastbackend/toolkit/pkg/logger"
-	server "github.com/lastbackend/toolkit/pkg/server"
 
 	errors "github.com/lastbackend/toolkit/pkg/server/http/errors"
 	ws "github.com/lastbackend/toolkit/pkg/server/http/websockets"
@@ -37,11 +36,10 @@ var _ errors.Err
 var _ io.Reader
 var _ json.Marshaler
 var _ ws.Client
-var _ server.Server
 
 // Definitions
 type service struct {
-	toolkit toolkit.Runtime
+	runtime runtime.Runtime
 }
 
 // Plugins define
@@ -69,8 +67,8 @@ func (h *exampleGrpcRpcServer) HelloWorld(ctx context.Context, req *typespb.Hell
 
 func (exampleGrpcRpcServer) mustEmbedUnimplementedExampleServer() {}
 
-func registerExampleGRPCServer(runtime toolkit.Runtime, srv ExampleRpcServer) error {
-	runtime.Manager().Server().GRPC().RegisterService(&exampleGrpcRpcServer{srv})
+func registerExampleGRPCServer(runtime runtime.Runtime, srv ExampleRpcServer) error {
+	runtime.Server().GRPC().RegisterService(&exampleGrpcRpcServer{srv})
 	return nil
 }
 
@@ -91,7 +89,7 @@ func exampleHTTPServerSubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func NewService(name string, opts ...toolkit.Option) (toolkit.Service, error) {
+func NewService(name string, opts ...runtime.Option) (toolkit.Service, error) {
 
 	var (
 		err error
@@ -99,30 +97,30 @@ func NewService(name string, opts ...toolkit.Option) (toolkit.Service, error) {
 
 	app := new(service)
 
-	app.toolkit, err = runtime.NewRuntime(context.Background(), name, opts...)
+	app.runtime, err = controller.NewRuntime(context.Background(), name, opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	// loop over plugins and initialize plugin instance
-	plugin_pgsql := postgres_gorm.NewPlugin(app.toolkit, &postgres_gorm.Options{Name: "pgsql"})
-	plugin_redis := redis.NewPlugin(app.toolkit, &redis.Options{Name: "redis"})
+	plugin_pgsql := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "pgsql"})
+	plugin_redis := redis.NewPlugin(app.runtime, &redis.Options{Name: "redis"})
 
 	// loop over plugins and register plugin in toolkit
-	app.toolkit.Manager().Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
-	app.toolkit.Manager().Plugin().Provide(func() RedisPlugin { return plugin_redis })
+	app.runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
+	app.runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
 
 	// set descriptor to Example grpc server
-	app.toolkit.Manager().Server().GRPCNew(name, nil)
+	app.runtime.Server().GRPCNew(name, nil)
 
-	app.toolkit.Manager().Server().GRPC().SetDescriptor(Example_ServiceDesc)
-	app.toolkit.Manager().Server().GRPC().SetConstructor(registerExampleGRPCServer)
+	app.runtime.Server().GRPC().SetDescriptor(Example_ServiceDesc)
+	app.runtime.Server().GRPC().SetConstructor(registerExampleGRPCServer)
 
 	// create new Example http server
-	app.toolkit.Manager().Server().HTTPNew(name, nil)
+	app.runtime.Server().HTTPNew(name, nil)
 
-	app.toolkit.Manager().Server().HTTP().AddMiddleware("middleware1", exampleHTTPServerMiddleware)
-	app.toolkit.Manager().Server().HTTP().AddHandler(http.MethodPost, "/hello", exampleHTTPServerSubscribeHandler, tk_http.WithMiddleware("middleware1"))
+	app.runtime.Server().HTTP().AddMiddleware("middleware1", exampleHTTPServerMiddleware)
+	app.runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", exampleHTTPServerSubscribeHandler, tk_http.WithMiddleware("middleware1"))
 
-	return app.toolkit, nil
+	return app.runtime.SVC(), nil
 }

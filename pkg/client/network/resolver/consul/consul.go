@@ -18,9 +18,9 @@ package consul
 
 import (
 	"github.com/hashicorp/consul/api"
-	"github.com/lastbackend/toolkit/pkg/logger"
-	"github.com/lastbackend/toolkit/pkg/network/resolver"
-	"github.com/lastbackend/toolkit/pkg/network/resolver/route"
+	resolver2 "github.com/lastbackend/toolkit/pkg/client/network/resolver"
+	"github.com/lastbackend/toolkit/pkg/client/network/resolver/route"
+	logger2 "github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"time"
 
 	"fmt"
@@ -30,7 +30,7 @@ type Resolver struct {
 	address string
 
 	table   *table
-	options resolver.Options
+	options resolver2.Options
 
 	watchers map[string]uint64
 }
@@ -39,8 +39,8 @@ type Options struct {
 	Address string
 }
 
-func NewResolver(opts ...resolver.Option) resolver.Resolver {
-	options := resolver.DefaultOptions()
+func NewResolver(opts ...resolver2.Option) resolver2.Resolver {
+	options := resolver2.DefaultOptions()
 	for _, o := range opts {
 		o(&options)
 	}
@@ -52,7 +52,7 @@ func NewResolver(opts ...resolver.Option) resolver.Resolver {
 	return r
 }
 
-func (c *Resolver) Lookup(service string, opts ...resolver.LookupOption) (route.List, error) {
+func (c *Resolver) Lookup(service string, opts ...resolver2.LookupOption) (route.List, error) {
 
 	routes, err := c.table.Find(service)
 	if err != nil && err != route.ErrRouteNotFound {
@@ -77,8 +77,8 @@ func (c *Resolver) Lookup(service string, opts ...resolver.LookupOption) (route.
 
 	for _, r := range routes {
 		if err := c.table.Update(route.Route{Service: r.Service, Address: r.Address}); err != nil {
-			if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-				logger.Errorf("update state error: %v", err)
+			if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
+				logger2.Errorf("update state error: %v", err)
 			}
 		}
 	}
@@ -88,23 +88,23 @@ func (c *Resolver) Lookup(service string, opts ...resolver.LookupOption) (route.
 	return routes, nil
 }
 
-func (c *Resolver) Table() resolver.Table {
+func (c *Resolver) Table() resolver2.Table {
 
 	return c.table
 }
 
 func (c *Resolver) watcher(client *api.Client, name string) {
 
-	if logger.V(logger.DebugLevel, logger.DefaultLogger) {
-		logger.Debugf("calling consul watcher")
+	if logger2.V(logger2.DebugLevel, logger2.DefaultLogger) {
+		logger2.Debugf("calling consul watcher")
 	}
 
 	for {
 
 		routes, err := c.getRoutes(client, name)
 		if err != nil {
-			if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-				logger.Errorf("error retrieving instances from Consul: %v", err)
+			if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
+				logger2.Errorf("error retrieving instances from Consul: %v", err)
 			}
 
 			<-time.After(10 * time.Second)
@@ -112,8 +112,8 @@ func (c *Resolver) watcher(client *api.Client, name string) {
 
 		for _, r := range routes {
 			if err := c.table.Update(route.Route{Service: r.Service, Address: r.Address}); err != nil {
-				if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-					logger.Errorf("update state error: %v", err)
+				if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
+					logger2.Errorf("update state error: %v", err)
 				}
 			}
 		}
@@ -129,16 +129,16 @@ func (c *Resolver) getRoutes(client *api.Client, service string) (route.List, er
 
 	services, _, err := client.Health().Service(service, "", true, &api.QueryOptions{})
 	if err != nil {
-		if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-			logger.Errorf("error retrieving instances from Consul: %v", err)
+		if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
+			logger2.Errorf("error retrieving instances from Consul: %v", err)
 		}
 		return nil, err
 	}
 
 	for _, service := range services {
 		addr := fmt.Sprintf("%v:%v", service.Service.Address, service.Service.Port)
-		if logger.V(logger.DebugLevel, logger.DefaultLogger) {
-			logger.Debugf("adding service addrs: %v", addr)
+		if logger2.V(logger2.DebugLevel, logger2.DefaultLogger) {
+			logger2.Debugf("adding service addrs: %v", addr)
 		}
 		routes = append(routes, route.Route{Service: service.Service.Service, Address: addr})
 	}

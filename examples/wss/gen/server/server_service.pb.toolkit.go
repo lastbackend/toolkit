@@ -6,6 +6,8 @@ package serverpb
 import (
 	"context"
 	"encoding/json"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/runtime/meta"
 	"io"
 	"net/http"
 	"os"
@@ -18,7 +20,6 @@ import (
 	router "github.com/lastbackend/toolkit/pkg/http"
 	errors "github.com/lastbackend/toolkit/pkg/http/errors"
 	ws "github.com/lastbackend/toolkit/pkg/http/ws"
-	logger "github.com/lastbackend/toolkit/pkg/logger"
 	server "github.com/lastbackend/toolkit/pkg/server"
 	fx "go.uber.org/fx"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -52,7 +53,7 @@ var middlewares = make(middleware, 0)
 
 type Service interface {
 	Logger() logger.Logger
-	Meta() toolkit.Meta
+	Meta() meta.Meta
 	CLI() toolkit.CLI
 	Client() grpc.Client
 	Router() router.Server
@@ -87,7 +88,7 @@ type service struct {
 	mdw     interface{}
 }
 
-func (s *service) Meta() toolkit.Meta {
+func (s *service) Meta() meta.Meta {
 	return s.toolkit.Meta()
 }
 

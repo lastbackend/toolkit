@@ -40,17 +40,17 @@ type LookupFunc func(context.Context, *request, CallOptions) ([]string, error)
 type Options struct {
 	Context context.Context
 
-	ContentType string
+	ContentType string `env:"CONTENT_TYPE"  envDefault:"application/protobuf" comment:"Set GRPC client request content-type"`
 
 	// Grpc DialOptions
-	WriteBufferSize       *int
-	ReadBufferSize        *int
-	InitialWindowSize     *int32
-	InitialConnWindowSize *int32
-	MaxHeaderListSize     *int32
-	MaxRecvMsgSize        *int
-	MaxSendMsgSize        *int
-	UserAgent             *string
+	WriteBufferSize       *int    `env:"WRITE_BUFFER_SIZE" comment:"Sets the how much data can be batched before doing a write on the wire. The corresponding memory allocation for this buffer will be twice the size to keep syscalls low. Zero will disable the write buffer (default 32 KB)"`
+	ReadBufferSize        *int    `env:"READ_BUFFER_SIZE" comment:"Sets the size of the reading buffer, this determines how\nmuch data can be read at most for each read syscall. Zero will disable read buffer (default 32 KB)")"`
+	InitialWindowSize     *int32  `env:"INITIAL_WINDOW_SIZE" comment:"Sets the value for initial window size on a stream. The lower bound for window size is 64K and any value smaller than that will be ignored."`
+	InitialConnWindowSize *int32  `env:"INITIAL_CONN_WINDOW_SIZE" comment:"Sets the value for initial window size on a connection. The lower bound for window size is 64K and any value smaller than that will be ignored."`
+	MaxHeaderListSize     *int32  `env:"MAX_HEADER_LIST_SIZE" comment:"Sets the specifies the maximum (uncompressed) size of header list that the client is prepared to accept"`
+	MaxRecvMsgSize        *int    `env:"MAX_RECV_MSG_SIZE" comment:"Sets the maximum message size in bytes the client can receive (default 16 MB)"`
+	MaxSendMsgSize        *int    `env:"MAX_SEND_MSG_SIZE" comment:"Sets the maximum message size in bytes the client can send (default 16 MB)"`
+	UserAgent             *string `env:"USER_AGENT"  envDefault:"application/protobuf" comment:"Sets the specifies a user agent string for all the RPCs"`
 	Selector              selector.Selector
 
 	Pool        PoolOptions

@@ -18,12 +18,12 @@ package rabbitmq
 
 import (
 	"crypto/tls"
+	logger2 "github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/lastbackend/toolkit/pkg/logger"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
@@ -136,8 +136,8 @@ func (a *amqpConn) reconnect(secure bool, config *amqp.Config) {
 		for notifyClose != nil || chanNotifyClose != nil {
 			select {
 			case err := <-chanNotifyClose:
-				if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-					logger.Error(err)
+				if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
+					logger2.Error(err)
 				}
 
 				a.Lock()
@@ -148,8 +148,8 @@ func (a *amqpConn) reconnect(secure bool, config *amqp.Config) {
 
 				chanNotifyClose = nil
 			case err := <-notifyClose:
-				if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-					logger.Error(err)
+				if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
+					logger2.Error(err)
 				}
 
 				a.Lock()

@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"fmt"
+	logger2 "github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"io"
 	"net/http"
 	"os"
@@ -27,7 +28,6 @@ import (
 	"github.com/lastbackend/toolkit/examples/wss/middleware"
 	"github.com/lastbackend/toolkit/pkg/http"
 	"github.com/lastbackend/toolkit/pkg/http/ws"
-	"github.com/lastbackend/toolkit/pkg/logger"
 )
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -45,12 +45,12 @@ func TestWSHandler(ctx context.Context, event ws.Event, c *ws.Client) error {
 }
 
 func main() {
-	log := logger.DefaultLogger
+	log := logger2.DefaultLogger
 	opts := log.Options()
-	opts.Level = logger.DebugLevel
-	opts.VerboseLevel = logger.DebugLevel
+	opts.Level = logger2.DebugLevel
+	opts.VerboseLevel = logger2.DebugLevel
 	log.Init(opts)
-	log = log.WithFields(logger.Fields{
+	log = log.WithFields(logger2.Fields{
 		"service": "wss",
 	})
 

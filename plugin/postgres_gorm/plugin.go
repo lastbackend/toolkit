@@ -21,8 +21,8 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
-	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/pkg/logger"
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	psql "gorm.io/driver/postgres"
@@ -43,8 +43,6 @@ const (
 )
 
 type Plugin interface {
-	toolkit.Plugin
-
 	DB() *gorm.DB
 	Info()
 }
@@ -67,7 +65,7 @@ type Config struct {
 
 type plugin struct {
 	log     logger.Logger
-	runtime toolkit.Runtime
+	runtime runtime.Runtime
 
 	prefix    string
 	envPrefix string
@@ -79,18 +77,12 @@ type plugin struct {
 	//probe toolkit.Probe
 }
 
-// Register - registers the plugin implements storage using Postgres as a database storage
-func (p *plugin) Register(app toolkit.Runtime, _ *Options) error {
-	app.Manager().Plugin().Register(p)
-	return nil
-}
-
 func (p *plugin) DB() *gorm.DB {
 	return p.db
 }
 
 func (p *plugin) Info() {
-	p.runtime.Manager().Config().Print(p.opts, p.prefix)
+	p.runtime.Config().Print(p.opts, p.prefix)
 }
 
 func (p *plugin) PreStart(ctx context.Context) (err error) {
@@ -177,25 +169,22 @@ func (p *plugin) RunMigration() error {
 	return nil
 }
 
-func NewPlugin(service toolkit.Runtime, opts *Options) Plugin {
+func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
 	p := new(plugin)
-	p.runtime = service
 
-	p.log = service.Log()
+	p.runtime = runtime
+	p.log = runtime.Log()
 
 	p.prefix = opts.Name
 	if p.prefix == "" {
 		p.prefix = defaultPrefix
 	}
 
-	if err := service.Manager().Config().Parse(&p.opts, p.prefix); err != nil {
+	if err := runtime.Config().Parse(&p.opts, p.prefix); err != nil {
 		return nil
 	}
 
 	//p.probe = service.Probe()
-	err := p.Register(service, opts)
-	if err != nil {
-		return nil
-	}
+	runtime.Plugin().Register(p)
 	return p
 }

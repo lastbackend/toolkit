@@ -19,11 +19,11 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"github.com/lastbackend/toolkit/pkg/client/network/resolver"
 	"strings"
 	"time"
 
 	"github.com/lastbackend/toolkit/pkg/context/metadata"
-	"github.com/lastbackend/toolkit/pkg/network/resolver"
 	"github.com/lastbackend/toolkit/pkg/util/backoff"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

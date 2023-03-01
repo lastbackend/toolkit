@@ -6,6 +6,8 @@ package serverpb
 import (
 	"context"
 	"encoding/json"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/runtime/meta"
 	"io"
 	"net/http"
 	"os"
@@ -15,7 +17,6 @@ import (
 	toolkit "github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/helloworld/gen"
 	grpc "github.com/lastbackend/toolkit/pkg/client/grpc"
-	logger "github.com/lastbackend/toolkit/pkg/logger"
 	server "github.com/lastbackend/toolkit/pkg/server"
 	serverHTTP "github.com/lastbackend/toolkit/pkg/server/http"
 	errors "github.com/lastbackend/toolkit/pkg/server/http/errors"
@@ -52,7 +53,7 @@ var middlewares = make(middleware, 0)
 
 type Service interface {
 	Logger() logger.Logger
-	Meta() toolkit.Meta
+	Meta() meta.Meta
 	CLI() toolkit.CLI
 	Client() grpc.Client
 
@@ -89,7 +90,7 @@ type service struct {
 	mdw     interface{}
 }
 
-func (s *service) Meta() toolkit.Meta {
+func (s *service) Meta() meta.Meta {
 	return s.toolkit.Meta()
 }
 
