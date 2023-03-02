@@ -18,7 +18,7 @@ type Runtime interface {
 	Config() Config
 	Plugin() Plugin
 
-	SVC() toolkit.Service
+	Service() toolkit.Service
 
 	Start(ctx context.Context, fn ...interface{}) error
 }

@@ -35,7 +35,7 @@ type controller struct {
 	pkg    runtime.Package
 }
 
-func (c *controller) SVC() toolkit.Service {
+func (c *controller) Service() toolkit.Service {
 	return c.service
 }
 
@@ -60,7 +60,7 @@ func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
 		fx.Provide(
 			fx.Annotate(
 				func() toolkit.Service {
-					return c.SVC()
+					return c.Service()
 				},
 			),
 		),
