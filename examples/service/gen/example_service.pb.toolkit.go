@@ -92,7 +92,7 @@ func exampleHTTPServerSubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func NewService(name string, opts ...runtime.Option) (toolkit.Service, error) {
+func NewExampleService(name string, opts ...runtime.Option) (toolkit.Service, error) {
 	var err error
 
 	app := new(service)
@@ -112,7 +112,6 @@ func NewService(name string, opts ...runtime.Option) (toolkit.Service, error) {
 
 	// set descriptor to Example grpc server
 	app.runtime.Server().GRPCNew(name, nil)
-
 	app.runtime.Server().GRPC().SetDescriptor(Example_ServiceDesc)
 	app.runtime.Server().GRPC().SetConstructor(registerExampleGRPCServer)
 
@@ -122,5 +121,5 @@ func NewService(name string, opts ...runtime.Option) (toolkit.Service, error) {
 	app.runtime.Server().HTTP().AddMiddleware("middleware1", exampleHTTPServerMiddleware)
 	app.runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", exampleHTTPServerSubscribeHandler, tk_http.WithMiddleware("middleware1"))
 
-	return app.runtime.SVC(), nil
+	return app.runtime.Service(), nil
 }
