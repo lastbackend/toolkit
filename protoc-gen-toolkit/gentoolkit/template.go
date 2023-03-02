@@ -33,6 +33,9 @@ var (
 		"ToCapitalize":                  strings.Title,
 		"ToCamel":                       strings.ToCamel,
 		"ToTrimRegexFromQueryParameter": converter.ToTrimRegexFromQueryParameter,
+		"dehyphen":                      strings.DeHyphenFunc,
+		"lowerhyphen":                   strings.LowerHyphenFunc,
+		"tohyphen":                      strings.ToHyphen,
 		"inc": func(n int) int {
 			return n + 1
 		},

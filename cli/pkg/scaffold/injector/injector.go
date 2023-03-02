@@ -22,11 +22,11 @@ import (
 	"github.com/jhump/protoreflect/desc/protoparse"
 	"github.com/lastbackend/toolkit/cli/pkg/scaffold/templates"
 	ustrings "github.com/lastbackend/toolkit/cli/pkg/util/strings"
+	"github.com/lastbackend/toolkit/pkg/util/filesystem"
 	"os"
 	"strings"
 	"text/template"
 
-	"github.com/lastbackend/toolkit/cli/pkg/util/filesystem"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/descriptorpb"
 )

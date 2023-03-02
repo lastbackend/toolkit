@@ -18,12 +18,12 @@ package add
 
 import (
 	"fmt"
+	"github.com/lastbackend/toolkit/pkg/util/filesystem"
 	"os"
 	"text/tabwriter"
 
 	"github.com/jhump/protoreflect/desc/protoparse"
 	tcli "github.com/lastbackend/toolkit/cli/cmd"
-	"github.com/lastbackend/toolkit/cli/pkg/util/filesystem"
 	"github.com/urfave/cli/v2"
 )
 

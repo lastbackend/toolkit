@@ -137,7 +137,7 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 		"toolkit github.com/lastbackend/toolkit",
 		"server github.com/lastbackend/toolkit/pkg/server",
 		"router github.com/lastbackend/toolkit/pkg/router",
-		"logger github.com/lastbackend/toolkit/pkg/logger",
+		"logger github.com/lastbackend/toolkit/pkg/runtime/logger",
 		"grpc github.com/lastbackend/toolkit/pkg/client/grpc",
 		"errors github.com/lastbackend/toolkit/pkg/router/errors",
 		"ws github.com/lastbackend/toolkit/pkg/router/ws",

@@ -87,3 +87,20 @@ func ToUpper(s string) string {
 func ToLower(s string) string {
 	return strings.ToLower(s)
 }
+
+func GitParse(s string) string {
+	list := strings.Split(s, "/")
+	return strings.Join(list[:2], "/")
+}
+
+func DeHyphenFunc(s string) string {
+	return strings.ReplaceAll(s, "-", "")
+}
+
+func LowerHyphenFunc(s string) string {
+	return strings.ReplaceAll(s, "-", "_")
+}
+
+func ToHyphen(s string) string {
+	return strings.ReplaceAll(s, "-", "_")
+}
