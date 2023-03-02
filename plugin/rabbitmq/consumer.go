@@ -17,10 +17,10 @@ limitations under the License.
 package rabbitmq
 
 import (
+	logger2 "github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"sync"
 	"time"
 
-	"github.com/lastbackend/toolkit/pkg/logger"
 	"github.com/streadway/amqp"
 )
 
@@ -90,8 +90,8 @@ func (c *consumer) resubscribe() {
 		c.broker.mtx.Unlock()
 
 		if err != nil {
-			if logger.V(logger.ErrorLevel, logger.DefaultLogger) {
-				logger.Error(err)
+			if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
+				logger2.Error(err)
 			}
 
 			if delay > maxDelay {

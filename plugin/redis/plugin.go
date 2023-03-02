@@ -20,127 +20,95 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/lastbackend/toolkit"
+	"github.com/lastbackend/toolkit/pkg/extends/probes"
+	"github.com/lastbackend/toolkit/pkg/runtime"
 	"strings"
 	"time"
 
-	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/pkg/probe"
 	"github.com/redis/go-redis/v9"
 )
 
 const (
-	defaultPrefix   = "redis"
+	defaultPrefix   = "REDIS"
 	defaultEndpoint = ":6379"
 )
 
-type Plugin interface {
-	toolkit.Plugin
+type Config struct {
+	Endpoint string `env:"ENDPOINT" envDefault:":6379" comment:"Endpoint = host:port,host:port addresses of ring shards."`
 
-	DB() *redis.Client
-	ClusterDB() *redis.ClusterClient
+	Cluster bool `env:"CLUSTER" comment:"Cluster = enable cluster mode"`
 
-	Register(app toolkit.Service, opts *Options) error
-}
+	Database int `env:"DATABASE" required:"true" comment:"Database to be selected after connecting to the server."`
 
-type Options struct {
-	Name string
-}
+	Username string `env:"USERNAME" comment:"Use the specified Username to authenticate the current connection with one of the connections defined in the ACL list when connecting to a Redis 6.0 instance, or greater, that is using the Redis ACL system."`
 
-type options struct {
-	// Endpoint = host:port,host:port addresses of ring shards.
-	Endpoint string
+	Password string `env:"PASSWORD" comment:"Optional password. Must match the password specified in the requirepass server configuration option (if connecting to a Redis 5.0 instance, or lower), or the User Password when connecting to a Redis 6.0 instance, or greater, that is using the Redis ACL system."`
 
-	// IsCluster = enable cluster mode
-	IsCluster bool
+	HeartbeatFrequency time.Duration `env:"HEARNEAT_FREQUENCY" comment:"Frequency of PING commands sent to check shards availability. Shard is considered down after 3 subsequent failed checks."`
 
-	// Frequency of PING commands sent to check shards availability.
-	// Shard is considered down after 3 subsequent failed checks.
-	HeartbeatFrequency time.Duration
+	MaxRetries int `env:"MAX_RETRIES" comment:"Maximum number of retries before giving up. Default is 3 retries; -1 (not 0) disables retries."`
 
-	// Use the specified Username to authenticate the current connection
-	// with one of the connections defined in the ACL list when connecting
-	// to a Redis 6.0 instance, or greater, that is using the Redis ACL system.
-	Username string
-	// Optional password. Must match the password specified in the
-	// requirepass server configuration option (if connecting to a Redis 5.0 instance, or lower),
-	// or the User Password when connecting to a Redis 6.0 instance, or greater,
-	// that is using the Redis ACL system.
-	Password string
-	// Database to be selected after connecting to the server.
-	DB int
+	MinRetryBackoff time.Duration `env:"MIN_RETRY_BACKOFF" comment:"Minimum backoff between each retry. Default is 8 milliseconds; -1 disables backoff."`
 
-	// Maximum number of retries before giving up.
-	// Default is 3 retries; -1 (not 0) disables retries.
-	MaxRetries int
-	// Minimum backoff between each retry.
-	// Default is 8 milliseconds; -1 disables backoff.
-	MinRetryBackoff time.Duration
-	// Maximum backoff between each retry.
-	// Default is 512 milliseconds; -1 disables backoff.
-	MaxRetryBackoff time.Duration
+	MaxRetryBackoff time.Duration `env:"MAX_RETRY_BACKOFF" comment:"Maximum backoff between each retry. Default is 512 milliseconds; -1 disables backoff."`
 
-	// Dial timeout for establishing new connections.
-	// Default is 5 seconds.
-	DialTimeout time.Duration
-	// Timeout for socket reads. If reached, commands will fail
-	// with a timeout instead of blocking. Use value -1 for no timeout and 0 for default.
-	// Default is 3 seconds.
-	ReadTimeout time.Duration
-	// Timeout for socket writes. If reached, commands will fail
-	// with a timeout instead of blocking.
-	// Default is ReadTimeout.
-	WriteTimeout time.Duration
+	DialTimeout time.Duration `env:"DIAL_TIMEOUT" comment:"Dial timeout for establishing new connections. Default is 5 seconds."`
 
-	// Maximum number of socket connections.
-	// Default is 10 connections per every CPU as reported by runtime.NumCPU.
-	PoolSize int
-	// Minimum number of idle connections which is useful when establishing
-	// new connection is slow.
-	MinIdleConns int
-	// Amount of time client waits for connection if all connections
-	// are busy before returning an error.
-	// Default is ReadTimeout + 1 second.
-	PoolTimeout time.Duration
+	ReadTimeout time.Duration `env:"READ_TIMEOUT" comment:"Timeout for socket reads. If reached, commands will fail with a timeout instead of blocking. Use value -1 for no timeout and 0 for default. Default is 3 seconds."`
+
+	WriteTimeout time.Duration `env:"WRITE_TIMEOUT" comment:"Timeout for socket writes. If reached, commands will fail with a timeout instead of blocking. Default is Read Timeout."`
+
+	PoolSize int `env:"POOL_SIZE" comment:"Maximum number of socket connections. Default is 10 connections per every CPU as reported by runtime.NumCPU."`
+
+	MinIdleConns int `env:"MIN_IDLE_CONNS" comment:"Minimum number of idle connections which is useful when establishing new connection is slow."`
+
+	PoolTimeout time.Duration `env:"POOL_TIMEOUT" comment:"Amount of time client waits for connection if all connections are busy before returning an error. Default is ReadTimeout + 1 second."`
 
 	// TODO: need to implement the ability to install tls
 	// TLS Config to use. When set TLS will be negotiated.
 	TLSConfig *tls.Config
 }
 
+type Plugin interface {
+	DB() *redis.Client
+	ClusterDB() *redis.ClusterClient
+	Print()
+}
+
+type Options struct {
+	Name string
+}
+
 type plugin struct {
-	prefix string
-	opts   options
+	prefix  string
+	runtime runtime.Runtime
 
-	db  *redis.Client
-	cdb *redis.ClusterClient
+	opts Config
+	db   *redis.Client
+	cdb  *redis.ClusterClient
 
-	probe toolkit.Probe
+	//probe toolkit.Probe
 }
 
-func NewPlugin(service toolkit.Service, opts *Options) Plugin {
+func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
+
 	p := new(plugin)
-	p.probe = service.Probe()
-	err := p.Register(service, opts)
-	if err != nil {
-		return nil
-	}
-	return p
-}
 
-// Register - registers the plugin implements storage using Postgres as a database storage
-func (p *plugin) Register(app toolkit.Service, opts *Options) error {
+	p.runtime = runtime
 	p.prefix = opts.Name
 	if p.prefix == "" {
 		p.prefix = defaultPrefix
 	}
 
-	p.addFlags(app)
-
-	if err := app.PluginRegister(p); err != nil {
-		return err
+	if err := runtime.Config().Parse(&p.opts, p.prefix); err != nil {
+		return nil
 	}
 
-	return nil
+	//p.probe = service.Probe()
+	runtime.Plugin().Register(p)
+
+	return p
 }
 
 func (p *plugin) DB() *redis.Client {
@@ -152,13 +120,14 @@ func (p *plugin) ClusterDB() *redis.ClusterClient {
 }
 
 func (p *plugin) Start(ctx context.Context) (err error) {
-	if p.opts.IsCluster {
+
+	if p.opts.Cluster {
 		client := redis.NewClusterClient(p.prepareClusterOptions(p.opts))
-		p.probe.AddReadinessFunc(p.prefix, probe.RedisClusterPingChecker(client, 1*time.Second))
+		//p.probes.AddReadinessFunc(p.prefix, redisClusterPingChecker(client, 1*time.Second))
 		p.cdb = client
 	} else {
 		client := redis.NewClient(p.prepareOptions(p.opts))
-		p.probe.AddReadinessFunc(p.prefix, probe.RedisPingChecker(client, 1*time.Second))
+		//p.probes.AddReadinessFunc(p.prefix, redisPingChecker(client, 1*time.Second))
 		p.db = client
 	}
 	return nil
@@ -177,71 +146,10 @@ func (p *plugin) withEnvPrefix(name string) string {
 }
 
 func (p *plugin) addFlags(app toolkit.Service) {
-	app.CLI().AddStringFlag(p.withPrefix("endpoint"), &p.opts.Endpoint).
-		Env(p.withEnvPrefix("ENDPOINT")).
-		Usage("Set endpoint for connecting to the server as <host(optional)>:<port> or for cluster <host(optional)>:<port>,<host(optional)>:<port>,<etc.> string. (Default: :6379)").
-		Default(":6379")
-
-	app.CLI().AddBoolFlag(p.withPrefix("cluster"), &p.opts.IsCluster).
-		Env(p.withEnvPrefix("CLUSTER")).
-		Usage("Set database as cluster mode (default: false)").
-		Default(false)
-
-	app.CLI().AddIntFlag(p.withPrefix("db"), &p.opts.DB).
-		Env(p.withEnvPrefix("DB")).
-		Usage("Set database for connecting to the server. (Default: 0)")
-
-	app.CLI().AddStringFlag(p.withPrefix("username"), &p.opts.Username).
-		Env(p.withEnvPrefix("USERNAME")).
-		Usage("Set username to authenticate the current connection")
-
-	app.CLI().AddStringFlag(p.withPrefix("password"), &p.opts.Password).
-		Env(p.withEnvPrefix("PASSWORD")).
-		Usage("Set password to authenticate the current connection")
-
-	app.CLI().AddDurationFlag(p.withPrefix("heartbeat-frequency"), &p.opts.HeartbeatFrequency).
-		Env(p.withEnvPrefix("HEARNEAT_FREQUENCY")).
-		Usage("Set frequency of PING commands sent to check shards availability.")
-
-	app.CLI().AddIntFlag(p.withPrefix("max-retries"), &p.opts.MaxRetries).
-		Env(p.withEnvPrefix("MAX_RETRIES")).
-		Usage("Set maximum number of retries before giving up. (Default is 3 retries)")
-
-	app.CLI().AddDurationFlag(p.withPrefix("min-retry-backoff"), &p.opts.MinRetryBackoff).
-		Env(p.withEnvPrefix("MIN_RETRY_BACKOFF")).
-		Usage("Set minimum backoff between each retry. (Default is 512 milliseconds)")
-
-	app.CLI().AddDurationFlag(p.withPrefix("max-retry-backoff"), &p.opts.MaxRetryBackoff).
-		Env(p.withEnvPrefix("MAX_RETRY_BACKOFF")).
-		Usage("Set maximum backoff between each retry.")
-
-	app.CLI().AddDurationFlag(p.withPrefix("dial-timeout"), &p.opts.DialTimeout).
-		Env(p.withEnvPrefix("DIAL_TIMEOUT")).
-		Usage("Set dial timeout for establishing new connections. (Default is 5 seconds)")
-
-	app.CLI().AddDurationFlag(p.withPrefix("read-timeout"), &p.opts.ReadTimeout).
-		Env(p.withEnvPrefix("READ_TIMEOUT")).
-		Usage("Set timeout for socket reads. If reached, commands will fail. (Default is 3 seconds)")
-
-	app.CLI().AddDurationFlag(p.withPrefix("write-timeout"), &p.opts.WriteTimeout).
-		Env(p.withEnvPrefix("WRITE_TIMEOUT")).
-		Usage("Set timeout for socket writes. If reached, commands will fail with a timeout instead of blocking. (Default is ReadTimeout)")
-
-	app.CLI().AddIntFlag(p.withPrefix("pool-size"), &p.opts.PoolSize).
-		Env(p.withEnvPrefix("POOL_SIZE")).
-		Usage("Set maximum number of socket connections. (Default is 10 connections per every CPU)")
-
-	app.CLI().AddIntFlag(p.withPrefix("min-idle-conns"), &p.opts.MinIdleConns).
-		Env(p.withEnvPrefix("MIN_IDLE_CONNS")).
-		Usage("Set connection age at which client retires (closes) the connection.")
-
-	app.CLI().AddDurationFlag(p.withPrefix("pool-timeout"), &p.opts.PoolTimeout).
-		Env(p.withEnvPrefix("POOL_TIMEOUT")).
-		Usage("Set amount of time client waits for connection if all connections are busy before returning an error. (Default is ReadTimeout + 1 second.)")
 
 }
 
-func (p *plugin) prepareOptions(opts options) *redis.Options {
+func (p *plugin) prepareOptions(opts Config) *redis.Options {
 
 	addr := defaultEndpoint
 	if len(opts.Endpoint) > 0 {
@@ -266,7 +174,7 @@ func (p *plugin) prepareOptions(opts options) *redis.Options {
 	}
 }
 
-func (p *plugin) prepareClusterOptions(opts options) *redis.ClusterOptions {
+func (p *plugin) prepareClusterOptions(opts Config) *redis.ClusterOptions {
 
 	addrs := []string{defaultEndpoint}
 	if len(opts.Endpoint) > 0 {
@@ -288,5 +196,39 @@ func (p *plugin) prepareClusterOptions(opts options) *redis.ClusterOptions {
 		MinIdleConns:    opts.MinIdleConns,
 		PoolTimeout:     opts.PoolTimeout,
 		TLSConfig:       opts.TLSConfig,
+	}
+}
+
+func (p *plugin) Print() {
+	p.runtime.Config().Print(p.opts, p.prefix)
+}
+
+func redisClusterPingChecker(client *redis.ClusterClient, timeout time.Duration) probes.HandleFunc {
+	return func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		if client == nil {
+			return fmt.Errorf("connection is nil")
+		}
+		_, err := client.Ping(ctx).Result()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
+func redisPingChecker(client *redis.Client, timeout time.Duration) probes.HandleFunc {
+	return func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		if client == nil {
+			return fmt.Errorf("connection is nil")
+		}
+		_, err := client.Ping(ctx).Result()
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 }

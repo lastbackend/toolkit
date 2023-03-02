@@ -6,7 +6,8 @@ package serverpb
 import (
 	"context"
 	"encoding/json"
-	servicepb "github.com/lastbackend/toolkit/examples/helloworld/gen"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/runtime/meta"
 	"io"
 	"net/http"
 	"os"
@@ -14,19 +15,17 @@ import (
 	"syscall"
 
 	toolkit "github.com/lastbackend/toolkit"
+	"github.com/lastbackend/toolkit/examples/helloworld/gen"
 	grpc "github.com/lastbackend/toolkit/pkg/client/grpc"
-	logger "github.com/lastbackend/toolkit/pkg/logger"
-	router "github.com/lastbackend/toolkit/pkg/router"
-	errors "github.com/lastbackend/toolkit/pkg/router/errors"
-	ws "github.com/lastbackend/toolkit/pkg/router/ws"
+	router "github.com/lastbackend/toolkit/pkg/http"
+	errors "github.com/lastbackend/toolkit/pkg/http/errors"
+	ws "github.com/lastbackend/toolkit/pkg/http/ws"
 	server "github.com/lastbackend/toolkit/pkg/server"
 	fx "go.uber.org/fx"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the toolkit package it is being compiled against and
-// suppress "imported and not used" errors
+// Suppress "imported and not used" errors
 var _ context.Context
 var _ logger.Logger
 var _ emptypb.Empty
@@ -37,7 +36,6 @@ var _ errors.Err
 var _ io.Reader
 var _ json.Marshaler
 var _ ws.Client
-var _ server.Server
 
 type middleware map[string][]func(h http.Handler) http.Handler
 
@@ -55,14 +53,13 @@ var middlewares = make(middleware, 0)
 
 type Service interface {
 	Logger() logger.Logger
-	Meta() toolkit.Meta
+	Meta() meta.Meta
 	CLI() toolkit.CLI
 	Client() grpc.Client
 	Router() router.Server
 	Run(ctx context.Context) error
 
 	SetConfig(cfg interface{})
-	SetServer(srv interface{})
 
 	AddPackage(pkg interface{})
 	AddMiddleware(mdw interface{})
@@ -70,13 +67,12 @@ type Service interface {
 }
 
 type RPC struct {
-	Grpc grpc.Client
+	Grpc grpc.RPCClient
 }
 
 func NewService(name string) Service {
 	return &service{
 		toolkit: toolkit.NewService(name),
-		srv:     make([]interface{}, 0),
 		pkg:     make([]interface{}, 0),
 		inv:     make([]interface{}, 0),
 		rpc:     new(RPC),
@@ -86,14 +82,13 @@ func NewService(name string) Service {
 type service struct {
 	toolkit toolkit.Service
 	rpc     *RPC
-	srv     []interface{}
 	pkg     []interface{}
 	inv     []interface{}
 	cfg     interface{}
 	mdw     interface{}
 }
 
-func (s *service) Meta() toolkit.Meta {
+func (s *service) Meta() meta.Meta {
 	return s.toolkit.Meta()
 }
 
@@ -115,13 +110,6 @@ func (s *service) Client() grpc.Client {
 
 func (s *service) SetConfig(cfg interface{}) {
 	s.cfg = cfg
-}
-
-func (s *service) SetServer(srv interface{}) {
-	if srv == nil {
-		return
-	}
-	s.srv = append(s.srv, srv)
 }
 
 func (s *service) AddPackage(pkg interface{}) {
@@ -160,7 +148,6 @@ func (s *service) Run(ctx context.Context) error {
 	)
 
 	provide = append(provide, s.pkg...)
-	provide = append(provide, s.srv...)
 
 	opts := make([]fx.Option, 0)
 
@@ -170,11 +157,8 @@ func (s *service) Run(ctx context.Context) error {
 
 	opts = append(opts, fx.Provide(provide...))
 	opts = append(opts, fx.Invoke(s.registerClients))
-	opts = append(opts, fx.Invoke(s.registerRouterServer))
 	opts = append(opts, fx.Invoke(s.inv...))
-	if s.mdw != nil {
-		opts = append(opts, fx.Invoke(s.mdw))
-	}
+	opts = append(opts, fx.Invoke(s.mdw))
 	opts = append(opts, fx.Invoke(s.registerRouter))
 	opts = append(opts, fx.Invoke(s.runService))
 
@@ -204,28 +188,9 @@ func (s *service) registerClients() error {
 
 	// Register clients
 
-	s.rpc.Grpc = s.toolkit.Client()
+	s.rpc.Grpc = grpc.NewClient(s.toolkit.CLI(), grpc.ClientOptions{Name: "client-grpc"})
 
-	return nil
-}
-
-func (s *service) registerRouterServer(srv RouterRpcServer) error {
-
-	// Register servers
-
-	type RouterGrpcRpcServer struct {
-		RouterServer
-	}
-
-	h := &routerGrpcRpcServer{srv.(RouterRpcServer)}
-
-	grpcrouterServer := server.NewServer(s.toolkit, &server.ServerOptions{Name: "grpc"})
-
-	if err := grpcrouterServer.Register(&Router_ServiceDesc, &RouterGrpcRpcServer{h}); err != nil {
-		return err
-	}
-
-	if err := s.toolkit.ServerRegister(grpcrouterServer); err != nil {
+	if err := s.toolkit.ClientRegister(s.rpc.Grpc); err != nil {
 		return err
 	}
 
@@ -236,32 +201,6 @@ func (s *service) registerRouter() {
 
 	s.toolkit.Router().Handle(http.MethodGet, "/events", s.Router().ServerWS,
 		router.HandleOptions{Middlewares: middlewares.getMiddleware("Subscribe")})
-
-	s.toolkit.Router().Subscribe("SayHello", func(ctx context.Context, event ws.Event, c *ws.Client) error {
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		var protoRequest servicepb.HelloRequest
-		var protoResponse servicepb.HelloReply
-
-		if err := json.Unmarshal(event.Payload, &protoRequest); err != nil {
-			return err
-		}
-
-		callOpts := make([]grpc.CallOption, 0)
-
-		if headers := ctx.Value(ws.RequestHeaders); headers != nil {
-			if v, ok := headers.(map[string]string); ok {
-				callOpts = append(callOpts, grpc.Headers(v))
-			}
-		}
-
-		if err := s.toolkit.Client().Call(ctx, "helloworld", "/helloworld.Greeter/SayHello", &protoRequest, &protoResponse, callOpts...); err != nil {
-			return err
-		}
-
-		return c.WriteJSON(protoResponse)
-	})
 
 	s.toolkit.Router().Subscribe("HelloWorld", func(ctx context.Context, event ws.Event, c *ws.Client) error {
 		ctx, cancel := context.WithCancel(ctx)
@@ -354,10 +293,6 @@ func SubscribeMiddlewareAdd(mdw ...func(h http.Handler) http.Handler) {
 	registerMiddleware("Subscribe", mdw...)
 }
 
-func SayHelloMiddlewareAdd(mdw ...func(h http.Handler) http.Handler) {
-	registerMiddleware("SayHello", mdw...)
-}
-
 func HelloWorldMiddlewareAdd(mdw ...func(h http.Handler) http.Handler) {
 	registerMiddleware("HelloWorld", mdw...)
 }
@@ -380,30 +315,3 @@ var shutdownSignals = []os.Signal{
 	syscall.SIGQUIT,
 	syscall.SIGKILL,
 }
-
-// Server API for Api service
-type RouterRpcServer interface {
-	Subscribe(ctx context.Context, req *SubscribeRequest) (*SubscribeResponse, error)
-
-	SayHello(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error)
-
-	HelloWorld(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error)
-}
-
-type routerGrpcRpcServer struct {
-	RouterRpcServer
-}
-
-func (h *routerGrpcRpcServer) Subscribe(ctx context.Context, req *SubscribeRequest) (*SubscribeResponse, error) {
-	return h.RouterRpcServer.Subscribe(ctx, req)
-}
-
-func (h *routerGrpcRpcServer) SayHello(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error) {
-	return h.RouterRpcServer.SayHello(ctx, req)
-}
-
-func (h *routerGrpcRpcServer) HelloWorld(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error) {
-	return h.RouterRpcServer.HelloWorld(ctx, req)
-}
-
-func (routerGrpcRpcServer) mustEmbedUnimplementedRouterServer() {}

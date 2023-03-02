@@ -19,24 +19,27 @@ package server
 import (
 	"context"
 
+	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/config"
 	servicepb "github.com/lastbackend/toolkit/examples/service/gen"
 	typespb "github.com/lastbackend/toolkit/examples/service/gen/ptypes"
 )
 
 type Handlers struct {
-	svc servicepb.Service
+	servicepb.ExampleRpcServer
+
+	app toolkit.Service
 	cfg *config.Config
 }
 
 func (h Handlers) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	// TODO implement me
+	return nil, nil
 }
 
-func NewServer(svc servicepb.Service, cfg *config.Config) servicepb.ExampleRpcServer {
+func NewServer(app toolkit.Service, cfg *config.Config) servicepb.ExampleRpcServer {
 	return &Handlers{
-		svc: svc,
+		app: app,
 		cfg: cfg,
 	}
 }

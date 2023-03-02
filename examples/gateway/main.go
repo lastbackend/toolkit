@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/lastbackend/toolkit/pkg/runtime/types"
 	"io"
 	"net/http"
 	"os"
@@ -27,8 +28,8 @@ import (
 	"github.com/lastbackend/toolkit/examples/gateway/config"
 	pb "github.com/lastbackend/toolkit/examples/gateway/gen/server"
 	"github.com/lastbackend/toolkit/examples/gateway/middleware"
+	"github.com/lastbackend/toolkit/pkg/http"
 	"github.com/lastbackend/toolkit/pkg/logger"
-	"github.com/lastbackend/toolkit/pkg/router"
 )
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -40,37 +41,22 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	log := logger.DefaultLogger
-	log = log.WithFields(logger.Fields{
-		"service": "gateway",
-	})
 
-	log.Infof("Start process")
 
-	svc := pb.NewService("gateway")
-	svc.Meta().SetEnvPrefix("GTW")
+	svc := pb.NewService("gateway", types.WithEnvPrefix("GTW"))
+	svc.Log().Infof("Start process")
 
 	cfg := config.New()
 
-	setFlags(svc.CLI(), cfg)
+	svc.Config.Provide(cfg)
+	svc.Server().HTTP()..AddMiddleware(middleware.New)
 
-	svc.SetConfig(cfg)
-	svc.AddMiddleware(middleware.New)
-
-	svc.Router().Handle(http.MethodGet, "/health", HealthCheckHandler, router.HandleOptions{})
+	svc.Server().HTTP().
+		AddHandler(http.MethodGet, "/health", HealthCheckHandler)
 
 	if err := svc.Run(context.Background()); err != nil {
-		log.Errorf("Failed run service: %v", err)
+		svc.Log().Errorf("Failed run service: %v", err)
 		os.Exit(1)
 		return
 	}
-}
-
-func setFlags(cli toolkit.CLI, cfg *config.Config) {
-
-	// describe flag: "Set demo-flag flag"
-	cli.AddStringFlag("demo-flag", &cfg.Demo).
-		Env("DEMO_FLAG").
-		Usage("Set demo flag")
-
 }

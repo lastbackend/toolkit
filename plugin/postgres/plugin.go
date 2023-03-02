@@ -17,25 +17,19 @@ limitations under the License.
 package postgres
 
 import (
-	"database/sql"
 	"github.com/go-pg/pg/v10"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
 	"github.com/jmoiron/sqlx"
 	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/pkg/cmd"
-	"github.com/lastbackend/toolkit/pkg/probe"
-	"github.com/pkg/errors"
-	"strconv"
-
-	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
+	"github.com/lastbackend/toolkit/pkg/config"
+	"github.com/lastbackend/toolkit/pkg/runtime/types"
 	_ "github.com/lib/pq"
+	"github.com/pkg/errors"
 
 	"context"
 	"fmt"
-	"os"
-	"strings"
-	"time"
 )
 
 const (
@@ -59,7 +53,7 @@ const (
 )
 
 type Plugin interface {
-	toolkit.Plugin
+	types.Plugin
 
 	DB() *sqlx.DB
 	Register(app toolkit.Service, opts *Options) error
@@ -69,64 +63,42 @@ type Options struct {
 	Name string
 }
 
-type options struct {
-	// Sets the connection string for connecting to the database
-	Connection string
-
-	// Sets the maximum number of connections in the idle
-	// connection pool.
-	//
-	// If MaxOpenConns is greater than 0 but less than the new MaxIdleConns,
-	// then the new MaxIdleConns will be reduced to match the MaxOpenConns limit.
-	//
-	// If n <= 0, no idle connections are retained.
-	//
-	// The default max idle connections is currently 2. This may change in
-	// a future release.
-	MaxIdleConns *int
-
-	// Sets the maximum number of open connections to the database.
-	//
-	// If MaxIdleConns is greater than 0 and the new MaxOpenConns is less than
-	// MaxIdleConns, then MaxIdleConns will be reduced to match the new
-	// MaxOpenConns limit.
-	//
-	// If n <= 0, then there is no limit on the number of open connections.
-	// The default is 0 (unlimited).
-	MaxOpenConns *int
-
-	// Sets the maximum amount of time a connection may be reused.
-	//
-	// Expired connections may be closed lazily before reuse.
-	//
-	// If d <= 0, connections are not closed due to a connection's age.
-	ConnMaxLifetime *time.Duration
-
-	// Sets the maximum amount of time a connection may be reused.
-	//
-	// Expired connections may be closed lazily before reuse.
-	//
-	// If d <= 0, connections are not closed due to a connection's age.
-	ConnMaxIdleTime *time.Duration
-
-	MigrationsDir string
+type Config struct {
+	DSN           string `env:"DSN"  envDefault:"" comment:"DSN = postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&...] complete connection string"`
+	Host          string `env:"HOST" envDefault:"127.0.0.1"  comment:"The host to connect to (required)"`
+	Port          int32  `env:"PORT" envDefault:"5432" comment:"The port to bind to (default: 5432)"`
+	Database      string `env:"DATABASE" comment:"Database to be selected after connecting to the server."`
+	Username      string `env:"USERNAME" comment:"The username to connect with. Not required if using IntegratedSecurity"`
+	Password      string `env:"PASSWORD" comment:"The password to connect with. Not required if using IntegratedSecurity"`
+	SSLMode       string `env:"SSLMODE" comment:" Whether or not to use SSL mode (disable, allow, prefer, require, verify-ca, verify-full)"`
+	TimeZone      string `env:"TIMEZONE" comment:"Sets the session timezone"`
+	MigrationsDir string `env:"MIGRATIONS_DIR" comment:"Migrations directory to run migration when plugin is started"`
 }
 
 type plugin struct {
 	prefix     string
 	envPrefix  string
 	connection string
-	opts       options
+	opts       Config
 
 	db *sqlx.DB
 
-	probe toolkit.Probe
+	//probe toolkit.Probe
 }
 
 func NewPlugin(service toolkit.Service, opts *Options) Plugin {
 	p := new(plugin)
-	p.envPrefix = service.Meta().GetEnvPrefix()
-	p.probe = service.Probe()
+
+	p.prefix = opts.Name
+	if p.prefix == "" {
+		p.prefix = defaultPrefix
+	}
+
+	if err := config.Parse(&p.opts, p.prefix); err != nil {
+		return nil
+	}
+
+	//p.probe = service.ProbesServer().AddReadinessFunc("")
 	err := p.Register(service, opts)
 	if err != nil {
 		return nil
@@ -135,19 +107,11 @@ func NewPlugin(service toolkit.Service, opts *Options) Plugin {
 }
 
 // Register - registers the plugin implements storage using Postgres as a database storage
-func (p *plugin) Register(app toolkit.Service, opts *Options) error {
+func (p *plugin) Register(app toolkit.Service, _ *Options) error {
 
-	p.prefix = opts.Name
-	if p.prefix == "" {
-		p.prefix = defaultPrefix
-	}
-
-	p.addFlags(app)
-	p.addCommands(app)
-
-	if err := app.PluginRegister(p); err != nil {
-		return err
-	}
+	//if err := app.PluginRegister(p); err != nil {
+	//	return err
+	//}
 
 	return nil
 }
@@ -157,44 +121,24 @@ func (p *plugin) DB() *sqlx.DB {
 }
 
 func (p *plugin) Start(ctx context.Context) (err error) {
-	if p.opts.Connection == "" {
-		config := p.getDBConfig()
-		if config.Host == "" {
-			return fmt.Errorf("%s flag or %s environment variable required but not set",
-				p.withPrefix("connection"), p.generateWithEnvPrefix(envHostName))
+
+	if p.opts.DSN == "" {
+		if p.opts.Host == "" {
+			return fmt.Errorf("%s_DSN or %s_Host environment variable required but not set",
+				p.prefix, p.prefix)
 		}
-		p.opts.Connection = config.getConnectionString()
+		p.opts.DSN = fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+			p.opts.Username, p.opts.Password, p.opts.Host, p.opts.Port, p.opts.Database, p.opts.SSLMode)
 	}
 
-	conn, err := sqlx.Open(driverName, p.opts.Connection)
+	conn, err := sqlx.Open(driverName, p.opts.DSN)
 	if err != nil {
 		return err
 	}
 
-	if p.opts.MaxIdleConns != nil {
-		conn.SetMaxIdleConns(*p.opts.MaxIdleConns)
-	}
-	if p.opts.MaxOpenConns != nil {
-		conn.SetMaxOpenConns(*p.opts.MaxOpenConns)
-	}
-	if p.opts.ConnMaxLifetime != nil {
-		conn.SetConnMaxLifetime(*p.opts.ConnMaxLifetime)
-	}
-	if p.opts.ConnMaxIdleTime != nil {
-		conn.SetConnMaxIdleTime(*p.opts.ConnMaxIdleTime)
-	}
+	//p.probe.AddReadinessFunc(p.prefix, PostgresPingChecker(conn.DB, 1*time.Second))
 
-	if p.opts.MigrationsDir != "" {
-		fmt.Printf("\nRun migration from dir: %s", p.opts.MigrationsDir)
-		if err = p.migration(conn.DB, p.opts.MigrationsDir, p.opts.Connection); err != nil {
-			return err
-		}
-		fmt.Printf("\nMigration completed!\n")
-	}
-
-	p.probe.AddReadinessFunc(p.prefix, probe.PostgresPingChecker(conn.DB, 1*time.Second))
-
-	p.connection = p.opts.Connection
+	p.connection = p.opts.DSN
 	p.db = conn
 
 	return nil
@@ -204,122 +148,36 @@ func (p *plugin) Stop() error {
 	return nil
 }
 
-func (p *plugin) genUsage() string {
-	return fmt.Sprintf(`PostgreSQL connection string (Ex: host=localhost port=5432 user=<db_user> password=<db_pass> dbname=<db_name>) 
-or use environment variables: 
-	%s - The host to connect to (required), 
-	%s - The port to bind to (default: 5432), 
-	%s - The username to connect with. Not required if using IntegratedSecurity, 
-	%s - The password to connect with. Not required if using IntegratedSecurity, 
-	%s - The database to connect to, 
-	%s - Whether or not to use SSL, 
-	%s - Sets the session timezone`,
-		p.generateWithEnvPrefix(envHostName), p.generateWithEnvPrefix(envPortName), p.generateWithEnvPrefix(envUserName),
-		p.generateWithEnvPrefix(envPasswordName), p.generateWithEnvPrefix(envDatabaseName), p.generateWithEnvPrefix(envSslmodeName),
-		p.generateWithEnvPrefix(envTimezoneName))
-}
+//func PostgresPingChecker(database *sql.DB, timeout time.Duration) types.HandleFunc {
+//	return func() error {
+//		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+//		defer cancel()
+//		if database == nil {
+//			return fmt.Errorf("connection is nil")
+//		}
+//		return database.PingContext(ctx)
+//	}
+//}
 
-func (p *plugin) addFlags(app toolkit.Service) {
+func (p *plugin) RunMigration() error {
 
-	// define plugin connection
-	app.CLI().AddStringFlag(p.withPrefix("connection"), &p.opts.Connection).
-		Env(p.generateEnvName("CONNECTION")).
-		Usage(p.genUsage())
-
-	// define connection max lifetime flag
-	app.CLI().AddDurationFlag(p.withPrefix("conn-max-lifetime"), p.opts.ConnMaxLifetime).
-		Env(p.generateEnvName("CONN_MAX_LIFETIME")).
-		Usage("Sets the maximum amount of time a connection may be reused.\nIf <= 0, connections are not closed due to a connection's age").
-		Default(0)
-
-	// define connection max idle flag
-	app.CLI().AddDurationFlag(p.withPrefix("conn-max-idle-time"), p.opts.ConnMaxIdleTime).
-		Env(p.generateEnvName("CONN_MAX_IDLE_TIME")).
-		Usage("Sets the maximum amount of time a connection may be idle.\nIf <= 0, connections are not closed due to a connection's idle time").
-		Default(0)
-
-	// define max idle connections flag
-	app.CLI().AddIntFlag(p.withPrefix("max-idle-conns"), p.opts.MaxIdleConns).
-		Env(p.generateEnvName("MAX_IDLE_CONNS")).
-		Usage("Sets the maximum number of connections in the idle connection pool.\nIf <= 0, no idle connections are retained.\n(The default max idle connections is currently 2)").
-		Default(0)
-
-	// define max idle connections flag
-	app.CLI().AddIntFlag(p.withPrefix("max-open-conns"), p.opts.MaxOpenConns).
-		Env(p.generateEnvName("MAX_OPEN_CONNS")).
-		Usage("Sets the maximum number of open connections to the database.\nIf <= 0, then there is no limit on the number of open connections.\n(default unlimited)").
-		Default(0)
-
-	app.CLI().AddStringFlag(p.withPrefix("migration-dir"), &p.opts.MigrationsDir).
-		Env(p.generateEnvName("MIGRATION_DIR")).
-		Usage("PostgreSQL migration dir path")
-}
-
-func (p *plugin) addCommands(app toolkit.Service) {
-	migrateCmd := &cmd.Command{
-		Use:       "migrate [SOURCE_PATH]",
-		ShortDesc: "Database migrations",
-		Run: func(cmd *cmd.Command, args []string) error {
-
-			if len(args) == 0 {
-				return fmt.Errorf("argument \"source path\" is not set, programmer error, please correct")
-			}
-
-			connection, err := cmd.Flags().GetString(p.withPrefix("connection"))
-			if err != nil {
-				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct",
-					p.withPrefix("connection"))
-			}
-
-			if connection == "" {
-				config := p.getDBConfig()
-				if config.Host == "" {
-					return fmt.Errorf("%s flag or %s environment variable required but not set",
-						p.withPrefix("connection"), p.generateWithEnvPrefix(envHostName))
-				}
-				connection = config.getConnectionString()
-			}
-
-			conn, err := sqlx.Open(driverName, connection)
-			if err != nil {
-				return fmt.Errorf("failed to db open: %w", err)
-			}
-			defer conn.Close()
-
-			fmt.Println("Start migration")
-
-			if err = p.migration(conn.DB, args[0], connection); err != nil {
-				return err
-			}
-
-			fmt.Println("Migration is completed successfully!")
-
-			os.Exit(0)
-
-			return nil
-		},
+	if p.opts.MigrationsDir == "" {
+		return fmt.Errorf("can not run migration: dir is not set: %s", p.opts.MigrationsDir)
 	}
 
-	migrateCmd.AddStringFlag(p.withPrefix("connection"), nil).
-		Env(p.generateEnvName("CONNECTION")).
-		Usage(p.genUsage())
+	fmt.Printf("\nRun migration from dir: %s", p.opts.MigrationsDir)
 
-	app.CLI().AddCommand(migrateCmd)
-}
-
-func (p *plugin) migration(db *sql.DB, migrateDir, connectionString string) error {
-
-	opts, err := pg.ParseURL(connectionString)
+	opts, err := pg.ParseURL(p.opts.DSN)
 	if err != nil {
 		return errors.New(errMissingConnectionString)
 	}
 
-	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	driver, err := postgres.WithInstance(p.DB().DB, &postgres.Config{})
 	if err != nil {
 		return err
 	}
 
-	m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", migrateDir), opts.Database, driver)
+	m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", p.opts.MigrationsDir), opts.Database, driver)
 	if err != nil {
 		return err
 	}
@@ -341,76 +199,6 @@ func (p *plugin) migration(db *sql.DB, migrateDir, connectionString string) erro
 		return err
 	}
 
+	fmt.Printf("\nMigration completed!\n")
 	return nil
-}
-
-type dbConfig struct {
-	Host     string
-	Port     int32
-	Database string
-	Username string
-	Password string
-	SSLMode  string
-	TimeZone string
-}
-
-func (c *dbConfig) getConnectionString() string {
-	var connection = fmt.Sprintf("postgres://%s:%s@%s:%d/%s",
-		c.Username, c.Password, c.Host, c.Port, c.Database)
-
-	var qs = make([]string, 0)
-
-	if c.TimeZone != "" {
-		qs = append(qs, fmt.Sprintf("TimeZone=%s", c.TimeZone))
-	}
-	if c.SSLMode != "" {
-		qs = append(qs, fmt.Sprintf("sslmode=%s", c.SSLMode))
-	}
-	if len(qs) > 0 {
-		connection += "?" + strings.Join(qs, "&")
-	}
-
-	return connection
-}
-
-func (p *plugin) getDBConfig() dbConfig {
-	config := dbConfig{Port: defaultPort}
-
-	if host, ok := os.LookupEnv(p.generateWithEnvPrefix(envHostName)); ok {
-		config.Host = host
-	}
-	if port, ok := os.LookupEnv(p.generateWithEnvPrefix(envPortName)); ok {
-		if value, err := strconv.ParseInt(port, 10, 32); err == nil {
-			config.Port = int32(value)
-		}
-	}
-	if user, ok := os.LookupEnv(p.generateWithEnvPrefix(envUserName)); ok {
-		config.Username = user
-	}
-	if password, ok := os.LookupEnv(p.generateWithEnvPrefix(envPasswordName)); ok {
-		config.Password = password
-	}
-	if name, ok := os.LookupEnv(p.generateWithEnvPrefix(envDatabaseName)); ok {
-		config.Database = name
-	}
-	if sslMode, ok := os.LookupEnv(p.generateWithEnvPrefix(envSslmodeName)); ok {
-		config.SSLMode = sslMode
-	}
-	if timeZone, ok := os.LookupEnv(p.generateWithEnvPrefix(envTimezoneName)); ok {
-		config.TimeZone = timeZone
-	}
-
-	return config
-}
-
-func (p *plugin) withPrefix(name string) string {
-	return fmt.Sprintf("%s-%s", p.prefix, name)
-}
-
-func (p *plugin) generateEnvName(name string) string {
-	return strings.ToUpper(fmt.Sprintf("%s_%s", p.prefix, strings.Replace(name, "-", "_", -1)))
-}
-
-func (p *plugin) generateWithEnvPrefix(name string) string {
-	return strings.ToUpper(fmt.Sprintf("%s_%s", p.envPrefix, p.generateEnvName(name)))
 }

@@ -17,43 +17,25 @@ limitations under the License.
 package postgres_gorm
 
 import (
-	"github.com/lastbackend/toolkit/pkg/probe"
-	"os"
-	"strconv"
-	"time"
-
 	"github.com/go-pg/pg/v10"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
-	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/pkg/cmd"
+	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	psql "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
-	_ "github.com/lib/pq"
-
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 )
 
 const (
 	defaultPrefix = "psql"
 	driverName    = "postgres"
-	defaultPort   = 5432
-)
-
-const (
-	envHostName     = "HOST"
-	envPortName     = "PORT"
-	envUserName     = "USERNAME"
-	envPasswordName = "PASSWORD"
-	envDatabaseName = "DATABASE"
-	envSslmodeName  = "SSL_MODE"
-	envTimezoneName = "TIMEZONE"
 )
 
 const (
@@ -61,75 +43,62 @@ const (
 )
 
 type Plugin interface {
-	toolkit.Plugin
-
 	DB() *gorm.DB
-	Register(app toolkit.Service, opts *Options) error
+	Info()
 }
 
 type Options struct {
 	Name string
 }
 
-type options struct {
-	Connection    string
-	MigrationsDir string
+type Config struct {
+	DSN           string `env:"DSN"  envDefault:"" comment:"DSN = postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&...] complete connection string"`
+	Host          string `env:"HOST" envDefault:"127.0.0.1"  comment:"The host to connect to (required)"`
+	Port          int32  `env:"PORT" envDefault:"5432" comment:"The port to bind to (default: 5432)"`
+	Database      string `env:"DATABASE" comment:"Database to be selected after connecting to the server."`
+	Username      string `env:"USERNAME" comment:"The username to connect with. Not required if using IntegratedSecurity"`
+	Password      string `env:"PASSWORD" comment:"The password to connect with. Not required if using IntegratedSecurity"`
+	SSLMode       string `env:"SSLMODE"  comment:" Whether or not to use SSL mode (disable, allow, prefer, require, verify-ca, verify-full)"`
+	TimeZone      string `env:"TIMEZONE" comment:"Sets the session timezone"`
+	MigrationsDir string `env:"MIGRATIONS_DIR" comment:"Migrations directory to run migration when plugin is started"`
 }
 
 type plugin struct {
+	log     logger.Logger
+	runtime runtime.Runtime
+
 	prefix    string
 	envPrefix string
 
-	opts options
+	opts Config
 
 	db *gorm.DB
 
-	probe toolkit.Probe
-}
-
-func NewPlugin(service toolkit.Service, opts *Options) Plugin {
-	p := new(plugin)
-	p.envPrefix = service.Meta().GetEnvPrefix()
-	p.probe = service.Probe()
-	err := p.Register(service, opts)
-	if err != nil {
-		return nil
-	}
-	return p
-}
-
-// Register - registers the plugin implements storage using Postgres as a database storage
-func (p *plugin) Register(app toolkit.Service, opts *Options) error {
-	p.prefix = opts.Name
-	if p.prefix == "" {
-		p.prefix = defaultPrefix
-	}
-
-	p.addFlags(app)
-	p.addCommands(app)
-
-	if err := app.PluginRegister(p); err != nil {
-		return err
-	}
-
-	return nil
+	//probe toolkit.Probe
 }
 
 func (p *plugin) DB() *gorm.DB {
 	return p.db
 }
 
-func (p *plugin) Start(ctx context.Context) (err error) {
-	if p.opts.Connection == "" {
-		config := p.getDBConfig()
-		if config.Host == "" {
-			return fmt.Errorf("%s flag or %s environment variable required but not set",
-				p.withPrefix("connection"), p.generateWithEnvPrefix(envHostName))
+func (p *plugin) Info() {
+	p.runtime.Config().Print(p.opts, p.prefix)
+}
+
+func (p *plugin) PreStart(ctx context.Context) (err error) {
+
+	p.log.Debug("-- postgresql:plugin: pre start --")
+
+	if p.opts.DSN == "" {
+		if p.opts.Host == "" {
+			return fmt.Errorf("%s_DSN or %s_Host environment variable required but not set",
+				p.prefix, p.prefix)
 		}
-		p.opts.Connection = config.getConnectionString()
+		p.opts.DSN = fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+			p.opts.Username, p.opts.Password, p.opts.Host, p.opts.Port, p.opts.Database, p.opts.SSLMode)
 	}
 
-	conn, err := sql.Open(driverName, p.opts.Connection)
+	conn, err := sql.Open(driverName, p.opts.DSN)
 	if err != nil {
 		return err
 	}
@@ -140,107 +109,33 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 		return err
 	}
 
-	if p.opts.MigrationsDir != "" {
-		fmt.Printf("\nRun migration from dir: %s", p.opts.MigrationsDir)
-		if err = p.migration(conn, p.opts.MigrationsDir, p.opts.Connection); err != nil {
-			return err
-		}
-		fmt.Printf("\nMigration completed!\n")
-	}
-
-	p.probe.AddReadinessFunc(p.prefix, probe.PostgresPingChecker(conn, 1*time.Second))
+	//p.probe.AddReadinessFunc(p.prefix, probes.PostgresPingChecker(conn, 1*time.Second))
 
 	p.db = db
 
 	return nil
 }
 
-func (p *plugin) Stop() error {
+func (p *plugin) OnStop() error {
 	return nil
 }
 
-func (p *plugin) genUsage() string {
-	return fmt.Sprintf(`PostgreSQL connection string (Ex: postgres://user:pass@localhost:5432/db_name) 
-or use environment variables: 
-	%s - The host to connect to (required), 
-	%s - The port to bind to (default: 5432), 
-	%s - The username to connect with. Not required if using IntegratedSecurity, 
-	%s - The password to connect with. Not required if using IntegratedSecurity, 
-	%s - The database to connect to, 
-	%s - Whether or not to use SSL, 
-	%s - Sets the session timezone`,
-		p.generateWithEnvPrefix(envHostName), p.generateWithEnvPrefix(envPortName), p.generateWithEnvPrefix(envUserName),
-		p.generateWithEnvPrefix(envPasswordName), p.generateWithEnvPrefix(envDatabaseName), p.generateWithEnvPrefix(envSslmodeName),
-		p.generateWithEnvPrefix(envTimezoneName))
-}
+func (p *plugin) RunMigration() error {
 
-func (p *plugin) addFlags(app toolkit.Service) {
-	app.CLI().AddStringFlag(p.withPrefix("connection"), &p.opts.Connection).
-		Env(p.generateEnvName("CONNECTION")).
-		Usage(p.genUsage())
-
-	app.CLI().AddStringFlag(p.withPrefix("migration-dir"), &p.opts.MigrationsDir).
-		Env(p.generateEnvName("MIGRATION_DIR")).
-		Usage("PostgreSQL migration dir path")
-}
-
-func (p *plugin) addCommands(app toolkit.Service) {
-	migrateCmd := &cmd.Command{
-		Use:       "migrate [SOURCE_PATH]",
-		ShortDesc: "Database migrations",
-		Run: func(cmd *cmd.Command, args []string) error {
-
-			if len(args) == 0 {
-				return fmt.Errorf("argument \"source path\" is not set, programmer error, please correct")
-			}
-
-			connection, err := cmd.Flags().GetString(p.withPrefix("connection"))
-			if err != nil {
-				return errors.Wrapf(err, "\"%s\" flag is non-string, programmer error, please correct",
-					p.withPrefix("connection"))
-			}
-
-			if connection == "" {
-				config := p.getDBConfig()
-				if config.Host == "" {
-					return fmt.Errorf("%s flag or %s environment variable required but not set",
-						p.withPrefix("connection"), p.generateWithEnvPrefix(envHostName))
-				}
-				connection = config.getConnectionString()
-			}
-
-			conn, err := sql.Open(driverName, connection)
-			if err != nil {
-				return fmt.Errorf("failed to db open: %w", err)
-			}
-			defer conn.Close()
-
-			fmt.Println("Start migration")
-
-			if err = p.migration(conn, args[0], connection); err != nil {
-				return err
-			}
-
-			fmt.Println("Migration is completed successfully!")
-
-			os.Exit(0)
-
-			return nil
-		},
+	if p.opts.MigrationsDir == "" {
+		return fmt.Errorf("can not run migration: dir is not set: %s", p.opts.MigrationsDir)
 	}
 
-	migrateCmd.AddStringFlag(p.withPrefix("connection"), nil).
-		Env(p.generateEnvName("CONNECTION")).
-		Usage(p.genUsage())
+	fmt.Printf("\nRun migration from dir: %s", p.opts.MigrationsDir)
 
-	app.CLI().AddCommand(migrateCmd)
-}
-
-func (p *plugin) migration(db *sql.DB, migrateDir, connectionString string) error {
-
-	opts, err := pg.ParseURL(connectionString)
+	opts, err := pg.ParseURL(p.opts.DSN)
 	if err != nil {
 		return errors.New(errMissingConnectionString)
+	}
+
+	db, err := p.db.DB()
+	if err != nil {
+		return err
 	}
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
@@ -248,7 +143,7 @@ func (p *plugin) migration(db *sql.DB, migrateDir, connectionString string) erro
 		return err
 	}
 
-	m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", migrateDir), opts.Database, driver)
+	m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", p.opts.MigrationsDir), opts.Database, driver)
 	if err != nil {
 		return err
 	}
@@ -270,76 +165,26 @@ func (p *plugin) migration(db *sql.DB, migrateDir, connectionString string) erro
 		return err
 	}
 
+	fmt.Printf("\nMigration completed!\n")
 	return nil
 }
 
-type dbConfig struct {
-	Host     string
-	Port     int32
-	Database string
-	Username string
-	Password string
-	SSLMode  string
-	TimeZone string
-}
+func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
+	p := new(plugin)
 
-func (c *dbConfig) getConnectionString() string {
-	var connection = fmt.Sprintf("postgres://%s:%s@%s:%d/%s",
-		c.Username, c.Password, c.Host, c.Port, c.Database)
+	p.runtime = runtime
+	p.log = runtime.Log()
 
-	var qs = make([]string, 0)
-
-	if c.TimeZone != "" {
-		qs = append(qs, fmt.Sprintf("TimeZone=%s", c.TimeZone))
-	}
-	if c.SSLMode != "" {
-		qs = append(qs, fmt.Sprintf("sslmode=%s", c.SSLMode))
-	}
-	if len(qs) > 0 {
-		connection += "?" + strings.Join(qs, "&")
+	p.prefix = opts.Name
+	if p.prefix == "" {
+		p.prefix = defaultPrefix
 	}
 
-	return connection
-}
-
-func (p *plugin) getDBConfig() dbConfig {
-	config := dbConfig{Port: defaultPort}
-
-	if host, ok := os.LookupEnv(p.generateWithEnvPrefix(envHostName)); ok {
-		config.Host = host
-	}
-	if port, ok := os.LookupEnv(p.generateWithEnvPrefix(envPortName)); ok {
-		if value, err := strconv.ParseInt(port, 10, 32); err == nil {
-			config.Port = int32(value)
-		}
-	}
-	if user, ok := os.LookupEnv(p.generateWithEnvPrefix(envUserName)); ok {
-		config.Username = user
-	}
-	if password, ok := os.LookupEnv(p.generateWithEnvPrefix(envPasswordName)); ok {
-		config.Password = password
-	}
-	if name, ok := os.LookupEnv(p.generateWithEnvPrefix(envDatabaseName)); ok {
-		config.Database = name
-	}
-	if sslMode, ok := os.LookupEnv(p.generateWithEnvPrefix(envSslmodeName)); ok {
-		config.SSLMode = sslMode
-	}
-	if timeZone, ok := os.LookupEnv(p.generateWithEnvPrefix(envTimezoneName)); ok {
-		config.TimeZone = timeZone
+	if err := runtime.Config().Parse(&p.opts, p.prefix); err != nil {
+		return nil
 	}
 
-	return config
-}
-
-func (p *plugin) withPrefix(name string) string {
-	return fmt.Sprintf("%s-%s", p.prefix, name)
-}
-
-func (p *plugin) generateEnvName(name string) string {
-	return strings.ToUpper(fmt.Sprintf("%s_%s", p.prefix, strings.Replace(name, "-", "_", -1)))
-}
-
-func (p *plugin) generateWithEnvPrefix(name string) string {
-	return strings.ToUpper(fmt.Sprintf("%s_%s", p.envPrefix, p.generateEnvName(name)))
+	//p.probe = service.Probe()
+	runtime.Plugin().Register(p)
+	return p
 }

@@ -18,63 +18,63 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
-	"github.com/lastbackend/toolkit"
+	"github.com/lastbackend/toolkit/examples/service/internal/server"
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	"github.com/lastbackend/toolkit/pkg/server/http"
+
 	"github.com/lastbackend/toolkit/examples/service/config"
 	servicepb "github.com/lastbackend/toolkit/examples/service/gen"
 	"github.com/lastbackend/toolkit/examples/service/internal/controller"
 	"github.com/lastbackend/toolkit/examples/service/internal/repository"
-	"github.com/lastbackend/toolkit/examples/service/internal/server"
-	"github.com/lastbackend/toolkit/pkg/logger"
 )
 
 func main() {
+	// define service with name and options
+	app, err := servicepb.NewService("example",
+		runtime.WithVersion("0.1.0"),
+		runtime.WithDescription("Example microservice"),
+		runtime.WithEnvPrefix("LB"),
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	svc := servicepb.NewService("example")
+	// Logger settings
 
-	log := svc.Logger()
-	log.WithFields(logger.Fields{
-		"microservice": "example",
-	})
-	log.Info("Run microservice")
+	app.Log().Info("Run microservice")
 
-	svc.Meta().
-		SetVersion("0.1.0").
-		SetEnvPrefix("LB").
-		SetShortDescription("Example microservice").
-		SetLongDescription("Microservice for development needs")
-
+	// Config management
 	cfg := config.New()
-	setFlags(svc.CLI(), cfg)
 
-	svc.SetConfig(cfg)
-	svc.AddPackage(repository.NewRepository)
-	svc.AddPackage(controller.NewController)
-	svc.SetServer(server.NewServer)
+	app.Config().Provide(cfg)
 
-	svc.Invoke(func(c *controller.Controller) error {
+	// Add packages
+	app.Package().Provide(repository.NewRepository)
+	app.Package().Provide(controller.NewController)
 
-		//if err := c.PreStart(); err != nil {
-		//	return err
-		//}
+	// Add server
+	app.Server().GRPC().SetService(server.NewServer)
 
-		return nil
-	})
+	// Add middleware
+	app.Server().HTTP().AddMiddleware("middleware1", server.ExampleHTTPServerMiddleware1)
+	app.Server().HTTP().AddMiddleware("middleware1", server.ExampleHTTPServerMiddleware2)
 
-	if err := svc.Run(context.Background()); err != nil {
-		log.Errorf("could not run the service %v", err)
+	// set middleware as global middleware
+	app.Server().HTTP().UseMiddleware("middleware1", "")
+
+	// add handler to default http server
+	app.Server().HTTP().
+		AddHandler(http.MethodPost, "/hello", server.ExampleHTTPServerHandler, http.WithMiddleware("middleware1"), http.WithMiddleware("middleware2"))
+
+	// Service run
+	if err := app.Start(context.Background(), controller.Start); err != nil {
+		app.Log().Errorf("could not run the service %v", err)
 		os.Exit(1)
 		return
 	}
-}
 
-func setFlags(cli toolkit.CLI, cfg *config.Config) {
-
-	// describe flag: "Set access token"
-	cli.AddStringFlag("demo-flag", &cfg.Nested.Demo).
-		Env("DEMO_KEY").
-		Usage("Set demo key for example").
-		Required()
-
+	app.Log().Info("graceful stop")
 }

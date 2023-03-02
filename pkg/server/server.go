@@ -17,11 +17,87 @@ limitations under the License.
 package server
 
 import (
+	"context"
+	"github.com/lastbackend/toolkit/pkg/server/http/websockets"
 	"google.golang.org/grpc"
+	"net/http"
 )
 
-type Server interface {
-	Register(sd *grpc.ServiceDesc, ss interface{}) error
-	Start() error
+type HTTPServer interface {
+	Start(ctx context.Context) error
 	Stop() error
+
+	UseMiddleware(...string)
+	AddMiddleware(name string, middleware HttpServerMiddleware)
+	AddHandler(method, path string, h http.HandlerFunc, opts ...HTTPServerOption)
+
+	SetService(fn interface{})
+	GetService() interface{}
+
+	Subscribe(event string, h websockets.EventHandler)
+
+	ServerWS(w http.ResponseWriter, r *http.Request)
+	SetCorsHandlerFunc(hf http.HandlerFunc)
+	SetErrorHandlerFunc(hf func(http.ResponseWriter, error))
+}
+
+type HTTPServerDecorator interface {
+	Start(ctx context.Context) error
+	Stop() error
+
+	UseMiddleware(...string)
+	AddMiddleware(name string, middleware HttpServerMiddleware)
+	AddHandler(method, path string, h http.HandlerFunc, opts ...HTTPServerOption)
+
+	SetService(fn interface{})
+	GetService() interface{}
+
+	Subscribe(event string, h websockets.EventHandler)
+
+	ServerWS(w http.ResponseWriter, r *http.Request)
+	SetCorsHandlerFunc(hf http.HandlerFunc)
+	SetErrorHandlerFunc(hf func(http.ResponseWriter, error))
+}
+
+type HTTPServerOptions struct {
+}
+
+type HTTPServerHandler struct {
+	Method  string
+	Path    string
+	Handler http.HandlerFunc
+	Options []HTTPServerOption
+}
+
+type HttpOptionKind string
+
+type HTTPServerOption interface {
+	Kind() HttpOptionKind
+}
+
+type HttpServerMiddleware func(h http.Handler) http.Handler
+
+type GRPCServer interface {
+	Start(ctx context.Context) error
+	Stop() error
+
+	SetDescriptor(descriptor grpc.ServiceDesc)
+
+	SetService(constructor interface{})
+	SetConstructor(fn interface{})
+
+	GetService() interface{}
+	GetConstructor() interface{}
+
+	RegisterService(service interface{})
+}
+
+type GRPCServerDecorator interface {
+	Start(ctx context.Context) error
+	Stop() error
+	SetService(constructor interface{})
+}
+
+type GRPCServerOptions struct { // nolint
+	Name string
 }

@@ -6,6 +6,8 @@ package serverpb
 import (
 	"context"
 	"encoding/json"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/runtime/meta"
 	"io"
 	"net/http"
 	"os"
@@ -15,18 +17,15 @@ import (
 	toolkit "github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/helloworld/gen"
 	grpc "github.com/lastbackend/toolkit/pkg/client/grpc"
-	logger "github.com/lastbackend/toolkit/pkg/logger"
-	router "github.com/lastbackend/toolkit/pkg/router"
-	errors "github.com/lastbackend/toolkit/pkg/router/errors"
-	ws "github.com/lastbackend/toolkit/pkg/router/ws"
 	server "github.com/lastbackend/toolkit/pkg/server"
+	serverHTTP "github.com/lastbackend/toolkit/pkg/server/http"
+	errors "github.com/lastbackend/toolkit/pkg/server/http/errors"
+	websockets "github.com/lastbackend/toolkit/pkg/server/http/websockets"
 	fx "go.uber.org/fx"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the toolkit package it is being compiled against and
-// suppress "imported and not used" errors
+// Suppress "imported and not used" errors
 var _ context.Context
 var _ logger.Logger
 var _ emptypb.Empty
@@ -36,13 +35,12 @@ var _ http.Handler
 var _ errors.Err
 var _ io.Reader
 var _ json.Marshaler
-var _ ws.Client
-var _ server.Server
+var _ websockets.Client
 
 type middleware map[string][]func(h http.Handler) http.Handler
 
-func (m middleware) getMiddleware(name string) router.Middleware {
-	middleware := router.Middleware{}
+func (m middleware) getMiddleware(name string) serverHTTP.Middleware {
+	middleware := serverHTTP.Middleware{}
 	if m[name] != nil {
 		for _, mdw := range m[name] {
 			middleware.Add(mdw)
@@ -55,14 +53,15 @@ var middlewares = make(middleware, 0)
 
 type Service interface {
 	Logger() logger.Logger
-	Meta() toolkit.Meta
+	Meta() meta.Meta
 	CLI() toolkit.CLI
 	Client() grpc.Client
-	Router() router.Server
+
+	ServerHTTP() serverHTTP.Server
+
 	Run(ctx context.Context) error
 
 	SetConfig(cfg interface{})
-	SetServer(srv interface{})
 
 	AddPackage(pkg interface{})
 	AddMiddleware(mdw interface{})
@@ -70,13 +69,12 @@ type Service interface {
 }
 
 type RPC struct {
-	Grpc grpc.Client
+	Grpc grpc.RPCClient
 }
 
 func NewService(name string) Service {
 	return &service{
 		toolkit: toolkit.NewService(name),
-		srv:     make([]interface{}, 0),
 		pkg:     make([]interface{}, 0),
 		inv:     make([]interface{}, 0),
 		rpc:     new(RPC),
@@ -86,14 +84,13 @@ func NewService(name string) Service {
 type service struct {
 	toolkit toolkit.Service
 	rpc     *RPC
-	srv     []interface{}
 	pkg     []interface{}
 	inv     []interface{}
 	cfg     interface{}
 	mdw     interface{}
 }
 
-func (s *service) Meta() toolkit.Meta {
+func (s *service) Meta() meta.Meta {
 	return s.toolkit.Meta()
 }
 
@@ -105,8 +102,8 @@ func (s *service) Logger() logger.Logger {
 	return s.toolkit.Logger()
 }
 
-func (s *service) Router() router.Server {
-	return s.toolkit.Router()
+func (s *service) ServerHTTP() serverHTTP.Server {
+	return s.toolkit.ServerHTTP()
 }
 
 func (s *service) Client() grpc.Client {
@@ -115,13 +112,6 @@ func (s *service) Client() grpc.Client {
 
 func (s *service) SetConfig(cfg interface{}) {
 	s.cfg = cfg
-}
-
-func (s *service) SetServer(srv interface{}) {
-	if srv == nil {
-		return
-	}
-	s.srv = append(s.srv, srv)
 }
 
 func (s *service) AddPackage(pkg interface{}) {
@@ -160,7 +150,6 @@ func (s *service) Run(ctx context.Context) error {
 	)
 
 	provide = append(provide, s.pkg...)
-	provide = append(provide, s.srv...)
 
 	opts := make([]fx.Option, 0)
 
@@ -170,12 +159,9 @@ func (s *service) Run(ctx context.Context) error {
 
 	opts = append(opts, fx.Provide(provide...))
 	opts = append(opts, fx.Invoke(s.registerClients))
-	opts = append(opts, fx.Invoke(s.registerProxyGatewayServer))
 	opts = append(opts, fx.Invoke(s.inv...))
-	if s.mdw != nil {
-		opts = append(opts, fx.Invoke(s.mdw))
-	}
-	opts = append(opts, fx.Invoke(s.registerRouter))
+	opts = append(opts, fx.Invoke(s.mdw))
+	opts = append(opts, fx.Invoke(s.registerServerHTTP))
 	opts = append(opts, fx.Invoke(s.runService))
 
 	app := fx.New(
@@ -204,37 +190,18 @@ func (s *service) registerClients() error {
 
 	// Register clients
 
-	s.rpc.Grpc = s.toolkit.Client()
+	s.rpc.Grpc = grpc.NewClient(s.toolkit.CLI(), grpc.ClientOptions{Name: "client-grpc"})
 
-	return nil
-}
-
-func (s *service) registerProxyGatewayServer(srv ProxyGatewayRpcServer) error {
-
-	// Register servers
-
-	type ProxyGatewayGrpcRpcServer struct {
-		ProxyGatewayServer
-	}
-
-	h := &proxygatewayGrpcRpcServer{srv.(ProxyGatewayRpcServer)}
-
-	grpcproxygatewayServer := server.NewServer(s.toolkit, &server.ServerOptions{Name: "grpc"})
-
-	if err := grpcproxygatewayServer.Register(&ProxyGateway_ServiceDesc, &ProxyGatewayGrpcRpcServer{h}); err != nil {
-		return err
-	}
-
-	if err := s.toolkit.ServerRegister(grpcproxygatewayServer); err != nil {
+	if err := s.toolkit.ClientRegister(s.rpc.Grpc); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *service) registerRouter() {
+func (s *service) registerServerHTTP() {
 
-	s.toolkit.Router().Subscribe("HelloWorld", func(ctx context.Context, event ws.Event, c *ws.Client) error {
+	s.toolkit.ServerHTTP().Subscribe("HelloWorld", func(ctx context.Context, event websockets.Event, c *websockets.Client) error {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
@@ -247,7 +214,7 @@ func (s *service) registerRouter() {
 
 		callOpts := make([]grpc.CallOption, 0)
 
-		if headers := ctx.Value(ws.RequestHeaders); headers != nil {
+		if headers := ctx.Value(websockets.RequestHeaders); headers != nil {
 			if v, ok := headers.(map[string]string); ok {
 				callOpts = append(callOpts, grpc.Headers(v))
 			}
@@ -260,16 +227,16 @@ func (s *service) registerRouter() {
 		return c.WriteJSON(protoResponse)
 	})
 
-	s.toolkit.Router().Handle(http.MethodPost, "/hello", func(w http.ResponseWriter, r *http.Request) {
+	s.toolkit.ServerHTTP().Handle(http.MethodPost, "/hello", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
 		var protoRequest servicepb.HelloRequest
 		var protoResponse servicepb.HelloReply
 
-		im, om := router.GetMarshaler(s.toolkit.Router(), r)
+		im, om := serverHTTP.GetMarshaler(s.toolkit.ServerHTTP(), r)
 
-		reader, err := router.NewReader(r.Body)
+		reader, err := serverHTTP.NewReader(r.Body)
 		if err != nil {
 			errors.HTTP.InternalServerError(w)
 			return
@@ -280,7 +247,7 @@ func (s *service) registerRouter() {
 			return
 		}
 
-		headers, err := router.PrepareHeaderFromRequest(r)
+		headers, err := serverHTTP.PrepareHeaderFromRequest(r)
 		if err != nil {
 			errors.HTTP.InternalServerError(w)
 			return
@@ -308,7 +275,7 @@ func (s *service) registerRouter() {
 			return
 		}
 
-	}, router.HandleOptions{Middlewares: middlewares.getMiddleware("HelloWorld")})
+	}, serverHTTP.HandleOptions{Middlewares: middlewares.getMiddleware("HelloWorld")})
 
 }
 
@@ -343,18 +310,3 @@ var shutdownSignals = []os.Signal{
 	syscall.SIGQUIT,
 	syscall.SIGKILL,
 }
-
-// Server API for Api service
-type ProxyGatewayRpcServer interface {
-	HelloWorld(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error)
-}
-
-type proxygatewayGrpcRpcServer struct {
-	ProxyGatewayRpcServer
-}
-
-func (h *proxygatewayGrpcRpcServer) HelloWorld(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error) {
-	return h.ProxyGatewayRpcServer.HelloWorld(ctx, req)
-}
-
-func (proxygatewayGrpcRpcServer) mustEmbedUnimplementedProxyGatewayServer() {}

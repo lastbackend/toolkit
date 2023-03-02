@@ -18,12 +18,11 @@ package centrifuge
 
 import (
 	"context"
-	"fmt"
-	"strings"
-	"sync"
-
 	"github.com/centrifugal/centrifuge-go"
 	"github.com/lastbackend/toolkit"
+	"github.com/lastbackend/toolkit/pkg/config"
+	"sync"
+	"time"
 )
 
 const (
@@ -41,6 +40,17 @@ type Plugin interface {
 
 type Options struct {
 	Name string
+}
+
+type Config struct {
+	Endpoint           string        `env:"ENDPOINT" comment:"Set connection endpoint (ws://localhost:8000/connection/websocket)"`
+	Token              string        `env:"TOKEN" comment:"Set token for a connection authentication."`
+	Name               string        `env:"NAME" comment:"Set allows setting client name"`
+	Version            string        `env:"VERSION" comment:"Set allows setting client version"`
+	ReadTimeout        time.Duration `env:"READ_TIMEOUT" comment:"Set ReadTimeout is how long to wait read operations to complete.. (Default: 5 * time.Second.)"`
+	WriteTimeout       time.Duration `env:"WRITE_TIMEOUT" comment:"Set WriteTimeout is Websocket write timeout. (Default: 1 * time.Second.)"`
+	HandshakeTimeout   time.Duration `env:"HANDSHAKE_TIMEOUT" comment:"Set HandshakeTimeout specifies the duration for the handshake to complete. (Default: 1 * time.Second."`
+	MaxServerPingDelay time.Duration `env:"MAX_SERVER_PING_DELAY" comment:"Set MaxServerPingDelay used to set maximum delay of ping from server.. (Default: 10 * time.Second."`
 }
 
 type options struct {
@@ -67,9 +77,16 @@ type plugin struct {
 
 func NewPlugin(service toolkit.Service, opts *Options) Plugin {
 	p := new(plugin)
-	p.envPrefix = service.Meta().GetEnvPrefix()
-	p.service = service.Meta().GetName()
-	p.opts.Config = new(centrifuge.Config)
+
+	p.prefix = opts.Name
+	if p.prefix == "" {
+		p.prefix = defaultPrefix
+	}
+
+	if err := config.Parse(&p.opts, p.prefix); err != nil {
+		return nil
+	}
+
 	err := p.Register(service, opts)
 	if err != nil {
 		return nil
@@ -77,14 +94,8 @@ func NewPlugin(service toolkit.Service, opts *Options) Plugin {
 	return p
 }
 
-// Register - registers the plugin implements storage using Rabbitmq as a broker service
-func (p *plugin) Register(app toolkit.Service, opts *Options) error {
-	p.prefix = opts.Name
-	if p.prefix == "" {
-		p.prefix = defaultPrefix
-	}
-
-	p.addFlags(app)
+// Register - registers the plugin implements message distribution using Centrifuge as a broker service
+func (p *plugin) Register(app toolkit.Service, _ *Options) error {
 
 	if err := app.PluginRegister(p); err != nil {
 		return err
@@ -113,51 +124,4 @@ func (p *plugin) Client() *centrifuge.Client {
 func (p *plugin) Stop() error {
 	p.client.Close()
 	return nil
-}
-
-func (p *plugin) addFlags(app toolkit.Service) {
-	app.CLI().AddStringFlag(p.withPrefix("endpoint"), &p.opts.Endpoint).
-		Env(p.generateEnvName("ENDPOINT")).
-		Usage("Set connection endpoint").
-		Default(defaultWSURL)
-
-	app.CLI().AddStringFlag(p.withPrefix("token"), &p.opts.Token).
-		Env(p.generateEnvName("TOKEN")).
-		Usage("Set token for a connection authentication.")
-
-	app.CLI().AddStringFlag(p.withPrefix("name"), &p.opts.Name).
-		Env(p.generateEnvName("NAME")).
-		Usage("Set allows setting client name")
-
-	app.CLI().AddStringFlag(p.withPrefix("version"), &p.opts.Version).
-		Env(p.generateEnvName("VERSION")).
-		Usage("Set allows setting client version")
-
-	app.CLI().AddDurationFlag(p.withPrefix("read-timeout"), &p.opts.ReadTimeout).
-		Env(p.generateEnvName("READ_TIMEOUT")).
-		Usage("Set ReadTimeout is how long to wait read operations to complete.. (Default: 5 * time.Second.)")
-
-	app.CLI().AddDurationFlag(p.withPrefix("write-timeout"), &p.opts.WriteTimeout).
-		Env(p.generateEnvName("WRITE_TIMEOUT")).
-		Usage("Set WriteTimeout is Websocket write timeout. (Default: 1 * time.Second.)")
-
-	app.CLI().AddDurationFlag(p.withPrefix("handshake-timeout"), &p.opts.HandshakeTimeout).
-		Env(p.generateEnvName("HANDSHAKE_TIMEOUT")).
-		Usage("Set HandshakeTimeout specifies the duration for the handshake to complete. (Default: 1 * time.Second.")
-
-	app.CLI().AddDurationFlag(p.withPrefix("max-server-ping-delay"), &p.opts.MaxServerPingDelay).
-		Env(p.generateEnvName("MAX_SERVER_PING_DELAY")).
-		Usage("Set MaxServerPingDelay used to set maximum delay of ping from server.. (Default: 10 * time.Second.")
-}
-
-func (p *plugin) withPrefix(name string) string {
-	return fmt.Sprintf("%s-%s", p.prefix, name)
-}
-
-func (p *plugin) generateEnvName(name string) string {
-	return strings.ToUpper(fmt.Sprintf("%s_%s", p.prefix, strings.Replace(name, "-", "_", -1)))
-}
-
-func (p *plugin) generateWithEnvPrefix(name string) string {
-	return strings.ToUpper(fmt.Sprintf("%s_%s", p.envPrefix, p.generateEnvName(name)))
 }

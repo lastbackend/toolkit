@@ -14,4 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package toolkit
+package consul
+
+import (
+	"github.com/lastbackend/toolkit/pkg/client/network/resolver"
+)
+
+func WithEndpoint(endpoint string) resolver.Option {
+	return func(o *resolver.Options) {
+		o.Endpoint = endpoint
+	}
+}
+func WithCache(cache bool) resolver.Option {
+	return func(o *resolver.Options) {
+		o.Cache = cache
+	}
+}

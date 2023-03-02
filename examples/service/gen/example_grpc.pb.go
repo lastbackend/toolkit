@@ -8,6 +8,7 @@ package servicepb
 
 import (
 	context "context"
+
 	ptypes "github.com/lastbackend/toolkit/examples/service/gen/ptypes"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -53,8 +54,7 @@ type ExampleServer interface {
 }
 
 // UnimplementedExampleServer should be embedded to have forward compatible implementations.
-type UnimplementedExampleServer struct {
-}
+type UnimplementedExampleServer struct{}
 
 func (UnimplementedExampleServer) HelloWorld(context.Context, *ptypes.HelloWorldRequest) (*ptypes.HelloWorldResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HelloWorld not implemented")
