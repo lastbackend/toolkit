@@ -92,7 +92,7 @@ func exampleHTTPServerSubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func NewExampleService(name string, opts ...runtime.Option) (toolkit.Service, error) {
+func NewService(name string, opts ...runtime.Option) (toolkit.Service, error) {
 	var err error
 
 	app := new(service)
