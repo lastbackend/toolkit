@@ -61,16 +61,15 @@ type grpcServer struct {
 }
 
 // NewServer - init and return new grpc server instance
-func NewServer(runtime runtime.Runtime, opts *server.GRPCServerOptions) server.GRPCServer { //nolint
+func NewServer(runtime runtime.Runtime, prefix string) server.GRPCServer {
 
-	var name = serviceName
-	if opts != nil {
-		name = opts.Name
+	if prefix == "" {
+		prefix = serviceName
 	}
 
 	srv := &grpcServer{
 		runtime: runtime,
-		prefix:  name,
+		prefix:  prefix,
 		opts:    defaultOptions(),
 		exit:    make(chan chan error),
 	}

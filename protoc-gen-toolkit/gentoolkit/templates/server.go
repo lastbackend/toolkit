@@ -16,10 +16,11 @@ limitations under the License.
 
 package templates
 
-// ServerGRPCTpl is the server template used for new services.
-var ServerGRPCTpl = `
+// ServerGRPCDefineTpl is the server GRPC define template used for new services.
+var ServerGRPCDefineTpl = `
 {{ range $svc := .Services }}
-	// Server API for Api service
+{{ if $svc.Methods }}
+	// Define GRPC services for {{ $svc.GetName }} GRPC server
 	type {{ $svc.GetName }}RpcServer interface {
 	{{ range $m := $svc.Methods }}
 		{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
@@ -32,8 +33,10 @@ var ServerGRPCTpl = `
 	{{ end }}
 	}
 {{ end }}
+{{ end }}
 
 {{ range $svc := .Services }}
+{{ if $svc.Methods }}
 	type {{ $svc.GetName | ToLower }}GrpcRpcServer struct {
 		{{ $svc.GetName }}RpcServer
 	}
@@ -60,14 +63,133 @@ var ServerGRPCTpl = `
 		return nil
 	}
 {{ end }}
+{{ end }}
 `
 
-var ServerGRPCRegisterTpl = `
-{{ range $svc := .Services }}
-	// set descriptor to {{ $svc.GetName }} grpc server
-	app.runtime.Server().GRPCNew(name, nil)
-
-	app.runtime.Server().GRPC().SetDescriptor({{ $svc.GetName }}_ServiceDesc)
-	app.runtime.Server().GRPC().SetConstructor(register{{ $svc.GetName }}GRPCServer)
-{{ end }}
+// ServerHTTPDefineTpl is the server HTTP define template used for new services.
+var ServerHTTPDefineTpl = `
+func (s *service) registerRouter() {
+	{{ range $svc := .Services }}
+		{{ range $m := $svc.Methods }}
+			{{ range $binding := $m.Bindings }}
+				
+				{{ if $binding.Websocket }}
+				s.toolkit.Router().Handle(http.MethodGet, "{{ $binding.HttpPath }}", s.Router().ServerWS,
+					router.HandleOptions{Middlewares: middlewares.getMiddleware("{{ $binding.RpcMethod }}")})
+				{{ end }}
+			
+				{{ if or (not $binding.Websocket) ($binding.WebsocketProxy) }}
+				s.toolkit.Router().Subscribe("{{ $binding.RpcMethod }}", func(ctx context.Context, event ws.Event, c *ws.Client) error {
+					ctx, cancel := context.WithCancel(ctx)
+					defer cancel()
+			
+					var protoRequest {{ $binding.RequestType.GoType $binding.Method.Service.File.GoPkg.Path }}
+					var protoResponse {{ $binding.ResponseType.GoType $binding.Method.Service.File.GoPkg.Path }}
+			
+					if err := json.Unmarshal(event.Payload, &protoRequest); err != nil {
+						return err
+					}
+			
+					callOpts := make([]grpc.CallOption, 0)
+		
+					if headers := ctx.Value(ws.RequestHeaders); headers != nil {
+						if v, ok := headers.(map[string]string); ok {
+							callOpts = append(callOpts, grpc.Headers(v))
+						}
+					}
+			
+					if err := s.toolkit.Client().Call(ctx, "{{ $binding.Service }}", "{{ $binding.RpcPath }}", &protoRequest, &protoResponse, callOpts...); err != nil {
+						return err	
+					}
+			
+					return c.WriteJSON(protoResponse)
+				})
+		
+				{{ if not $binding.WebsocketProxy }}
+					s.toolkit.Router().Handle({{ $binding.HttpMethod }}, "{{ $binding.HttpPath }}", func(w http.ResponseWriter, r *http.Request) {
+						ctx, cancel := context.WithCancel(r.Context())
+						defer cancel()
+			
+						var protoRequest {{ $binding.RequestType.GoType $binding.Method.Service.File.GoPkg.Path }}
+						var protoResponse {{ $binding.ResponseType.GoType $binding.Method.Service.File.GoPkg.Path }}
+				
+						{{ if or (eq $binding.HttpMethod "http.MethodPost") (eq $binding.HttpMethod "http.MethodPut") (eq $binding.HttpMethod "http.MethodPatch") }}
+							{{ if eq $binding.RawBody "*" }}
+								im, om := router.GetMarshaler(s.toolkit.Router(), r)
+			
+								reader, err := router.NewReader(r.Body)
+								if err != nil {
+									errors.HTTP.InternalServerError(w)
+									return
+								}
+								
+								if err := im.NewDecoder(reader).Decode(&protoRequest); err != nil && err != io.EOF {
+									errors.HTTP.InternalServerError(w)
+									return
+								}
+							{{ else }}
+								_, om := router.GetMarshaler(s.toolkit.Router(), r)
+			
+								if err := router.SetRawBodyToProto(r, &protoRequest, "{{ $binding.RawBody }}"); err != nil {
+									errors.HTTP.InternalServerError(w)
+									return
+								}
+			
+							{{ end }}
+						{{ else }}
+							_, om := router.GetMarshaler(s.toolkit.Router(), r)
+			
+							if err := r.ParseForm(); err != nil {
+								errors.HTTP.InternalServerError(w)
+								return
+							}
+				
+							if err := router.ParseRequestQueryParametersToProto(&protoRequest, r.Form); err != nil {
+								errors.HTTP.InternalServerError(w)
+								return
+							}
+						{{ end }}
+			
+						{{ range $param := $binding.HttpParams }}
+						if err := router.ParseRequestUrlParametersToProto(r, &protoRequest, "{{ $param | ToTrimRegexFromQueryParameter }}"); err != nil {
+							errors.HTTP.InternalServerError(w)
+							return
+						}
+						{{ end }}
+				
+						headers, err := router.PrepareHeaderFromRequest(r)
+						if err != nil {
+							errors.HTTP.InternalServerError(w)
+							return
+						}
+			
+						callOpts := make([]grpc.CallOption, 0)
+						callOpts = append(callOpts, grpc.Headers(headers))
+			
+						if err := s.toolkit.Client().Call(ctx, "{{ $binding.Service }}", "{{ $binding.RpcPath }}", &protoRequest, &protoResponse, callOpts...); err != nil {
+							errors.GrpcErrorHandlerFunc(w, err)
+							return			
+						}
+				
+						buf, err := om.Marshal(protoResponse)
+						if err != nil {
+							errors.HTTP.InternalServerError(w)
+							return
+						}
+			
+						w.Header().Set("Content-Type", om.ContentType())
+			
+						w.WriteHeader(http.StatusOK)
+						if _, err = w.Write(buf); err != nil {
+							s.toolkit.Logger().Infof("Failed to write response: %v", err)
+							return
+						}
+			
+					}, router.HandleOptions{Middlewares: middlewares.getMiddleware("{{ $binding.RpcMethod }}")})
+					{{ end }}
+				{{ end }} 
+			{{ end }} 
+		{{ end }}
+	{{ end }}
+}
 `

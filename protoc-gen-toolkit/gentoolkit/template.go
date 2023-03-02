@@ -43,21 +43,18 @@ var (
 )
 
 var (
-	templateWithMessage     = template.Must(template.New("message").Parse(templates.MessageTpl))
-	headerTemplate          = template.Must(template.New("header").Parse(templates.HeaderTpl))
-	contentServiceTemplate  = template.Must(template.New("content").Funcs(funcMap).Parse(templates.ContentTpl))
-	contentClientTemplate   = template.Must(template.New("client-content").Funcs(funcMap).Parse(templates.ClientTpl))
-	contentTestStubTemplate = template.Must(template.New("stub-content-mockery").Parse(templates.TestTpl))
-	_                       = template.Must(contentServiceTemplate.New("services-content").Funcs(funcMap).Parse(templates.ServiceTpl))
-	_                       = template.Must(contentServiceTemplate.New("server-content").Parse(templates.ServerGRPCTpl))
-	_                       = template.Must(contentServiceTemplate.New("server-register-content").Parse(templates.ServerGRPCRegisterTpl))
-)
+	messageTemplate  = template.Must(template.New("message").Parse(templates.MessageTpl))
+	headerTemplate   = template.Must(template.New("header").Parse(templates.HeaderTpl))
+	clientTemplate   = template.Must(template.New("client-content").Funcs(funcMap).Parse(templates.ClientTpl))
+	testStubTemplate = template.Must(template.New("stub-content-mockery").Parse(templates.TestTpl))
 
-type Plugin struct {
-	Prefix string
-	Plugin string
-	Pkg    string
-}
+	serviceTemplate = template.Must(template.New("content").Funcs(funcMap).Parse(templates.ContentTpl))
+	_               = template.Must(serviceTemplate.New("service-grpc-define").Parse(templates.ServerGRPCDefineTpl))
+	_               = template.Must(serviceTemplate.New("service-http-define").Parse(templates.ServerHTTPDefineTpl))
+	_               = template.Must(serviceTemplate.New("plugin-define").Parse(templates.PluginDefineTpl))
+	_               = template.Must(serviceTemplate.New("plugin-init").Parse(templates.PluginInitializeTpl))
+	_               = template.Must(serviceTemplate.New("plugin-register").Parse(templates.PluginRegisterTpl))
+)
 
 type Client struct {
 	Service string
@@ -65,18 +62,16 @@ type Client struct {
 }
 
 type contentServiceParams struct {
-	HasNotServer bool
-	Plugins      map[string][]*Plugin
-	Services     []*descriptor.Service
-	Clients      map[string]*Client
+	Plugins  map[string][]*descriptor.Plugin
+	Services []*descriptor.Service
+	Clients  map[string]*Client
 }
 
 type tplServiceOptions struct {
 	*descriptor.File
-	HasNotServer bool
-	Imports      []descriptor.GoPackage
-	Plugins      map[string][]*Plugin
-	Clients      map[string]*Client
+	Imports []descriptor.GoPackage
+	Plugins map[string][]*descriptor.Plugin
+	Clients map[string]*Client
 }
 
 func applyServiceTemplate(to tplServiceOptions) (string, error) {
@@ -99,13 +94,12 @@ func applyServiceTemplate(to tplServiceOptions) (string, error) {
 	}
 
 	tp := contentServiceParams{
-		HasNotServer: to.HasNotServer,
-		Plugins:      to.Plugins,
-		Clients:      to.Clients,
-		Services:     targetServices,
+		Plugins:  to.Plugins,
+		Clients:  to.Clients,
+		Services: targetServices,
 	}
 
-	if err := contentServiceTemplate.Execute(w, tp); err != nil {
+	if err := serviceTemplate.Execute(w, tp); err != nil {
 		return "", err
 	}
 
@@ -148,7 +142,7 @@ func applyClientTemplate(to tplClientOptions) (string, error) {
 		Services: targetServices,
 	}
 
-	if err := contentClientTemplate.Execute(w, tp); err != nil {
+	if err := clientTemplate.Execute(w, tp); err != nil {
 		return "", err
 	}
 
@@ -167,7 +161,7 @@ func applyTestTemplate(to tplMockeryTestOptions) (string, error) {
 		return "", err
 	}
 
-	if err := contentTestStubTemplate.Execute(w, to); err != nil {
+	if err := testStubTemplate.Execute(w, to); err != nil {
 		return "", err
 	}
 
@@ -182,7 +176,7 @@ type tplMessageOptions struct {
 func applyTemplateWithMessage(to tplMessageOptions) (string, error) {
 	w := bytes.NewBuffer(nil)
 
-	if err := templateWithMessage.Execute(w, to); err != nil {
+	if err := messageTemplate.Execute(w, to); err != nil {
 		return "", err
 	}
 

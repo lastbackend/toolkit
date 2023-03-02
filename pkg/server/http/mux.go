@@ -67,11 +67,15 @@ type httpServer struct {
 	exit    chan chan error
 }
 
-func NewServer(runtime runtime.Runtime, _ *server.HTTPServerOptions) server.HTTPServer {
+func NewServer(runtime runtime.Runtime, prefix string) server.HTTPServer {
+
+	if prefix == "" {
+		prefix = defaultPrefix
+	}
 
 	s := &httpServer{
 		runtime:      runtime,
-		prefix:       defaultPrefix,
+		prefix:       prefix,
 		marshalerMap: GetMarshalerMap(),
 		exit:         make(chan chan error),
 

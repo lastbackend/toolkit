@@ -50,7 +50,69 @@ type RedisPlugin interface {
 	redis.Plugin
 }
 
-// Server API for Api service
+type Redis1Plugin interface {
+	redis.Plugin
+}
+
+type Redis2Plugin interface {
+	redis.Plugin
+}
+
+// Service Example define
+func NewExampleService(name string, opts ...runtime.Option) (_ toolkit.Service, err error) {
+	app := new(service)
+
+	app.runtime, err = controller.NewRuntime(context.Background(), name, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	// loop over plugins and initialize plugin instance
+	plugin_pgsql := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "pgsql"})
+	plugin_redis := redis.NewPlugin(app.runtime, &redis.Options{Name: "redis"})
+	plugin_redis1 := redis.NewPlugin(app.runtime, &redis.Options{Name: "redis1"})
+
+	// loop over plugins and register plugin in toolkit
+	app.runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
+	app.runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
+	app.runtime.Plugin().Provide(func() Redis1Plugin { return plugin_redis1 })
+
+	// set descriptor to Example GRPC server
+	app.runtime.Server().GRPCNew(name)
+	app.runtime.Server().GRPC().SetDescriptor(Example_ServiceDesc)
+	app.runtime.Server().GRPC().SetConstructor(registerExampleGRPCServer)
+
+	// create new Example HTTP server
+	app.runtime.Server().HTTPNew(name)
+	app.runtime.Server().HTTP().AddMiddleware("middleware1", exampleHTTPServerMiddleware)
+	app.runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", exampleHTTPServerSubscribeHandler, tk_http.WithMiddleware("middleware1"))
+
+	return app.runtime.Service(), nil
+}
+
+// Service Sample define
+func NewSampleService(name string, opts ...runtime.Option) (_ toolkit.Service, err error) {
+	app := new(service)
+
+	app.runtime, err = controller.NewRuntime(context.Background(), name, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	// loop over plugins and initialize plugin instance
+	plugin_pgsql := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "pgsql"})
+	plugin_redis := redis.NewPlugin(app.runtime, &redis.Options{Name: "redis"})
+	plugin_redis2 := redis.NewPlugin(app.runtime, &redis.Options{Name: "redis2"})
+
+	// loop over plugins and register plugin in toolkit
+	app.runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
+	app.runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
+	app.runtime.Plugin().Provide(func() Redis2Plugin { return plugin_redis2 })
+
+	return app.runtime.Service(), nil
+}
+
+// Define GRPC services for Example GRPC server
 type ExampleRpcServer interface {
 	HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error)
 }
@@ -68,29 +130,4 @@ func (exampleGrpcRpcServer) mustEmbedUnimplementedExampleServer() {}
 func registerExampleGRPCServer(runtime runtime.Runtime, srv ExampleRpcServer) error {
 	runtime.Server().GRPC().RegisterService(&exampleGrpcRpcServer{srv})
 	return nil
-}
-
-func NewService(name string, opts ...runtime.Option) (_ toolkit.Service, err error) {
-	app := new(service)
-
-	app.runtime, err = controller.NewRuntime(context.Background(), name, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	// loop over plugins and initialize plugin instance
-	plugin_0 := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "pgsql"})
-	plugin_1 := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "redis"})
-
-	// loop over plugins and register plugin in toolkit
-	app.runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_0 })
-	app.runtime.Plugin().Provide(func() RedisPlugin { return plugin_1 })
-
-	// set descriptor to Example grpc server
-	app.runtime.Server().GRPCNew(name, nil)
-
-	app.runtime.Server().GRPC().SetDescriptor(Example_ServiceDesc)
-	app.runtime.Server().GRPC().SetConstructor(registerExampleGRPCServer)
-
-	return app.runtime.SVC(), nil
 }

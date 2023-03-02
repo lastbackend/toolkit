@@ -24,17 +24,28 @@ option (toolkit.plugins) = {
   plugin: "postgres_gorm"
 };
 
+option (toolkit.plugins) = {
+  prefix: "redis"
+  plugin: "redis"
+};
+
 
 // =====================================================
 // RPC methods
 // =====================================================
 service Example {
-
-  option (toolkit.plugins) = {
-    prefix: "redis"
+  option (toolkit.service).plugins = {
+    prefix: "redis1"
     plugin: "redis"
   };
 
   //  Example methods
   rpc HelloWorld(HelloWorldRequest) returns (HelloWorldResponse) {}
+};
+
+service Sample {
+  option (toolkit.service).plugins = {
+    prefix: "redis2"
+    plugin: "redis"
+  };
 };

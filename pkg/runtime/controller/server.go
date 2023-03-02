@@ -33,8 +33,8 @@ func (c *serverManager) HTTPGet(name string) server.HTTPServer {
 	return c.http[name]
 }
 
-func (c *serverManager) HTTPNew(name string, options *server.HTTPServerOptions) server.HTTPServer {
-	srv := http.NewServer(c.runtime, options)
+func (c *serverManager) HTTPNew(name string) server.HTTPServer {
+	srv := http.NewServer(c.runtime, name)
 	c.http[name] = srv
 	return c.http[name]
 }
@@ -43,8 +43,8 @@ func (c *serverManager) GRPCGet(name string) server.GRPCServer {
 	return c.grpc[name]
 }
 
-func (c *serverManager) GRPCNew(name string, options *server.GRPCServerOptions) server.GRPCServer {
-	srv := grpc.NewServer(c.runtime, options)
+func (c *serverManager) GRPCNew(name string) server.GRPCServer {
+	srv := grpc.NewServer(c.runtime, name)
 	c.grpc[name] = srv
 	return c.grpc[name]
 }

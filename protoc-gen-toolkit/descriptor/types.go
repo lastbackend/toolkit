@@ -118,10 +118,18 @@ func (e *Enum) FullyName() string {
 	return strings.Join(parts, ".")
 }
 
+type Plugin struct {
+	Prefix   string
+	Plugin   string
+	Pkg      string
+	IsGlobal bool
+}
+
 type Service struct {
 	*descriptorpb.ServiceDescriptorProto
 	File    *File
 	Methods []*Method
+	Plugins map[string][]*Plugin
 }
 
 func (s *Service) FullyName() string {

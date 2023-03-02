@@ -38,22 +38,19 @@ type service struct {
 	runtime runtime.Runtime
 }
 
-{{- if .Plugins }}
 // Plugins define
-{{- range $type, $plugins := .Plugins }}
-{{- range $index, $plugin := $plugins }}
-type {{ $plugin.Prefix | ToCamel }}Plugin interface {
-	{{ $type }}.Plugin
-}
-{{ end }}
-{{ end }}
-{{ end }}
+{{- if .Plugins }}
+{{- template "plugin-define" .Plugins }}
+{{- end }}
+{{- if .Plugins }}
+{{ range $svc := .Services }}
+{{- template "plugin-define" $svc.Plugins }}
+{{- end }}
+{{- end }}
 
-{{- if not .HasNotServer }}
-	{{ template "server-content" . }}
-{{ end }}
-
-func NewService(name string, opts ...runtime.Option) (_ toolkit.Service, err error) {
+{{ range $svc := .Services }}
+// Service {{ $svc.GetName }} define
+func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolkit.Service, err error) {
 	app := new(service)
 
 	app.runtime, err = controller.NewRuntime(context.Background(), name, opts...)
@@ -61,30 +58,37 @@ func NewService(name string, opts ...runtime.Option) (_ toolkit.Service, err err
 		return nil, err
 	}
 
-{{ if .Plugins }}{{ $count := 0 }}
+{{ if or .Plugins $svc.Plugins }}
 	// loop over plugins and initialize plugin instance
-	{{- range $type, $plugins := .Plugins }}
-	{{- range $index, $plugin := $plugins }}
-	plugin_{{ $count }} := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "{{ $plugin.Prefix | ToLower }}"})
-	{{- $count = inc $count }}
-	{{- end }}
-	{{- end }}
+	{{- template "plugin-init" $.Plugins }}
+	{{- template "plugin-init" $svc.Plugins }}
 {{ end }}
 
-{{ if .Plugins }}{{ $count := 0 }}
+{{ if or .Plugins $svc.Plugins }}
 	// loop over plugins and register plugin in toolkit
-	{{- range $type, $plugins := .Plugins }}
-	{{- range $index, $plugin := $plugins }}
-	app.runtime.Plugin().Provide(func() {{ $plugin.Prefix | ToCamel }}Plugin { return plugin_{{ $count }} })
-	{{- $count = inc $count }}
-	{{- end }}
-	{{- end }}
+	{{- template "plugin-register" $.Plugins }}
+	{{- template "plugin-register" $svc.Plugins }}
 {{ end }}
 
-{{- if not .HasNotServer }}
-{{ template "server-register-content" . }}
+{{ if $svc.Methods }}
+	// set descriptor to {{ $svc.GetName }} GRPC server
+	app.runtime.Server().GRPCNew(name)
+	app.runtime.Server().GRPC().SetDescriptor({{ $svc.GetName }}_ServiceDesc)
+	app.runtime.Server().GRPC().SetConstructor(register{{ $svc.GetName }}GRPCServer)
 {{ end }}
 
-	return app.runtime.SVC(), nil
+{{ if $svc.Methods }}
+	// create new {{ $svc.GetName }} HTTP server
+	app.runtime.Server().HTTPNew(name)
+	app.runtime.Server().HTTP().AddMiddleware("middleware1", {{ $svc.GetName | ToLower }}HTTPServerMiddleware)
+	app.runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", {{ $svc.GetName | ToLower }}HTTPServerSubscribeHandler, tk_http.WithMiddleware("middleware1"))
+{{ end }}
+
+	return app.runtime.Service(), nil
 }
+{{ end }}
+
+{{ template "grpc-service-define" . }}
+
+{{ template "http-handler-define" . }}
 `

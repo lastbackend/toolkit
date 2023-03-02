@@ -123,9 +123,10 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 
 	var pluginImportsExists = make(map[string]bool, 0)
 	var clientImportsExists = make(map[string]bool, 0)
-	var plugins = make(map[string][]*Plugin, 0)
+	var plugins = make(map[string][]*descriptor.Plugin, 0)
 	var clients = make(map[string]*Client, 0)
 	var pkgExists = make(map[string]bool, 0)
+	var plgExists = make(map[string]bool, 0)
 	var imports = g.prepareImports([]string{
 		"context",
 		"encoding/json",
@@ -144,17 +145,77 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 		imports = append(imports, pkg)
 	}
 
-	// Add imports for server
-	if g.hasServiceMethods(file) {
-
-		for _, svc := range file.Services {
-			for _, m := range svc.Methods {
-				pkg := m.RequestType.File.GoPkg
-				if pkg == file.GoPkg || pkgExists[pkg.Path] {
+	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Plugins) {
+		ePlugins := proto.GetExtension(file.Options, toolkit_annotattions.E_Plugins)
+		if ePlugins != nil {
+			plgs := ePlugins.([]*toolkit_annotattions.Plugin)
+			for _, props := range plgs {
+				if _, ok := plugins[props.Plugin]; !ok {
+					plugins[props.Plugin] = make([]*descriptor.Plugin, 0)
+				}
+				key := fmt.Sprintf("%s/%s", props.Plugin, props.Prefix)
+				if _, ok := plgExists[key]; ok {
 					continue
 				}
-				pkgExists[pkg.Path] = true
-				imports = append(imports, pkg)
+				if _, ok := pluginImportsExists[props.Plugin]; !ok {
+					imports = append(imports, descriptor.GoPackage{
+						Path: fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
+						Name: path.Base(fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
+					})
+				}
+				plugins[props.Plugin] = append(plugins[props.Plugin], &descriptor.Plugin{
+					Plugin:   props.Plugin,
+					Prefix:   props.Prefix,
+					Pkg:      strings.ToLower(props.Plugin),
+					IsGlobal: true,
+				})
+
+				plgExists[key] = true
+			}
+		}
+	}
+
+	for _, svc := range file.Services {
+		for _, m := range svc.Methods {
+			pkg := m.RequestType.File.GoPkg
+			if pkg == file.GoPkg || pkgExists[pkg.Path] {
+				continue
+			}
+			pkgExists[pkg.Path] = true
+			imports = append(imports, pkg)
+		}
+
+		svc.Plugins = make(map[string][]*descriptor.Plugin, 0)
+
+		if svc.Options != nil && proto.HasExtension(svc.Options, toolkit_annotattions.E_Service) {
+			eService := proto.GetExtension(svc.Options, toolkit_annotattions.E_Service)
+			if eService != nil {
+				ss := eService.(*toolkit_annotattions.Service)
+				if ss.Plugins != nil {
+					for _, props := range ss.Plugins {
+						if _, ok := svc.Plugins[props.Plugin]; !ok {
+							svc.Plugins[props.Plugin] = make([]*descriptor.Plugin, 0)
+						}
+						key := fmt.Sprintf("%s/%s", props.Plugin, props.Prefix)
+						if _, ok := plgExists[key]; ok {
+							continue
+						}
+						if _, ok := pluginImportsExists[props.Plugin]; !ok {
+							imports = append(imports, descriptor.GoPackage{
+								Path: fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
+								Name: path.Base(fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
+							})
+						}
+
+						svc.Plugins[props.Plugin] = append(svc.Plugins[props.Plugin], &descriptor.Plugin{
+							Plugin: props.Plugin,
+							Prefix: props.Prefix,
+							Pkg:    strings.ToLower(props.Plugin),
+						})
+
+						plgExists[key] = true
+					}
+				}
 			}
 		}
 	}
@@ -178,35 +239,11 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 		}
 	}
 
-	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Plugins) {
-		ePlugins := proto.GetExtension(file.Options, toolkit_annotattions.E_Plugins)
-		if ePlugins != nil {
-			plgs := ePlugins.([]*toolkit_annotattions.Plugin)
-			for _, props := range plgs {
-				if _, ok := plugins[props.Plugin]; !ok {
-					plugins[props.Plugin] = make([]*Plugin, 0)
-				}
-				if _, ok := pluginImportsExists[props.Plugin]; !ok {
-					imports = append(imports, descriptor.GoPackage{
-						Path: fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
-						Name: path.Base(fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
-					})
-				}
-				plugins[props.Plugin] = append(plugins[props.Plugin], &Plugin{
-					Plugin: props.Plugin,
-					Prefix: props.Prefix,
-					Pkg:    strings.ToLower(props.Plugin),
-				})
-			}
-		}
-	}
-
 	to := tplServiceOptions{
-		HasNotServer: !g.hasServiceMethods(file),
-		File:         file,
-		Imports:      imports,
-		Clients:      clients,
-		Plugins:      plugins,
+		File:    file,
+		Imports: imports,
+		Clients: clients,
+		Plugins: plugins,
 	}
 
 	content, err := applyServiceTemplate(to)

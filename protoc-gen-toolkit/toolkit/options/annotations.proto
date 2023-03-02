@@ -22,6 +22,14 @@ extend google.protobuf.FileOptions {
   TestSpec tests_spec = 50004;
 }
 
+message Service {
+  repeated Plugin plugins = 1;
+}
+
+extend google.protobuf.ServiceOptions {
+  Service service = 70001;
+}
+
 message TestSpec {
   MockeryTestsSpec mockery = 1;
 }

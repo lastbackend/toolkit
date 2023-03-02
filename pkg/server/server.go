@@ -59,9 +59,6 @@ type HTTPServerDecorator interface {
 	SetErrorHandlerFunc(hf func(http.ResponseWriter, error))
 }
 
-type HTTPServerOptions struct {
-}
-
 type HTTPServerHandler struct {
 	Method  string
 	Path    string
@@ -96,8 +93,4 @@ type GRPCServerDecorator interface {
 	Start(ctx context.Context) error
 	Stop() error
 	SetService(constructor interface{})
-}
-
-type GRPCServerOptions struct { // nolint
-	Name string
 }

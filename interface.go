@@ -48,10 +48,10 @@ type Server interface {
 	GRPC() server.GRPCServer
 
 	HTTPGet(name string) server.HTTPServer
-	HTTPNew(name string, options *server.HTTPServerOptions) server.HTTPServer
+	HTTPNew(name string) server.HTTPServer
 
 	GRPCGet(name string) server.GRPCServer
-	GRPCNew(name string, options *server.GRPCServerOptions) server.GRPCServer
+	GRPCNew(name string) server.GRPCServer
 }
 
 type Package interface {
