@@ -19,8 +19,7 @@ package centrifuge
 import (
 	"context"
 	"github.com/centrifugal/centrifuge-go"
-	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/pkg/config"
+	"github.com/lastbackend/toolkit/pkg/runtime"
 	"sync"
 	"time"
 )
@@ -31,11 +30,7 @@ const (
 )
 
 type Plugin interface {
-	toolkit.Plugin
-
 	Client() *centrifuge.Client
-
-	Register(app toolkit.Service, opts *Options) error
 }
 
 type Options struct {
@@ -66,6 +61,8 @@ type plugin struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	runtime runtime.Runtime
+
 	prefix    string
 	envPrefix string
 	service   string
@@ -75,33 +72,21 @@ type plugin struct {
 	client *centrifuge.Client
 }
 
-func NewPlugin(service toolkit.Service, opts *Options) Plugin {
+func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
 	p := new(plugin)
 
+	p.runtime = runtime
 	p.prefix = opts.Name
 	if p.prefix == "" {
 		p.prefix = defaultPrefix
 	}
 
-	if err := config.Parse(&p.opts, p.prefix); err != nil {
+	if err := runtime.Config().Parse(&p.opts, p.prefix); err != nil {
 		return nil
 	}
 
-	err := p.Register(service, opts)
-	if err != nil {
-		return nil
-	}
+	runtime.Plugin().Register(p)
 	return p
-}
-
-// Register - registers the plugin implements message distribution using Centrifuge as a broker service
-func (p *plugin) Register(app toolkit.Service, _ *Options) error {
-
-	if err := app.PluginRegister(p); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (p *plugin) Start(ctx context.Context) error {

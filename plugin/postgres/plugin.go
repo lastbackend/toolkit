@@ -22,9 +22,8 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
 	"github.com/jmoiron/sqlx"
-	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/pkg/config"
-	"github.com/lastbackend/toolkit/pkg/runtime/types"
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 
@@ -53,10 +52,7 @@ const (
 )
 
 type Plugin interface {
-	types.Plugin
-
 	DB() *sqlx.DB
-	Register(app toolkit.Service, opts *Options) error
 }
 
 type Options struct {
@@ -76,6 +72,9 @@ type Config struct {
 }
 
 type plugin struct {
+	log     logger.Logger
+	runtime runtime.Runtime
+
 	prefix     string
 	envPrefix  string
 	connection string
@@ -86,34 +85,24 @@ type plugin struct {
 	//probe toolkit.Probe
 }
 
-func NewPlugin(service toolkit.Service, opts *Options) Plugin {
+func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
 	p := new(plugin)
+
+	p.runtime = runtime
+	p.log = runtime.Log()
 
 	p.prefix = opts.Name
 	if p.prefix == "" {
 		p.prefix = defaultPrefix
 	}
 
-	if err := config.Parse(&p.opts, p.prefix); err != nil {
+	if err := runtime.Config().Parse(&p.opts, p.prefix); err != nil {
 		return nil
 	}
 
-	//p.probe = service.ProbesServer().AddReadinessFunc("")
-	err := p.Register(service, opts)
-	if err != nil {
-		return nil
-	}
+	//p.probe = service.Probe()
+	runtime.Plugin().Register(p)
 	return p
-}
-
-// Register - registers the plugin implements storage using Postgres as a database storage
-func (p *plugin) Register(app toolkit.Service, _ *Options) error {
-
-	//if err := app.PluginRegister(p); err != nil {
-	//	return err
-	//}
-
-	return nil
 }
 
 func (p *plugin) DB() *sqlx.DB {
