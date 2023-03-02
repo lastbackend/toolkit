@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/lastbackend/toolkit/pkg/server"
 	"io"
 	"net/http"
 
@@ -92,6 +93,11 @@ func exampleHTTPServerSubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+const (
+	AuthMiddlerware    server.KindMiddleware = "authMiddleware"
+	requestMiddlerware server.KindMiddleware = "requestMiddlerware"
+)
+
 func NewService(name string, opts ...runtime.Option) (toolkit.Service, error) {
 	var err error
 
@@ -118,8 +124,11 @@ func NewService(name string, opts ...runtime.Option) (toolkit.Service, error) {
 	// create new Example http server
 	app.runtime.Server().HTTPNew(name, nil)
 
-	app.runtime.Server().HTTP().AddMiddleware("middleware1", exampleHTTPServerMiddleware)
-	app.runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", exampleHTTPServerSubscribeHandler, tk_http.WithMiddleware("middleware1"))
+	app.runtime.Server().HTTP().UseMiddleware(AuthMiddlerware)
+
+	app.runtime.Server().HTTP().SetMiddleware(requestMiddlerware, exampleHTTPServerMiddleware)
+
+	app.runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", exampleHTTPServerSubscribeHandler, tk_http.WithMiddleware(requestMiddlerware))
 
 	return app.runtime.Service(), nil
 }

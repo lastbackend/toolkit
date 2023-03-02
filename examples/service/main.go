@@ -59,11 +59,11 @@ func main() {
 	app.Server().GRPC().SetService(server.NewServer)
 
 	// Add middleware
-	app.Server().HTTP().AddMiddleware("middleware1", server.ExampleHTTPServerMiddleware1)
-	app.Server().HTTP().AddMiddleware("middleware1", server.ExampleHTTPServerMiddleware2)
+	app.Server().HTTP().SetMiddleware("middleware1", server.ExampleHTTPServerMiddleware1)
+	app.Server().HTTP().SetMiddleware("middleware2", server.ExampleHTTPServerMiddleware2)
 
 	// set middleware as global middleware
-	app.Server().HTTP().UseMiddleware("middleware1", "")
+	app.Server().HTTP().UseMiddleware("middleware1")
 
 	// add handler to default http server
 	app.Server().HTTP().

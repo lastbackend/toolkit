@@ -27,26 +27,9 @@ type HTTPServer interface {
 	Start(ctx context.Context) error
 	Stop() error
 
-	UseMiddleware(...string)
-	AddMiddleware(name string, middleware HttpServerMiddleware)
-	AddHandler(method, path string, h http.HandlerFunc, opts ...HTTPServerOption)
+	UseMiddleware(...KindMiddleware)
 
-	SetService(fn interface{})
-	GetService() interface{}
-
-	Subscribe(event string, h websockets.EventHandler)
-
-	ServerWS(w http.ResponseWriter, r *http.Request)
-	SetCorsHandlerFunc(hf http.HandlerFunc)
-	SetErrorHandlerFunc(hf func(http.ResponseWriter, error))
-}
-
-type HTTPServerDecorator interface {
-	Start(ctx context.Context) error
-	Stop() error
-
-	UseMiddleware(...string)
-	AddMiddleware(name string, middleware HttpServerMiddleware)
+	SetMiddleware(name KindMiddleware, middleware HttpServerMiddleware)
 	AddHandler(method, path string, h http.HandlerFunc, opts ...HTTPServerOption)
 
 	SetService(fn interface{})
@@ -76,6 +59,7 @@ type HTTPServerOption interface {
 }
 
 type HttpServerMiddleware func(h http.Handler) http.Handler
+type KindMiddleware string
 
 type GRPCServer interface {
 	Start(ctx context.Context) error

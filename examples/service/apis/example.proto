@@ -39,11 +39,24 @@ option (toolkit.plugins) = {
 // =====================================================
 service Example {
 
+//  option (toolkit.http_server) = {
+//    middlewares: [
+//      "pgsql"
+//    ]
+//  };
+
+
   option (toolkit.plugins) = {
     prefix: "redis"
     plugin: "redis"
   };
 
   //  Example methods
-  rpc HelloWorld(HelloWorldRequest) returns (HelloWorldResponse) {}
+  rpc HelloWorld(HelloWorldRequest) returns (HelloWorldResponse) {
+//    option (toolkit.http_server) = {
+//      middlewares: [
+//        "pgsql"
+//      ]
+//    };
+  }
 };

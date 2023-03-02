@@ -41,14 +41,14 @@ const (
 
 type optionMiddleware struct {
 	kind       server.HttpOptionKind
-	middleware string
+	middleware server.KindMiddleware
 }
 
 func (optionMiddleware) Kind() server.HttpOptionKind {
 	return optionKindMiddleware
 }
 
-func WithMiddleware(middleware string) server.HTTPServerOption {
+func WithMiddleware(middleware server.KindMiddleware) server.HTTPServerOption {
 	return &optionMiddleware{kind: optionKindMiddleware, middleware: middleware}
 }
 

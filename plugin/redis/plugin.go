@@ -21,8 +21,8 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/pkg/extends/probes"
 	"github.com/lastbackend/toolkit/pkg/runtime"
+	"github.com/lastbackend/toolkit/pkg/tools/probes"
 	"strings"
 	"time"
 
