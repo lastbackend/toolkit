@@ -6,28 +6,24 @@ package servicepb
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"github.com/lastbackend/toolkit/pkg/client/grpc"
 	"io"
 	"net/http"
 
-	"github.com/lastbackend/toolkit/pkg/runtime"
-	"github.com/lastbackend/toolkit/pkg/runtime/controller"
-	"github.com/lastbackend/toolkit/pkg/runtime/logger"
-
-	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
-
 	toolkit "github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/gen/ptypes"
-	grpc "github.com/lastbackend/toolkit/pkg/client/grpc"
-
+	runtime "github.com/lastbackend/toolkit/pkg/runtime"
+	controller "github.com/lastbackend/toolkit/pkg/runtime/controller"
+	logger "github.com/lastbackend/toolkit/pkg/runtime/logger"
 	errors "github.com/lastbackend/toolkit/pkg/server/http/errors"
-	ws "github.com/lastbackend/toolkit/pkg/server/http/websockets"
 	"github.com/lastbackend/toolkit/plugin/postgres_gorm"
 	"github.com/lastbackend/toolkit/plugin/redis"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
-// Suppress "imported and not used" errors
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the toolkit package it is being compiled against and
+// suppress "imported and not used" errors
 var (
 	_ context.Context
 	_ logger.Logger
@@ -37,7 +33,7 @@ var (
 	_ errors.Err
 	_ io.Reader
 	_ json.Marshaler
-	_ ws.Client
+	//_ ws.Client
 )
 
 // Definitions
@@ -54,10 +50,9 @@ type RedisPlugin interface {
 	redis.Plugin
 }
 
-// GRPC servers define
+// Server API for Api service
 type ExampleRpcServer interface {
 	HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error)
-	mustEmbedUnimplementedExampleServer()
 }
 
 type exampleGrpcRpcServer struct {
@@ -75,26 +70,7 @@ func registerExampleGRPCServer(runtime runtime.Runtime, srv ExampleRpcServer) er
 	return nil
 }
 
-// HTTP server middleware
-func exampleHTTPServerMiddleware(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("Call: ExampleMiddleware")
-
-		// Set example data to request context
-		ctx := context.WithValue(r.Context(), "test-data", "example context data")
-
-		h.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-// HTTP server custom handler
-func exampleHTTPServerSubscribeHandler(w http.ResponseWriter, r *http.Request) {
-	return
-}
-
-func NewService(name string, opts ...runtime.Option) (toolkit.Service, error) {
-	var err error
-
+func NewService(name string, opts ...runtime.Option) (_ toolkit.Service, err error) {
 	app := new(service)
 
 	app.runtime, err = controller.NewRuntime(context.Background(), name, opts...)
@@ -103,24 +79,18 @@ func NewService(name string, opts ...runtime.Option) (toolkit.Service, error) {
 	}
 
 	// loop over plugins and initialize plugin instance
-	plugin_pgsql := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "pgsql"})
-	plugin_redis := redis.NewPlugin(app.runtime, &redis.Options{Name: "redis"})
+	plugin_0 := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "pgsql"})
+	plugin_1 := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "redis"})
 
 	// loop over plugins and register plugin in toolkit
-	app.runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
-	app.runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
+	app.runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_0 })
+	app.runtime.Plugin().Provide(func() RedisPlugin { return plugin_1 })
 
 	// set descriptor to Example grpc server
 	app.runtime.Server().GRPCNew(name, nil)
 
 	app.runtime.Server().GRPC().SetDescriptor(Example_ServiceDesc)
 	app.runtime.Server().GRPC().SetConstructor(registerExampleGRPCServer)
-
-	// create new Example http server
-	app.runtime.Server().HTTPNew(name, nil)
-
-	app.runtime.Server().HTTP().AddMiddleware("middleware1", exampleHTTPServerMiddleware)
-	app.runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", exampleHTTPServerSubscribeHandler, tk_http.WithMiddleware("middleware1"))
 
 	return app.runtime.SVC(), nil
 }

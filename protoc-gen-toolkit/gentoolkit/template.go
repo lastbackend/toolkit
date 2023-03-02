@@ -49,7 +49,8 @@ var (
 	contentClientTemplate   = template.Must(template.New("client-content").Funcs(funcMap).Parse(templates.ClientTpl))
 	contentTestStubTemplate = template.Must(template.New("stub-content-mockery").Parse(templates.TestTpl))
 	_                       = template.Must(contentServiceTemplate.New("services-content").Funcs(funcMap).Parse(templates.ServiceTpl))
-	_                       = template.Must(contentServiceTemplate.New("server-content").Parse(templates.ServerTpl))
+	_                       = template.Must(contentServiceTemplate.New("server-content").Parse(templates.ServerGRPCTpl))
+	_                       = template.Must(contentServiceTemplate.New("server-register-content").Parse(templates.ServerGRPCRegisterTpl))
 )
 
 type Plugin struct {

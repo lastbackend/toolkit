@@ -19,24 +19,24 @@ package middleware
 import (
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/gateway/config"
-	pb "github.com/lastbackend/toolkit/examples/gateway/gen/server"
 )
 
 type Middleware struct {
-	config *config.Config
-	svc    toolkit.Service
+	//config *config.Config
+	//svc    toolkit.Service
 }
 
 func New(cfg *config.Config, svc toolkit.Service) Middleware {
-	mw := Middleware{
-		config: cfg,
-		svc:    svc,
-	}
+	//mw := Middleware{
+	//	config: cfg,
+	//	svc:    svc,
+	//}
 
-	svc.Router().AddMiddleware(mw.RequestID)
+	//svc.Router().AddMiddleware(mw.RequestID)
 
 	// Example entities
-	pb.HelloWorldMiddlewareAdd(mw.ExampleMiddleware)
+	//pb.HelloWorldMiddlewareAdd(mw.ExampleMiddleware)
 
-	return mw
+	//return mw
+	return Middleware{}
 }

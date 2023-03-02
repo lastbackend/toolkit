@@ -16,8 +16,8 @@ limitations under the License.
 
 package templates
 
-// ServerTpl is the server template used for new services.
-var ServerTpl = `
+// ServerGRPCTpl is the server template used for new services.
+var ServerGRPCTpl = `
 {{ range $svc := .Services }}
 	// Server API for Api service
 	type {{ $svc.GetName }}RpcServer interface {
@@ -54,5 +54,20 @@ var ServerTpl = `
 		{{ end }}{{ end }}
 	{{ end }}
 	func ({{ $svc.GetName | ToLower }}GrpcRpcServer) mustEmbedUnimplemented{{ $svc.GetName }}Server() {}
+
+	func register{{ $svc.GetName }}GRPCServer(runtime runtime.Runtime, srv {{ $svc.GetName }}RpcServer) error {
+		runtime.Server().GRPC().RegisterService(&{{ $svc.GetName | ToLower }}GrpcRpcServer{srv})
+		return nil
+	}
+{{ end }}
+`
+
+var ServerGRPCRegisterTpl = `
+{{ range $svc := .Services }}
+	// set descriptor to {{ $svc.GetName }} grpc server
+	app.runtime.Server().GRPCNew(name, nil)
+
+	app.runtime.Server().GRPC().SetDescriptor({{ $svc.GetName }}_ServiceDesc)
+	app.runtime.Server().GRPC().SetConstructor(register{{ $svc.GetName }}GRPCServer)
 {{ end }}
 `

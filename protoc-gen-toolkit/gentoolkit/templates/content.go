@@ -21,23 +21,70 @@ var ContentTpl = `
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the toolkit package it is being compiled against and
 // suppress "imported and not used" errors
-var _ context.Context
-var _ logger.Logger
-var _ emptypb.Empty
-var _ server.Server
-var _ grpc.Client
-var _ http.Handler
-var _ errors.Err
-var _ io.Reader
-var _ json.Marshaler
-var _ ws.Client
-{{- if not .HasNotServer }}
-var _ server.Server
+var (
+	_ context.Context
+	_ logger.Logger
+	_ emptypb.Empty
+	_ grpc.Client
+	_ http.Handler
+	_ errors.Err
+	_ io.Reader
+	_ json.Marshaler
+	//_ ws.Client
+)
+
+// Definitions
+type service struct {
+	runtime runtime.Runtime
+}
+
+{{- if .Plugins }}
+// Plugins define
+{{- range $type, $plugins := .Plugins }}
+{{- range $index, $plugin := $plugins }}
+type {{ $plugin.Prefix | ToCamel }}Plugin interface {
+	{{ $type }}.Plugin
+}
+{{ end }}
+{{ end }}
 {{ end }}
 
-{{ template "services-content" . }}
-
-{{ if not .HasNotServer }}
+{{- if not .HasNotServer }}
 	{{ template "server-content" . }}
 {{ end }}
+
+func NewService(name string, opts ...runtime.Option) (_ toolkit.Service, err error) {
+	app := new(service)
+
+	app.runtime, err = controller.NewRuntime(context.Background(), name, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+{{ if .Plugins }}{{ $count := 0 }}
+	// loop over plugins and initialize plugin instance
+	{{- range $type, $plugins := .Plugins }}
+	{{- range $index, $plugin := $plugins }}
+	plugin_{{ $count }} := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "{{ $plugin.Prefix | ToLower }}"})
+	{{- $count = inc $count }}
+	{{- end }}
+	{{- end }}
+{{ end }}
+
+{{ if .Plugins }}{{ $count := 0 }}
+	// loop over plugins and register plugin in toolkit
+	{{- range $type, $plugins := .Plugins }}
+	{{- range $index, $plugin := $plugins }}
+	app.runtime.Plugin().Provide(func() {{ $plugin.Prefix | ToCamel }}Plugin { return plugin_{{ $count }} })
+	{{- $count = inc $count }}
+	{{- end }}
+	{{- end }}
+{{ end }}
+
+{{- if not .HasNotServer }}
+{{ template "server-register-content" . }}
+{{ end }}
+
+	return app.runtime.SVC(), nil
+}
 `

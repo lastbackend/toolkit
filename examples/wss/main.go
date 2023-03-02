@@ -16,56 +16,57 @@ limitations under the License.
 
 package main
 
-import (
-	"context"
-	"fmt"
-	logger2 "github.com/lastbackend/toolkit/pkg/runtime/logger"
-	"io"
-	"net/http"
-	"os"
-
-	pb "github.com/lastbackend/toolkit/examples/wss/gen/server"
-	"github.com/lastbackend/toolkit/examples/wss/middleware"
-	"github.com/lastbackend/toolkit/pkg/http"
-	"github.com/lastbackend/toolkit/pkg/http/ws"
-)
-
-func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if _, err := io.WriteString(w, `{"alive": true}`); err != nil {
-		fmt.Println(err)
-	}
-}
-
-func TestWSHandler(ctx context.Context, event ws.Event, c *ws.Client) error {
-	fmt.Println("Event:", event.Type, string(event.Payload))
-	fmt.Println("Context:", ctx.Value("test-data"))
-	return c.WriteMessage(ws.TextMessage, event.Payload)
-}
-
+// import (
+//
+//	"context"
+//	"fmt"
+//	logger2 "github.com/lastbackend/toolkit/pkg/runtime/logger"
+//	"io"
+//	"net/http"
+//	"os"
+//
+//	pb "github.com/lastbackend/toolkit/examples/wss/gen/server"
+//	"github.com/lastbackend/toolkit/examples/wss/middleware"
+//	"github.com/lastbackend/toolkit/pkg/http"
+//	"github.com/lastbackend/toolkit/pkg/http/ws"
+//
+// )
+//
+//	func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
+//		w.Header().Set("Content-Type", "application/json")
+//		w.WriteHeader(http.StatusOK)
+//		if _, err := io.WriteString(w, `{"alive": true}`); err != nil {
+//			fmt.Println(err)
+//		}
+//	}
+//
+//	func TestWSHandler(ctx context.Context, event ws.Event, c *ws.Client) error {
+//		fmt.Println("Event:", event.Type, string(event.Payload))
+//		fmt.Println("Context:", ctx.Value("test-data"))
+//		return c.WriteMessage(ws.TextMessage, event.Payload)
+//	}
 func main() {
-	log := logger2.DefaultLogger
-	opts := log.Options()
-	opts.Level = logger2.DebugLevel
-	opts.VerboseLevel = logger2.DebugLevel
-	log.Init(opts)
-	log = log.WithFields(logger2.Fields{
-		"service": "wss",
-	})
-
-	log.Infof("Start process")
-
-	svc := pb.NewService("wss")
-	svc.Meta().SetEnvPrefix("WSS")
-	svc.AddMiddleware(middleware.New)
-
-	svc.Router().Subscribe("event:name", TestWSHandler)
-
-	svc.Router().Handle(http.MethodGet, "/health", HealthCheckHandler, http.HandleOptions{})
-
-	if err := svc.Run(context.Background()); err != nil {
-		os.Exit(1)
-		return
-	}
+	//	log := logger2.DefaultLogger
+	//	opts := log.Options()
+	//	opts.Level = logger2.DebugLevel
+	//	opts.VerboseLevel = logger2.DebugLevel
+	//	log.Init(opts)
+	//	log = log.WithFields(logger2.Fields{
+	//		"service": "wss",
+	//	})
+	//
+	//	log.Infof("Start process")
+	//
+	//	svc := pb.NewService("wss")
+	//	svc.Meta().SetEnvPrefix("WSS")
+	//	svc.AddMiddleware(middleware.New)
+	//
+	//	svc.Router().Subscribe("event:name", TestWSHandler)
+	//
+	//	svc.Router().Handle(http.MethodGet, "/health", HealthCheckHandler, http.HandleOptions{})
+	//
+	//	if err := svc.Run(context.Background()); err != nil {
+	//		os.Exit(1)
+	//		return
+	//	}
 }

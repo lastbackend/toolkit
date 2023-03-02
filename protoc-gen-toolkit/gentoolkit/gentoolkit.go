@@ -128,21 +128,15 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 	var pkgExists = make(map[string]bool, 0)
 	var imports = g.prepareImports([]string{
 		"context",
-		"io",
-		"os",
-		"os/signal",
-		"net/http",
-		"syscall",
 		"encoding/json",
-		"toolkit github.com/lastbackend/toolkit",
-		"server github.com/lastbackend/toolkit/pkg/server",
-		"router github.com/lastbackend/toolkit/pkg/router",
+		"io",
+		"net/http",
+		"runtime github.com/lastbackend/toolkit/pkg/runtime",
+		"controller github.com/lastbackend/toolkit/pkg/runtime/controller",
 		"logger github.com/lastbackend/toolkit/pkg/runtime/logger",
-		"grpc github.com/lastbackend/toolkit/pkg/client/grpc",
-		"errors github.com/lastbackend/toolkit/pkg/router/errors",
-		"ws github.com/lastbackend/toolkit/pkg/router/ws",
+		"toolkit github.com/lastbackend/toolkit",
+		"errors github.com/lastbackend/toolkit/pkg/server/http/errors",
 		"emptypb google.golang.org/protobuf/types/known/emptypb",
-		"fx go.uber.org/fx",
 	})
 
 	for _, pkg := range g.baseImports {

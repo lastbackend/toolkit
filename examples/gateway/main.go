@@ -16,47 +16,47 @@ limitations under the License.
 
 package main
 
-import (
-	"context"
-	"fmt"
-	"github.com/lastbackend/toolkit/pkg/runtime/types"
-	"io"
-	"net/http"
-	"os"
-
-	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/examples/gateway/config"
-	pb "github.com/lastbackend/toolkit/examples/gateway/gen/server"
-	"github.com/lastbackend/toolkit/examples/gateway/middleware"
-	"github.com/lastbackend/toolkit/pkg/http"
-	"github.com/lastbackend/toolkit/pkg/logger"
-)
-
-func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if _, err := io.WriteString(w, `{"alive": true}`); err != nil {
-		fmt.Println(err)
-	}
-}
-
+// import (
+//
+//	"context"
+//	"fmt"
+//	"io"
+//	"net/http"
+//	"os"
+//
+//	"github.com/lastbackend/toolkit"
+//	"github.com/lastbackend/toolkit/examples/gateway/config"
+//	pb "github.com/lastbackend/toolkit/examples/gateway/gen/server"
+//	"github.com/lastbackend/toolkit/examples/gateway/middleware"
+//	"github.com/lastbackend/toolkit/pkg/http"
+//	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+//
+// )
+//
+//	func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
+//		w.Header().Set("Content-Type", "application/json")
+//		w.WriteHeader(http.StatusOK)
+//		if _, err := io.WriteString(w, `{"alive": true}`); err != nil {
+//			fmt.Println(err)
+//		}
+//	}
 func main() {
-
-
-	svc := pb.NewService("gateway", types.WithEnvPrefix("GTW"))
-	svc.Log().Infof("Start process")
-
-	cfg := config.New()
-
-	svc.Config.Provide(cfg)
-	svc.Server().HTTP()..AddMiddleware(middleware.New)
-
-	svc.Server().HTTP().
-		AddHandler(http.MethodGet, "/health", HealthCheckHandler)
-
-	if err := svc.Run(context.Background()); err != nil {
-		svc.Log().Errorf("Failed run service: %v", err)
-		os.Exit(1)
-		return
-	}
+	//
+	//
+	//	svc := pb.NewService("gateway", types.WithEnvPrefix("GTW"))
+	//	svc.Log().Infof("Start process")
+	//
+	//	cfg := config.New()
+	//
+	//	svc.Config.Provide(cfg)
+	//	svc.Server().HTTP()..AddMiddleware(middleware.New)
+	//
+	//	svc.Server().HTTP().
+	//		AddHandler(http.MethodGet, "/health", HealthCheckHandler)
+	//
+	//	if err := svc.Run(context.Background()); err != nil {
+	//		svc.Log().Errorf("Failed run service: %v", err)
+	//		os.Exit(1)
+	//		return
+	//	}
 }

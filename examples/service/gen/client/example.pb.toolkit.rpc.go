@@ -12,10 +12,8 @@ import (
 )
 
 // Suppress "imported and not used" errors
-var (
-	_ context.Context
-	_ emptypb.Empty
-)
+var _ context.Context
+var _ emptypb.Empty
 
 // Client gRPC API for Example service
 func NewExampleRPCClient(service string, c grpc.Client) ExampleRPCClient {

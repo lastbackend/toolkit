@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 	"text/template"
 
-	ustrings "github.com/lastbackend/toolkit/cli/pkg/util/strings"
+	ustrings "github.com/lastbackend/toolkit/pkg/util/strings"
 )
 
 type Generator interface {

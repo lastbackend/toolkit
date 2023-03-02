@@ -34,3 +34,4 @@ _cgo_export.*
 *~
 *.swp
 *.swo
+/examples/

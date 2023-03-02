@@ -18,7 +18,6 @@ package middleware
 
 import (
 	"github.com/lastbackend/toolkit"
-	pb "github.com/lastbackend/toolkit/examples/wss/gen/server"
 )
 
 type Middleware struct {
@@ -26,14 +25,15 @@ type Middleware struct {
 }
 
 func New(svc toolkit.Service) Middleware {
-	mw := Middleware{
-		svc: svc,
-	}
+	//mw := Middleware{
+	//	svc: svc,
+	//}
+	//
+	//svc.Router().AddMiddleware(mw.RequestID)
+	//
+	//// Example entities
+	//pb.SubscribeMiddlewareAdd(mw.ExampleMiddleware)
 
-	svc.Router().AddMiddleware(mw.RequestID)
-
-	// Example entities
-	pb.SubscribeMiddlewareAdd(mw.ExampleMiddleware)
-
-	return mw
+	//return mw
+	return Middleware{}
 }
