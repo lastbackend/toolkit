@@ -17,8 +17,8 @@ limitations under the License.
 package rabbitmq
 
 import (
-	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/pkg/config"
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"github.com/streadway/amqp"
 	"sync"
 
@@ -31,13 +31,9 @@ const (
 )
 
 type Plugin interface {
-	toolkit.Plugin
-
 	Publish(event string, payload []byte, opts *PublishOptions) error
 	Subscribe(service, event string, handler Handler, opts *SubscribeOptions) (Subscriber, error)
 	Channel() (*amqp.Channel, error)
-
-	Register(app toolkit.Service, opts *Options) error
 }
 
 type Options struct {
@@ -66,6 +62,9 @@ type Config struct {
 type plugin struct {
 	sync.RWMutex
 
+	log     logger.Logger
+	runtime runtime.Runtime
+
 	ctx    context.Context
 	cancel context.CancelFunc
 
@@ -74,41 +73,28 @@ type plugin struct {
 
 	opts Config
 
-	broker *broker
-	probe  toolkit.Probe
-
+	broker      *broker
 	subscribers map[string]bool
 }
 
-func NewPlugin(service toolkit.Service, opts *Options) Plugin {
+func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
 	p := new(plugin)
+
+	p.runtime = runtime
+	p.log = runtime.Log()
 
 	p.prefix = opts.Name
 	if p.prefix == "" {
 		p.prefix = defaultPrefix
 	}
 
-	if err := config.Parse(&p.opts, p.prefix); err != nil {
+	if err := runtime.Config().Parse(&p.opts, p.prefix); err != nil {
 		return nil
 	}
 
-	p.probe = service.Probe()
-	p.subscribers = make(map[string]bool, 0)
-	err := p.Register(service, opts)
-	if err != nil {
-		return nil
-	}
+	//p.probe = service.Probe()
+	runtime.Plugin().Register(p)
 	return p
-}
-
-// Register - registers the plugin implements amqp using rabbitmq as broker
-func (p *plugin) Register(app toolkit.Service, _ *Options) error {
-
-	if err := app.PluginRegister(p); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (p *plugin) Start(ctx context.Context) error {
@@ -135,9 +121,9 @@ func (p *plugin) Start(ctx context.Context) error {
 		return err
 	}
 
-	p.probe.AddReadinessFunc(p.prefix, func() error {
-		return p.broker.Connected()
-	})
+	//p.probe.AddReadinessFunc(p.prefix, func() error {
+	//	return p.broker.Connected()
+	//})
 
 	return nil
 }

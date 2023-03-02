@@ -21,8 +21,8 @@ import (
 	"github.com/go-pg/pg/v10"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
-	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/pkg/config"
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"github.com/pkg/errors"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
@@ -30,7 +30,6 @@ import (
 
 	"context"
 	"fmt"
-	"time"
 )
 
 const (
@@ -43,10 +42,7 @@ const (
 )
 
 type Plugin interface {
-	toolkit.Plugin
-
 	DB() *pg.DB
-	Register(app toolkit.Service, opts *Options) error
 }
 
 type Options struct {
@@ -66,44 +62,34 @@ type Config struct {
 }
 
 type plugin struct {
+	log     logger.Logger
+	runtime runtime.Runtime
+
 	prefix     string
 	envPrefix  string
 	connection string
 	opts       Config
 
 	db *pg.DB
-
-	probe toolkit.Probe
 }
 
-func NewPlugin(service toolkit.Service, opts *Options) Plugin {
+func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
 	p := new(plugin)
+	p.runtime = runtime
+	p.log = runtime.Log()
 
 	p.prefix = opts.Name
 	if p.prefix == "" {
 		p.prefix = defaultPrefix
 	}
 
-	if err := config.Parse(&p.opts, p.prefix); err != nil {
+	if err := runtime.Config().Parse(&p.opts, p.prefix); err != nil {
 		return nil
 	}
 
-	p.probe = service.Probe()
-	err := p.Register(service, opts)
-	if err != nil {
-		return nil
-	}
+	//p.probe = service.Probe()
+	runtime.Plugin().Register(p)
 	return p
-}
-
-// Register - registers the plugin implements storage using Postgres as a database storage
-func (p *plugin) Register(app toolkit.Service, _ *Options) error {
-
-	if err := app.PluginRegister(p); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (p *plugin) DB() *pg.DB {
@@ -131,14 +117,14 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 	db := pg.Connect(opt)
 	db.AddQueryHook(dbLogger{})
 
-	p.probe.AddReadinessFunc(p.prefix, func() error {
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		if db == nil {
-			return fmt.Errorf("database is nil")
-		}
-		return db.Ping(ctx)
-	})
+	//p.probe.AddReadinessFunc(p.prefix, func() error {
+	//	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	//	defer cancel()
+	//	if db == nil {
+	//		return fmt.Errorf("database is nil")
+	//	}
+	//	return db.Ping(ctx)
+	//})
 
 	p.db = db
 
