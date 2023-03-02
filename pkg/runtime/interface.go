@@ -18,6 +18,8 @@ type Runtime interface {
 	Config() Config
 	Plugin() Plugin
 
+	//Tools()
+
 	Service() toolkit.Service
 
 	Start(ctx context.Context, fn ...interface{}) error
@@ -70,3 +72,9 @@ type Package interface {
 	OnStart(ctx context.Context) error
 	OnStop(ctx context.Context) error
 }
+
+//type Tools interface {
+//	Metrics() metrics.Metrics
+//	Probes() probes.Probes
+//	Traces() trace.Trace
+//}

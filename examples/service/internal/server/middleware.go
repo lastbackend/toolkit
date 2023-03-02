@@ -3,10 +3,13 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/lastbackend/toolkit/pkg/server"
 	"net/http"
 )
 
 type Data string
+
+const MWAuthenticate server.KindMiddleware = "mwauthenticate"
 
 func ExampleHTTPServerMiddleware1(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

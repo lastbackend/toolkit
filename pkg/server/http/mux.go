@@ -134,11 +134,12 @@ func (s *httpServer) Start(_ context.Context) error {
 
 	for _, h := range s.handlers {
 
-		if logger2.V(logger2.DebugLevel, logger2.DefaultLogger) {
-			logger2.Debugf("register [http] route: %s", h.Path)
+		s.runtime.Log().Debugf("register [http] route: %s", h.Path)
+
+		if err = s.middlewares.apply(r, h); err != nil {
+			return err
 		}
 
-		s.middlewares.apply(r, h.Options)
 		r.Handle(h.Path, h.Handler).Methods(h.Method)
 	}
 
@@ -185,11 +186,11 @@ func (s *httpServer) Stop() error {
 	return err
 }
 
-func (s *httpServer) UseMiddleware(middlewares ...string) {
+func (s *httpServer) UseMiddleware(middlewares ...server.KindMiddleware) {
 	s.middlewares.SetGlobal(middlewares...)
 }
 
-func (s *httpServer) AddMiddleware(name string, middleware server.HttpServerMiddleware) {
+func (s *httpServer) SetMiddleware(name server.KindMiddleware, middleware server.HttpServerMiddleware) {
 	s.middlewares.Add(name, middleware)
 }
 
