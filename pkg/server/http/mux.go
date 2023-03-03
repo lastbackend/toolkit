@@ -67,7 +67,7 @@ type httpServer struct {
 	exit    chan chan error
 }
 
-func NewServer(runtime runtime.Runtime, _ *server.HTTPServerOptions) server.HTTPServer {
+func NewServer(runtime runtime.Runtime, options *server.HTTPServerOptions) server.HTTPServer {
 
 	s := &httpServer{
 		runtime:      runtime,
@@ -87,9 +87,37 @@ func NewServer(runtime runtime.Runtime, _ *server.HTTPServerOptions) server.HTTP
 		return nil
 	}
 
-	runtime.Config().Print(&s.opts, s.prefix)
+	if options != nil {
+		runtime.Config().Print(&s.opts, s.prefix)
+	}
 
 	return s
+}
+
+func (s *httpServer) parseOptions(options *server.HTTPServerOptions) {
+
+	if options != nil {
+		if options.Host != "" {
+			s.opts.Host = options.Host
+		}
+
+		if options.Port > 0 {
+			s.opts.Port = options.Port
+		}
+
+		if options.TLSConfig != nil {
+			s.opts.TLSConfig = options.TLSConfig
+		}
+	}
+}
+
+func (s *httpServer) Info() server.ServerInfo {
+	return server.ServerInfo{
+		Kind:      server.ServerKindHTTPServer,
+		Host:      s.opts.Host,
+		Port:      s.opts.Port,
+		TLSConfig: s.opts.TLSConfig,
+	}
 }
 
 func (s *httpServer) Start(_ context.Context) error {
@@ -137,6 +165,7 @@ func (s *httpServer) Start(_ context.Context) error {
 		}
 
 		r.Handle(h.Path, h.Handler).Methods(h.Method)
+		s.runtime.Log().Infof("bind handler: method: %s, path: %s", h.Method, h.Path)
 	}
 
 	go func() {

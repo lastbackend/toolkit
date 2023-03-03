@@ -23,7 +23,9 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/tools/probes"
 	"github.com/pkg/errors"
+	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
 	_ "github.com/lib/pq"
@@ -117,14 +119,7 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 	db := pg.Connect(opt)
 	db.AddQueryHook(dbLogger{})
 
-	//p.probe.AddReadinessFunc(p.prefix, func() error {
-	//	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	//	defer cancel()
-	//	if db == nil {
-	//		return fmt.Errorf("database is nil")
-	//	}
-	//	return db.Ping(ctx)
-	//})
+	p.runtime.Tools().Probes().RegisterCheck(p.prefix, probes.ReadinessProbe, PostgresPingChecker(db, 1*time.Second))
 
 	p.db = db
 
@@ -133,6 +128,17 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 
 func (p *plugin) Stop() error {
 	return nil
+}
+
+func PostgresPingChecker(database *pg.DB, timeout time.Duration) probes.HandleFunc {
+	return func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		if database == nil {
+			return fmt.Errorf("connection is nil")
+		}
+		return database.Conn().Ping(ctx)
+	}
 }
 
 func (p *plugin) RunMigration() error {

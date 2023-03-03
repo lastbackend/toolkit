@@ -9,8 +9,6 @@ import (
 	"github.com/lastbackend/toolkit/pkg/server/http"
 )
 
-const DefaultGRPCServer = "default"
-
 type serverManager struct {
 	runtime.Server
 
@@ -39,14 +37,22 @@ func (c *serverManager) HTTPNew(name string, options *server.HTTPServerOptions) 
 	return c.http[name]
 }
 
+func (c *serverManager) HTTPList() map[string]server.HTTPServer {
+	return c.http
+}
+
 func (c *serverManager) GRPCGet(name string) server.GRPCServer {
 	return c.grpc[name]
 }
 
 func (c *serverManager) GRPCNew(name string, options *server.GRPCServerOptions) server.GRPCServer {
-	srv := grpc.NewServer(c.runtime, options)
+	srv := grpc.NewServer(c.runtime, name, options)
 	c.grpc[name] = srv
 	return c.grpc[name]
+}
+
+func (c *serverManager) GRPCList() map[string]server.GRPCServer {
+	return c.grpc
 }
 
 func (c *serverManager) Provides() []interface{} {
@@ -99,7 +105,7 @@ func (c *serverManager) Start(ctx context.Context) error {
 	return nil
 }
 
-func (c *serverManager) Stop(ctx context.Context) error {
+func (c *serverManager) Stop(_ context.Context) error {
 
 	for _, s := range c.grpc {
 		if err := s.Stop(); err != nil {
@@ -125,5 +131,6 @@ func newServerController(_ context.Context, runtime runtime.Runtime, log logger.
 
 	pl.http = make(map[string]server.HTTPServer, 0)
 	pl.grpc = make(map[string]server.GRPCServer, 0)
+
 	return pl
 }

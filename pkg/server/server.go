@@ -18,6 +18,7 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"github.com/lastbackend/toolkit/pkg/server/http/websockets"
 	"google.golang.org/grpc"
 	"net/http"
@@ -36,6 +37,7 @@ type HTTPServer interface {
 	GetService() interface{}
 
 	Subscribe(event string, h websockets.EventHandler)
+	Info() ServerInfo
 
 	ServerWS(w http.ResponseWriter, r *http.Request)
 	SetCorsHandlerFunc(hf http.HandlerFunc)
@@ -43,6 +45,18 @@ type HTTPServer interface {
 }
 
 type HTTPServerOptions struct {
+	Host string
+	Port int
+
+	TLSConfig *tls.Config
+}
+
+type ServerInfo struct {
+	Kind ServerKind
+	Host string
+	Port int
+
+	TLSConfig *tls.Config
 }
 
 type HTTPServerHandler struct {
@@ -74,6 +88,14 @@ type GRPCServer interface {
 	GetConstructor() interface{}
 
 	RegisterService(service interface{})
+	Info() ServerInfo
+}
+
+type GRPCServerOptions struct {
+	Host string
+	Port int
+
+	TLSConfig *tls.Config
 }
 
 type GRPCServerDecorator interface {
@@ -82,6 +104,9 @@ type GRPCServerDecorator interface {
 	SetService(constructor interface{})
 }
 
-type GRPCServerOptions struct { // nolint
-	Name string
-}
+type ServerKind string
+
+const (
+	ServerKindHTTPServer = "http"
+	ServerKindGRPCServer = "grpc"
+)

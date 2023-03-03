@@ -63,7 +63,6 @@ type Config struct {
 	EnableCORS bool
 	IsDisable  bool
 
-	Wrappers  []Wrapper
 	TLSConfig *tls.Config
 }
 

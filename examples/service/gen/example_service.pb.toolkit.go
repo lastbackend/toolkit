@@ -126,6 +126,7 @@ func NewService(name string, opts ...runtime.Option) (toolkit.Service, error) {
 
 	app.runtime.Server().HTTP().UseMiddleware(AuthMiddlerware)
 
+	app.runtime.Server().HTTP().SetMiddleware(AuthMiddlerware, exampleHTTPServerMiddleware)
 	app.runtime.Server().HTTP().SetMiddleware(requestMiddlerware, exampleHTTPServerMiddleware)
 
 	app.runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", exampleHTTPServerSubscribeHandler, tk_http.WithMiddleware(requestMiddlerware))
