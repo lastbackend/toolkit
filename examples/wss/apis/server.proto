@@ -58,7 +58,7 @@ service Router {
   };
   option (toolkit.http_proxy) = {
     middlewares: [
-      "request_id"
+      "middleware1"
     ]
   };
 
@@ -78,7 +78,7 @@ service Router {
     option (toolkit.server).http_proxy = {
       service: "helloworld"
       method: "/helloworld.Greeter/SayHello"
-      middlewares: ["example"]
+      middlewares: ["middleware2"]
     };
     option (google.api.http) = {
       post: "/hello"

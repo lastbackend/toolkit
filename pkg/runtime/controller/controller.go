@@ -33,6 +33,8 @@ type controller struct {
 	server runtime.Server
 	plugin runtime.Plugin
 	pkg    runtime.Package
+
+	tools runtime.Tools
 }
 
 func (c *controller) Service() toolkit.Service {
@@ -133,6 +135,9 @@ func (c *controller) onStart(ctx context.Context) error {
 	c.Plugin().OnStart(ctx)
 	c.Package().OnStart(ctx)
 
+	if err := c.Tools().OnStart(ctx); err != nil {
+		return err
+	}
 	return c.Server().Start(ctx)
 }
 
@@ -162,6 +167,10 @@ func (c *controller) Server() runtime.Server {
 	return c.server
 }
 
+func (c *controller) Tools() runtime.Tools {
+	return c.tools
+}
+
 func (c *controller) fillMeta(opts ...runtime.Option) {
 	for _, opt := range opts {
 		switch opt.Name() {
@@ -177,7 +186,10 @@ func (c *controller) fillMeta(opts ...runtime.Option) {
 
 func NewRuntime(ctx context.Context, name string, opts ...runtime.Option) (runtime.Runtime, error) {
 
-	rt := new(controller)
+	var (
+		rt  = new(controller)
+		err error
+	)
 
 	rt.meta = new(meta.Meta)
 	rt.meta.SetName(name)
@@ -206,6 +218,10 @@ func NewRuntime(ctx context.Context, name string, opts ...runtime.Option) (runti
 	svc := new(service)
 	svc.runtime = rt
 	rt.service = svc
+
+	if rt.tools, err = newToolsRegistration(rt); err != nil {
+		return nil, err
+	}
 
 	return rt, nil
 }

@@ -24,8 +24,10 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/tools/probes"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
+	"time"
 
 	"context"
 	"fmt"
@@ -125,7 +127,7 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 		return err
 	}
 
-	//p.probe.AddReadinessFunc(p.prefix, PostgresPingChecker(conn.DB, 1*time.Second))
+	p.runtime.Tools().Probes().RegisterCheck(p.prefix, probes.ReadinessProbe, PostgresPingChecker(conn, 1*time.Second))
 
 	p.connection = p.opts.DSN
 	p.db = conn
@@ -137,16 +139,16 @@ func (p *plugin) Stop() error {
 	return nil
 }
 
-//func PostgresPingChecker(database *sql.DB, timeout time.Duration) types.HandleFunc {
-//	return func() error {
-//		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-//		defer cancel()
-//		if database == nil {
-//			return fmt.Errorf("connection is nil")
-//		}
-//		return database.PingContext(ctx)
-//	}
-//}
+func PostgresPingChecker(database *sqlx.DB, timeout time.Duration) probes.HandleFunc {
+	return func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		if database == nil {
+			return fmt.Errorf("connection is nil")
+		}
+		return database.PingContext(ctx)
+	}
+}
 
 func (p *plugin) RunMigration() error {
 

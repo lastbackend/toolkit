@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/tools/probes"
 	"strings"
@@ -123,11 +122,12 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 
 	if p.opts.Cluster {
 		client := redis.NewClusterClient(p.prepareClusterOptions(p.opts))
-		//p.probes.AddReadinessFunc(p.prefix, redisClusterPingChecker(client, 1*time.Second))
+		p.runtime.Tools().Probes().RegisterCheck(p.prefix, probes.ReadinessProbe, redisClusterPingChecker(client, 1*time.Second))
+
 		p.cdb = client
 	} else {
 		client := redis.NewClient(p.prepareOptions(p.opts))
-		//p.probes.AddReadinessFunc(p.prefix, redisPingChecker(client, 1*time.Second))
+		p.runtime.Tools().Probes().RegisterCheck(p.prefix, probes.ReadinessProbe, redisPingChecker(client, 1*time.Second))
 		p.db = client
 	}
 	return nil
@@ -135,18 +135,6 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 
 func (p *plugin) Stop() error {
 	return nil
-}
-
-func (p *plugin) withPrefix(name string) string {
-	return fmt.Sprintf("%s-%s", p.prefix, name)
-}
-
-func (p *plugin) withEnvPrefix(name string) string {
-	return strings.ToUpper(fmt.Sprintf("%s_%s", p.prefix, name))
-}
-
-func (p *plugin) addFlags(app toolkit.Service) {
-
 }
 
 func (p *plugin) prepareOptions(opts Config) *redis.Options {

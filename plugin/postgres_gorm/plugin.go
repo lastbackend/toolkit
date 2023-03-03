@@ -23,10 +23,12 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/tools/probes"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	psql "gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"time"
 
 	"context"
 	"database/sql"
@@ -109,8 +111,7 @@ func (p *plugin) PreStart(ctx context.Context) (err error) {
 		return err
 	}
 
-	//p.probe.AddReadinessFunc(p.prefix, probes.PostgresPingChecker(conn, 1*time.Second))
-
+	p.runtime.Tools().Probes().RegisterCheck(p.prefix, probes.ReadinessProbe, PostgresPingChecker(conn, 1*time.Second))
 	p.db = db
 
 	return nil
@@ -167,6 +168,17 @@ func (p *plugin) RunMigration() error {
 
 	fmt.Printf("\nMigration completed!\n")
 	return nil
+}
+
+func PostgresPingChecker(database *sql.DB, timeout time.Duration) probes.HandleFunc {
+	return func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		if database == nil {
+			return fmt.Errorf("connection is nil")
+		}
+		return database.PingContext(ctx)
+	}
 }
 
 func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {

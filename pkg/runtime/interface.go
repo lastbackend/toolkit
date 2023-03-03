@@ -6,6 +6,10 @@ import (
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"github.com/lastbackend/toolkit/pkg/runtime/meta"
+	"github.com/lastbackend/toolkit/pkg/server"
+	"github.com/lastbackend/toolkit/pkg/tools/metrics"
+	"github.com/lastbackend/toolkit/pkg/tools/probes"
+	"github.com/lastbackend/toolkit/pkg/tools/traces"
 )
 
 type Runtime interface {
@@ -18,7 +22,7 @@ type Runtime interface {
 	Config() Config
 	Plugin() Plugin
 
-	//Tools()
+	Tools() Tools
 
 	Service() toolkit.Service
 
@@ -44,6 +48,9 @@ type Server interface {
 
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
+
+	HTTPList() map[string]server.HTTPServer
+	GRPCList() map[string]server.GRPCServer
 
 	Provides() []interface{}
 	Constructors() []interface{}
@@ -73,8 +80,10 @@ type Package interface {
 	OnStop(ctx context.Context) error
 }
 
-//type Tools interface {
-//	Metrics() metrics.Metrics
-//	Probes() probes.Probes
-//	Traces() trace.Trace
-//}
+type Tools interface {
+	OnStart(ctx context.Context) error
+
+	Metrics() metrics.Metrics
+	Probes() probes.Probes
+	Traces() traces.Traces
+}

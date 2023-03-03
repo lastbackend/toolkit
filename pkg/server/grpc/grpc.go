@@ -61,27 +61,36 @@ type grpcServer struct {
 }
 
 // NewServer - init and return new grpc server instance
-func NewServer(runtime runtime.Runtime, prefix string) server.GRPCServer {
+func NewServer(runtime runtime.Runtime, name string, options *server.GRPCServerOptions) server.GRPCServer { //nolint
 
-	if prefix == "" {
-		prefix = serviceName
+	if name == "" {
+		name = serviceName
 	}
 
 	srv := &grpcServer{
 		runtime: runtime,
-		prefix:  prefix,
+		prefix:  name,
 		opts:    defaultOptions(),
 		exit:    make(chan chan error),
 	}
-
-	servopts := srv.parseOptions()
-	srv.grpc = grpc.NewServer(servopts...)
 
 	if err := runtime.Config().Parse(&srv.opts, srv.prefix); err != nil {
 		return nil
 	}
 
+	servopts := srv.parseOptions(options)
+	srv.grpc = grpc.NewServer(servopts...)
+
 	return srv
+}
+
+func (g *grpcServer) Info() server.ServerInfo {
+	return server.ServerInfo{
+		Kind:      server.ServerKindGRPCServer,
+		Host:      g.opts.Host,
+		Port:      g.opts.Port,
+		TLSConfig: g.opts.TLSConfig,
+	}
 }
 
 // SetDescriptor - set generated grpc server descriptor
@@ -118,7 +127,21 @@ func (g *grpcServer) GetConstructor() interface{} {
 }
 
 // parseOptions - get options from config and convert them to grpc server options
-func (g *grpcServer) parseOptions() []grpc.ServerOption {
+func (g *grpcServer) parseOptions(options *server.GRPCServerOptions) []grpc.ServerOption {
+
+	if options != nil {
+		if options.Host != "" {
+			g.opts.Host = options.Host
+		}
+
+		if options.Port > 0 {
+			g.opts.Port = options.Port
+		}
+
+		if options.TLSConfig != nil {
+			g.opts.TLSConfig = options.TLSConfig
+		}
+	}
 
 	gopts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(g.opts.MaxRecvMsgSize),

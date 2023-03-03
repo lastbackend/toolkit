@@ -21,19 +21,18 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/lastbackend/toolkit/examples/service/internal/server"
-	"github.com/lastbackend/toolkit/pkg/runtime"
-	"github.com/lastbackend/toolkit/pkg/server/http"
-
 	"github.com/lastbackend/toolkit/examples/service/config"
 	servicepb "github.com/lastbackend/toolkit/examples/service/gen"
 	"github.com/lastbackend/toolkit/examples/service/internal/controller"
 	"github.com/lastbackend/toolkit/examples/service/internal/repository"
+	"github.com/lastbackend/toolkit/examples/service/internal/server"
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	"github.com/lastbackend/toolkit/pkg/server/http"
 )
 
 func main() {
 	// define service with name and options
-	app, err := servicepb.NewService("example",
+	app, err := servicepb.NewExampleService("example",
 		runtime.WithVersion("0.1.0"),
 		runtime.WithDescription("Example microservice"),
 		runtime.WithEnvPrefix("LB"),
