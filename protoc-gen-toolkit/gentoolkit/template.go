@@ -47,13 +47,12 @@ var (
 	headerTemplate   = template.Must(template.New("header").Parse(templates.HeaderTpl))
 	clientTemplate   = template.Must(template.New("client-content").Funcs(funcMap).Parse(templates.ClientTpl))
 	testStubTemplate = template.Must(template.New("stub-content-mockery").Parse(templates.TestTpl))
-
-	serviceTemplate = template.Must(template.New("content").Funcs(funcMap).Parse(templates.ContentTpl))
-	_               = template.Must(serviceTemplate.New("service-grpc-define").Parse(templates.ServerGRPCDefineTpl))
-	_               = template.Must(serviceTemplate.New("service-http-define").Parse(templates.ServerHTTPDefineTpl))
-	_               = template.Must(serviceTemplate.New("plugin-define").Parse(templates.PluginDefineTpl))
-	_               = template.Must(serviceTemplate.New("plugin-init").Parse(templates.PluginInitializeTpl))
-	_               = template.Must(serviceTemplate.New("plugin-register").Parse(templates.PluginRegisterTpl))
+	serviceTemplate  = template.Must(template.New("content").Funcs(funcMap).Parse(templates.ServiceContentTpl))
+	_                = template.Must(serviceTemplate.New("grpc-service-define").Parse(templates.ServerGRPCDefineTpl))
+	_                = template.Must(serviceTemplate.New("http-handler-define").Parse(templates.ServerHTTPDefineTpl))
+	_                = template.Must(serviceTemplate.New("plugin-define").Parse(templates.PluginDefineTpl))
+	_                = template.Must(serviceTemplate.New("plugin-init").Parse(templates.PluginInitializeTpl))
+	_                = template.Must(serviceTemplate.New("plugin-register").Parse(templates.PluginRegisterTpl))
 )
 
 type Client struct {

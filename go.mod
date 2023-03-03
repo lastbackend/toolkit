@@ -6,7 +6,7 @@ require (
 	github.com/caarlos0/env/v7 v7.0.0
 	github.com/centrifugal/centrifuge-go v0.9.4
 	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be
-	github.com/envoyproxy/protoc-gen-validate v0.1.0
+	github.com/envoyproxy/protoc-gen-validate v0.9.1
 	github.com/fatih/color v1.9.0
 	github.com/fatih/structs v1.1.0
 	github.com/getsentry/sentry-go v0.13.0
@@ -30,8 +30,8 @@ require (
 	go.uber.org/zap v1.23.0
 	golang.org/x/net v0.7.0
 	golang.org/x/text v0.7.0
-	google.golang.org/genproto v0.0.0-20221207170731-23e4bf6bdc37
-	google.golang.org/grpc v1.51.0
+	google.golang.org/genproto v0.0.0-20230303212802-e74f57abe488
+	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8
 	gorm.io/driver/postgres v1.3.4
 	gorm.io/gorm v1.23.4
@@ -48,6 +48,7 @@ require (
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/go-pg/zerochecker v0.2.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
 	github.com/hashicorp/go-hclog v0.12.0 // indirect

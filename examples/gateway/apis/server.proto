@@ -49,6 +49,15 @@ option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
 
 //  Example methods
 service ProxyGateway {
+  option (toolkit.service) = {
+    servers: [HTTP_PROXY]
+  };
+  option (toolkit.http_proxy) = {
+    middlewares: [
+      "request_id"
+    ]
+  };
+
   rpc HelloWorld(helloworld.HelloRequest) returns (helloworld.HelloReply) {
     option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
       summary: "HelloWorld"
@@ -70,6 +79,7 @@ service ProxyGateway {
     option (toolkit.server).http_proxy = {
       service: "helloworld",
       method: "/helloworld.Greeter/SayHello",
+      middlewares: ["example"]
     };
     option (google.api.http) = {
       post: "/hello"

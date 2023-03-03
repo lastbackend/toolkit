@@ -47,7 +47,7 @@ func init() {
 // where "random" is a base62 random string that uniquely identifies this go
 // process, and where the last number is an atomically incremented request
 // counter.
-func (m Middleware) RequestID(h http.Handler) http.Handler {
+func RequestID(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := atomic.AddUint64(&reqID, 1)
 		ctx := r.Context()
@@ -58,7 +58,7 @@ func (m Middleware) RequestID(h http.Handler) http.Handler {
 
 // GetReqID returns a request UserID from the given context if one is present.
 // Returns the empty string if a request UserID cannot be found.
-func (m Middleware) GetReqID(ctx context.Context) string {
+func GetReqID(ctx context.Context) string {
 	if ctx == nil {
 		return ""
 	}

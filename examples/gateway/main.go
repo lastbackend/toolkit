@@ -16,47 +16,57 @@ limitations under the License.
 
 package main
 
-// import (
-//
-//	"context"
-//	"fmt"
-//	"io"
-//	"net/http"
-//	"os"
-//
-//	"github.com/lastbackend/toolkit"
-//	"github.com/lastbackend/toolkit/examples/gateway/config"
-//	pb "github.com/lastbackend/toolkit/examples/gateway/gen/server"
-//	"github.com/lastbackend/toolkit/examples/gateway/middleware"
-//	"github.com/lastbackend/toolkit/pkg/http"
-//	"github.com/lastbackend/toolkit/pkg/runtime/logger"
-//
-// )
-//
-//	func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
-//		w.Header().Set("Content-Type", "application/json")
-//		w.WriteHeader(http.StatusOK)
-//		if _, err := io.WriteString(w, `{"alive": true}`); err != nil {
-//			fmt.Println(err)
-//		}
-//	}
+import (
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+
+	servicepb "github.com/lastbackend/toolkit/examples/gateway/gen/server"
+	"github.com/lastbackend/toolkit/examples/gateway/middleware"
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
+)
+
+func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if _, err := io.WriteString(w, `{"alive": true}`); err != nil {
+		fmt.Println(err)
+	}
+}
 func main() {
-	//
-	//
-	//	svc := pb.NewService("gateway", types.WithEnvPrefix("GTW"))
-	//	svc.Log().Infof("Start process")
-	//
-	//	cfg := config.New()
-	//
-	//	svc.Config.Provide(cfg)
-	//	svc.Server().HTTP()..AddMiddleware(middleware.New)
-	//
-	//	svc.Server().HTTP().
-	//		AddHandler(http.MethodGet, "/health", HealthCheckHandler)
-	//
-	//	if err := svc.Run(context.Background()); err != nil {
-	//		svc.Log().Errorf("Failed run service: %v", err)
-	//		os.Exit(1)
-	//		return
-	//	}
+	// define service with name and options
+	app, err := servicepb.NewProxyGatewayService("gateway",
+		runtime.WithVersion("0.1.0"),
+		runtime.WithDescription("Example gateway microservice"),
+		runtime.WithEnvPrefix("GTW"),
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Logger settings
+	app.Log().Info("Run microservice")
+
+	// Add middleware
+	app.Server().HTTP().SetMiddleware("example", middleware.ExampleMiddleware)
+	app.Server().HTTP().SetMiddleware("request_id", middleware.RequestID)
+
+	// set middleware as global middleware
+	app.Server().HTTP().UseMiddleware("request_id")
+
+	// add handler to default http server
+	app.Server().HTTP().
+		AddHandler(http.MethodGet, "/health", HealthCheckHandler, tk_http.WithMiddleware("example"))
+
+	// Service run
+	if err := app.Start(context.Background()); err != nil {
+		app.Log().Errorf("could not run the service %v", err)
+		os.Exit(1)
+		return
+	}
+
+	app.Log().Info("graceful stop")
 }

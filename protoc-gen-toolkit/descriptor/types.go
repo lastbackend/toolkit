@@ -127,9 +127,14 @@ type Plugin struct {
 
 type Service struct {
 	*descriptorpb.ServiceDescriptorProto
-	File    *File
-	Methods []*Method
-	Plugins map[string][]*Plugin
+	File                    *File
+	Methods                 []*Method
+	Plugins                 map[string][]*Plugin
+	HTTPMiddlewares         []string
+	UseGRPCServer           bool
+	UseHTTPProxyServer      bool
+	UseWebsocketProxyServer bool
+	UseWebsocketServer      bool
 }
 
 func (s *Service) FullyName() string {
@@ -143,12 +148,13 @@ func (s *Service) FullyName() string {
 
 type Method struct {
 	*descriptorpb.MethodDescriptorProto
-	Service      *Service
-	RequestType  *Message
-	ResponseType *Message
-	Name         string
-	IsWebsocket  bool
-	Bindings     []*Binding
+	Service          *Service
+	RequestType      *Message
+	ResponseType     *Message
+	Name             string
+	IsWebsocket      bool
+	IsWebsocketProxy bool
+	Bindings         []*Binding
 }
 
 func (m *Method) FullyName() string {
@@ -174,6 +180,7 @@ type Binding struct {
 	HttpPath       string
 	RawBody        string
 	HttpParams     []string
+	Middlewares    []string
 	RequestType    *Message
 	ResponseType   *Message
 	Stream         bool

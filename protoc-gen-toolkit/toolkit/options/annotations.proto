@@ -23,11 +23,19 @@ extend google.protobuf.FileOptions {
 }
 
 message Service {
+  enum Server {
+    GRPC = 0;
+    HTTP_PROXY = 1;
+    WEBSOCKET_PROXY = 2;
+    WEBSOCKET = 3;
+  }
   repeated Plugin plugins = 1;
+  repeated Server servers = 2;
 }
 
 extend google.protobuf.ServiceOptions {
   Service service = 70001;
+  ServiceHttpProxy http_proxy = 70002;
 }
 
 message TestSpec {
@@ -50,9 +58,14 @@ message Server {
   }
 }
 
+message ServiceHttpProxy {
+  repeated string middlewares = 3;
+}
+
 message HttpProxy {
   string service = 1;
   string method = 2;
+  repeated string middlewares = 3;
 }
 
 message WsProxy {

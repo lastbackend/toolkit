@@ -134,8 +134,10 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 		"net/http",
 		"runtime github.com/lastbackend/toolkit/pkg/runtime",
 		"controller github.com/lastbackend/toolkit/pkg/runtime/controller",
-		"logger github.com/lastbackend/toolkit/pkg/runtime/logger",
+		"tk_http github.com/lastbackend/toolkit/pkg/server/http",
+		"tk_ws github.com/lastbackend/toolkit/pkg/server/http/websockets",
 		"toolkit github.com/lastbackend/toolkit",
+		"grpc github.com/lastbackend/toolkit/pkg/client/grpc",
 		"errors github.com/lastbackend/toolkit/pkg/server/http/errors",
 		"emptypb google.golang.org/protobuf/types/known/emptypb",
 	})
@@ -266,7 +268,7 @@ func (g *generator) generateClient(file *descriptor.File) ([]byte, error) {
 
 	for _, svc := range file.Services {
 		for _, m := range svc.Methods {
-			if m.IsWebsocket {
+			if m.IsWebsocket || m.IsWebsocketProxy {
 				continue
 			}
 
