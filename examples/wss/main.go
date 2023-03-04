@@ -19,15 +19,15 @@ package main
 import (
 	"context"
 	"fmt"
-	logger2 "github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"io"
 	"net/http"
 	"os"
 
-	pb "github.com/lastbackend/toolkit/examples/wss/gen/server"
+	servicepb "github.com/lastbackend/toolkit/examples/wss/gen/server"
 	"github.com/lastbackend/toolkit/examples/wss/middleware"
-	"github.com/lastbackend/toolkit/pkg/http"
-	"github.com/lastbackend/toolkit/pkg/http/ws"
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
+	"github.com/lastbackend/toolkit/pkg/server/http/websockets"
 )
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -38,34 +38,45 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func TestWSHandler(ctx context.Context, event ws.Event, c *ws.Client) error {
+func TestWSHandler(ctx context.Context, event websockets.Event, c *websockets.Client) error {
 	fmt.Println("Event:", event.Type, string(event.Payload))
 	fmt.Println("Context:", ctx.Value("test-data"))
-	return c.WriteMessage(ws.TextMessage, event.Payload)
+	return c.WriteMessage(websockets.TextMessage, event.Payload)
 }
 
 func main() {
-	log := logger2.DefaultLogger
-	opts := log.Options()
-	opts.Level = logger2.DebugLevel
-	opts.VerboseLevel = logger2.DebugLevel
-	log.Init(opts)
-	log = log.WithFields(logger2.Fields{
-		"service": "wss",
-	})
 
-	log.Infof("Start process")
+	// define service with name and options
+	app, err := servicepb.NewRouterService("wss",
+		runtime.WithVersion("0.1.0"),
+		runtime.WithDescription("Example router microservice"),
+		runtime.WithEnvPrefix("WSS"),
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	svc := pb.NewService("wss")
-	svc.Meta().SetEnvPrefix("WSS")
-	svc.AddMiddleware(middleware.New)
+	// Logger settings
+	app.Log().Info("Run microservice")
 
-	svc.Router().Subscribe("event:name", TestWSHandler)
+	// Add middleware
+	app.Server().HTTP().SetMiddleware("example", middleware.ExampleMiddleware)
+	app.Server().HTTP().SetMiddleware("request_id", middleware.RequestID)
 
-	svc.Router().Handle(http.MethodGet, "/health", HealthCheckHandler, http.HandleOptions{})
+	// set middleware as global middleware
+	app.Server().HTTP().UseMiddleware("request_id")
+	app.Server().HTTP().Subscribe("event:name", TestWSHandler)
 
-	if err := svc.Run(context.Background()); err != nil {
+	// add handler to default http server
+	app.Server().HTTP().
+		AddHandler(http.MethodGet, "/health", HealthCheckHandler, tk_http.WithMiddleware("example"))
+
+	// Service run
+	if err := app.Start(context.Background()); err != nil {
+		app.Log().Errorf("could not run the service %v", err)
 		os.Exit(1)
 		return
 	}
+
+	app.Log().Info("graceful stop")
 }

@@ -44,155 +44,47 @@ option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
 };
 
 // =====================================================
-// Dockerfile spec
-// =====================================================
-
-option (toolkit.dockerfile_spec) = {
-  expose: [8080],
-  commands: ["/usr/bin/service"],
-  rewrite_if_exists: false,
-};
-
-// =====================================================
-// Install clients
-// =====================================================
-option (toolkit.clients) = {
-  service: "automate_api"
-  package: "gitlab.com/lastbackend/product/orca/services/automate/gen/api/client"
-};
-
-option (toolkit.clients) = {
-  service: "automate_controller"
-  package: "gitlab.com/lastbackend/product/orca/services/automate/gen/controller/client"
-};
-
-option (toolkit.clients) = {
-  service: "automate_worker"
-  package: "gitlab.com/lastbackend/product/orca/services/automate/gen/worker/client"
-};
-
-
-
-option (toolkit.clients) = {
-  service: "infrastructure_api"
-  package: "gitlab.com/lastbackend/product/orca/services/infrastructure/gen/api/client"
-};
-
-
-option (toolkit.clients) = {
-  service: "integration_bot_discord"
-  package: "gitlab.com/lastbackend/product/orca/services/integration/bot-discord/gen/client"
-};
-
-option (toolkit.clients) = {
-  service: "integration_bot_slack"
-  package: "gitlab.com/lastbackend/product/orca/services/integration/bot-slack/gen/client"
-};
-
-option (toolkit.clients) = {
-  service: "integration_telegram"
-  package: "gitlab.com/lastbackend/product/orca/services/integration/bot-telegram/gen/client"
-};
-
-option (toolkit.clients) = {
-  service: "integration_registry"
-  package: "gitlab.com/lastbackend/product/orca/services/integration/registry/gen/client"
-};
-option (toolkit.clients) = {
-  service: "integration_sip"
-  package: "gitlab.com/lastbackend/product/orca/services/integration/sip/gen/client"
-};
-
-option (toolkit.clients) = {
-  service: "integration_vcs"
-  package: "gitlab.com/lastbackend/product/orca/services/integration/vcs/gen/client"
-};
-
-
-
-option (toolkit.clients) = {
-  service: "opsmanager_api"
-  package: "gitlab.com/lastbackend/product/orca/services/opsmanager/gen/api/client"
-};
-
-option (toolkit.clients) = {
-  service: "opsmanager_celery"
-  package: "gitlab.com/lastbackend/product/orca/services/opsmanager/gen/celery/client"
-};
-
-option (toolkit.clients) = {
-  service: "opsmanager_worker"
-  package: "gitlab.com/lastbackend/product/orca/services/opsmanager/gen/worker/client"
-};
-
-
-
-option (toolkit.clients) = {
-  service: "prime_api"
-  package: "gitlab.com/lastbackend/product/orca/services/prime/gen/api/client"
-};
-
-option (toolkit.clients) = {
-  service: "prime_auth"
-  package: "gitlab.com/lastbackend/product/orca/services/prime/gen/auth/client"
-};
-
-option (toolkit.clients) = {
-  service: "prime_clear"
-  package: "gitlab.com/lastbackend/product/orca/services/prime/gen/clear/client"
-};
-
-option (toolkit.clients) = {
-  service: "prime_integration"
-  package: "gitlab.com/lastbackend/product/orca/services/prime/gen/integration/client"
-};
-
-option (toolkit.clients) = {
-  service: "prime_vault"
-  package: "gitlab.com/lastbackend/product/orca/services/prime/gen/vault/client"
-};
-
-
-// =====================================================
 // HTTP proxy methods
 // =====================================================
 
 //  Example methods
 service Router {
+  option (toolkit.service) = {
+    servers: [WEBSOCKET_PROXY, WEBSOCKET]
+    plugins: [{
+      prefix: "redis1"
+      plugin: "redis"
+    }]
+  };
+  option (toolkit.http_proxy) = {
+    middlewares: [
+      "middleware1"
+    ]
+  };
+
   rpc Subscribe(SubscribeRequest) returns (SubscribeResponse) {
-    option (toolkit.proxy).ws = {
-      path: "/events",
+    option (toolkit.server).websocket = true;
+    option (google.api.http) = {
+      get: "/events"
+    };
+  };
+  rpc SayHello(helloworld.HelloRequest) returns (helloworld.HelloReply) {
+    option (toolkit.server).websocket_proxy = {
+      service: "helloworld"
+      method: "/helloworld.Greeter/SayHello"
     };
   };
   rpc HelloWorld(helloworld.HelloRequest) returns (helloworld.HelloReply) {
-    option (toolkit.proxy).http = {
-      service: "integration"
-      method: "SayHello"
-    };
-    option (google.api.http) = {
-      post: "/hello"
-    };
-  };
-  rpc Native(helloworld.HelloRequest) returns (helloworld.HelloReply) {
-    option (toolkit.proxy).http = {
-      service: "demo"
-      method: "SayHello"
+    option (toolkit.server).http_proxy = {
+      service: "helloworld"
+      method: "/helloworld.Greeter/SayHello"
+      middlewares: ["middleware2"]
     };
     option (google.api.http) = {
       post: "/hello"
     };
   };
 }
-
-
-service RouterTest {
-  rpc Subscribe(SubscribeRequest) returns (SubscribeResponse) {
-    option (toolkit.proxy).ws = {
-      path: "/test/events",
-    };
-  };
-}
-
 
 message SubscribeRequest {}
 

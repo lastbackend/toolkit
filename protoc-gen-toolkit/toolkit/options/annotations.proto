@@ -19,14 +19,23 @@ message Client {
 extend google.protobuf.FileOptions {
   repeated Plugin plugins = 50001;
   repeated Client clients = 50002;
-  DockerfileSpec dockerfile_spec = 50003;
   TestSpec tests_spec = 50004;
 }
 
-message DockerfileSpec {
-  repeated int32 expose = 1;
-  repeated string commands = 2;
-  bool rewrite_if_exists = 3;
+message Service {
+  enum Server {
+    GRPC = 0;
+    HTTP_PROXY = 1;
+    WEBSOCKET_PROXY = 2;
+    WEBSOCKET = 3;
+  }
+  repeated Plugin plugins = 1;
+  repeated Server servers = 2;
+}
+
+extend google.protobuf.ServiceOptions {
+  Service service = 70001;
+  ServiceHttpProxy http_proxy = 70002;
 }
 
 message TestSpec {
@@ -38,21 +47,28 @@ message MockeryTestsSpec {
 }
 
 extend google.protobuf.MethodOptions {
-  Proxy proxy = 60001;
+  Server server = 60001;
 }
 
-message Proxy {
-  oneof proxy {
-    HttpProxy http = 1;
-    WsProxy ws = 2;
+message Server {
+  oneof server {
+    HttpProxy http_proxy = 1;
+    WsProxy websocket_proxy = 2;
+    bool websocket = 3;
   }
+}
+
+message ServiceHttpProxy {
+  repeated string middlewares = 3;
 }
 
 message HttpProxy {
   string service = 1;
   string method = 2;
+  repeated string middlewares = 3;
 }
 
 message WsProxy {
-  string path = 1;
+  string service = 1;
+  string method = 2;
 }

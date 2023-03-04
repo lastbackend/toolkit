@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	toolkit_annotattions "github.com/lastbackend/toolkit/protoc-gen-toolkit/toolkit/options"
+	options "google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
@@ -31,68 +32,289 @@ func (d *Descriptor) loadServices(file *File) error {
 		svc := &Service{
 			File:                   file,
 			ServiceDescriptorProto: service,
+			HTTPMiddlewares:        make([]string, 0),
 		}
+
 		for _, md := range service.GetMethod() {
-			meth, isProxy, err := d.newMethod(svc, md)
+			method, err := d.newMethod(svc, md)
 			if err != nil {
 				return err
 			}
-
-			if isProxy {
-				svc.ProxyMethods = append(svc.ProxyMethods, meth)
-			} else {
-				svc.RPCMethods = append(svc.RPCMethods, meth)
-			}
-
+			svc.Methods = append(svc.Methods, method)
 		}
+
+		if service.Options != nil && proto.HasExtension(service.Options, toolkit_annotattions.E_HttpProxy) {
+			eHTTPProxy := proto.GetExtension(svc.Options, toolkit_annotattions.E_HttpProxy)
+			if eHTTPProxy != nil {
+				ss := eHTTPProxy.(*toolkit_annotattions.ServiceHttpProxy)
+				svc.HTTPMiddlewares = ss.Middlewares
+			}
+		}
+		if service.Options != nil && proto.HasExtension(service.Options, toolkit_annotattions.E_Service) {
+			eService := proto.GetExtension(svc.Options, toolkit_annotattions.E_Service)
+			if eService != nil {
+				ss := eService.(*toolkit_annotattions.Service)
+				svc.UseGRPCServer = ss.Servers == nil || len(ss.Servers) == 0 || checkSetServerOption(ss.Servers, toolkit_annotattions.Service_GRPC)
+				if ss.Servers != nil {
+					svc.UseHTTPProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Service_HTTP_PROXY)
+					svc.UseWebsocketProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Service_WEBSOCKET_PROXY)
+					svc.UseWebsocketServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Service_WEBSOCKET)
+				}
+			}
+		}
+
 		services = append(services, svc)
 	}
+
 	file.Services = services
+
 	return nil
 }
 
-func (d *Descriptor) newMethod(svc *Service, md *descriptorpb.MethodDescriptorProto) (*Method, bool, error) {
-	requestType, err := d.FindMessage(svc.File.GetPackage(), md.GetInputType())
+func (d *Descriptor) newMethod(svc *Service, md *descriptorpb.MethodDescriptorProto) (*Method, error) {
+	requestType, err := d.findMessage(svc.File.GetPackage(), md.GetInputType())
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
-	responseType, err := d.FindMessage(svc.File.GetPackage(), md.GetOutputType())
+	responseType, err := d.findMessage(svc.File.GetPackage(), md.GetOutputType())
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
-	isProxy := md.Options != nil &&
-		proto.HasExtension(md.Options, toolkit_annotattions.E_Proxy)
-
-	meth := &Method{
+	method := &Method{
 		Service:               svc,
 		MethodDescriptorProto: md,
 		RequestType:           requestType,
 		ResponseType:          responseType,
 	}
 
-	return meth, isProxy, nil
+	if method.Options != nil && proto.HasExtension(method.Options, toolkit_annotattions.E_Server) {
+		err = setBindingsToMethod(method)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return method, nil
 }
 
-func (d *Descriptor) FindMessage(location, name string) (*Message, error) {
+func (d *Descriptor) findMessage(location, name string) (*Message, error) {
 	if strings.HasPrefix(name, ".") {
-		m, ok := d.messageMap[name]
+		method, ok := d.messageMap[name]
 		if !ok {
 			return nil, fmt.Errorf("no message found: %s", name)
 		}
-		return m, nil
+		return method, nil
 	}
 
 	if !strings.HasPrefix(location, ".") {
 		location = fmt.Sprintf(".%s", location)
 	}
-	components := strings.Split(location, ".")
-	for len(components) > 0 {
-		messageName := strings.Join(append(components, name), ".")
-		if m, ok := d.messageMap[messageName]; ok {
-			return m, nil
+
+	parts := strings.Split(location, ".")
+	for len(parts) > 0 {
+		messageName := strings.Join(append(parts, name), ".")
+		if method, ok := d.messageMap[messageName]; ok {
+			return method, nil
 		}
-		components = components[:len(components)-1]
+		parts = parts[:len(parts)-1]
 	}
+
 	return nil, fmt.Errorf("no message found: %s", name)
+}
+
+func setBindingsToMethod(method *Method) error {
+	pOpts, err := getProxyOptions(method)
+	if err != nil {
+		return err
+	}
+
+	if pOpts != nil {
+		switch true {
+		case pOpts.GetWebsocket():
+			opts, err := getHTTPOptions(method)
+			if err != nil {
+				return err
+			}
+
+			method.IsWebsocket = true
+
+			binding := &Binding{
+				Method:       method,
+				Index:        len(method.Bindings),
+				HttpMethod:   "http.MethodGet",
+				RpcMethod:    method.GetName(),
+				HttpPath:     opts.GetGet(),
+				HttpParams:   getVariablesFromPath(opts.GetGet()),
+				RequestType:  method.RequestType,
+				ResponseType: method.ResponseType,
+				Websocket:    true,
+			}
+			method.Bindings = append(method.Bindings, binding)
+
+		case pOpts.GetWebsocketProxy() != nil:
+			rOpts := pOpts.GetWebsocketProxy()
+
+			method.IsWebsocketProxy = true
+
+			binding := &Binding{
+				Method:         method,
+				Index:          len(method.Bindings),
+				HttpMethod:     "http.MethodGet",
+				RpcMethod:      method.GetName(),
+				Service:        rOpts.GetService(),
+				RpcPath:        rOpts.GetMethod(),
+				RequestType:    method.RequestType,
+				ResponseType:   method.ResponseType,
+				WebsocketProxy: true,
+			}
+
+			method.Bindings = append(method.Bindings, binding)
+
+		case pOpts.GetHttpProxy() != nil && proto.HasExtension(method.Options, options.E_Http):
+			rOpts := pOpts.GetHttpProxy()
+			opts, err := getHTTPOptions(method)
+			if err != nil {
+				return err
+			}
+			if opts != nil {
+				binding, err := newHttpBinding(method, opts, rOpts)
+				if err != nil {
+					return err
+				}
+				method.Bindings = append(method.Bindings, binding)
+				for _, additional := range opts.GetAdditionalBindings() {
+					if len(additional.AdditionalBindings) > 0 {
+						continue
+					}
+					b, err := newHttpBinding(method, additional, rOpts)
+					if err != nil {
+						continue
+					}
+					method.Bindings = append(method.Bindings, b)
+				}
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func getHTTPOptions(method *Method) (*options.HttpRule, error) {
+	if method.Options == nil {
+		return nil, nil
+	}
+	if !proto.HasExtension(method.Options, options.E_Http) {
+		return nil, nil
+	}
+	ext := proto.GetExtension(method.Options, options.E_Http)
+	opts, ok := ext.(*options.HttpRule)
+	if !ok {
+		return nil, fmt.Errorf("extension is not an HttpRule")
+	}
+	return opts, nil
+}
+
+func getProxyOptions(m *Method) (*toolkit_annotattions.Server, error) {
+	if m.Options == nil {
+		return nil, nil
+	}
+	if !proto.HasExtension(m.Options, toolkit_annotattions.E_Server) {
+		return nil, nil
+	}
+	ext := proto.GetExtension(m.Options, toolkit_annotattions.E_Server)
+	opts, ok := ext.(*toolkit_annotattions.Server)
+	if !ok {
+		return nil, fmt.Errorf("extension is not an Proxy")
+	}
+	return opts, nil
+}
+
+func newHttpBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annotattions.HttpProxy) (*Binding, error) {
+	var (
+		httpMethod string
+		httpPath   string
+	)
+	switch {
+	case opts.GetGet() != "":
+		httpMethod = "http.MethodGet"
+		httpPath = opts.GetGet()
+	case opts.GetPut() != "":
+		httpMethod = "http.MethodPut"
+		httpPath = opts.GetPut()
+		if opts.Body == "" {
+			opts.Body = "*"
+		}
+	case opts.GetPost() != "":
+		httpMethod = "http.MethodPost"
+		httpPath = opts.GetPost()
+		if opts.Body == "" {
+			opts.Body = "*"
+		}
+	case opts.GetDelete() != "":
+		httpMethod = "http.MethodDelete"
+		httpPath = opts.GetDelete()
+	case opts.GetPatch() != "":
+		httpMethod = "http.MethodPatch"
+		httpPath = opts.GetPatch()
+		if opts.Body == "" {
+			opts.Body = "*"
+		}
+	default:
+		return nil, fmt.Errorf("not fount method")
+	}
+
+	return &Binding{
+		Method:       method,
+		Index:        len(method.Bindings),
+		Service:      rOpts.GetService(),
+		RpcPath:      rOpts.GetMethod(),
+		RpcMethod:    method.GetName(),
+		HttpMethod:   httpMethod,
+		HttpPath:     httpPath,
+		HttpParams:   getVariablesFromPath(httpPath),
+		RequestType:  method.RequestType,
+		ResponseType: method.ResponseType,
+		Stream:       method.GetClientStreaming(),
+		Middlewares:  rOpts.GetMiddlewares(),
+		RawBody:      opts.Body,
+	}, nil
+}
+
+func getVariablesFromPath(path string) (variables []string) {
+	if path == "" {
+		return make([]string, 0)
+	}
+
+	for path != "" {
+		firstIndex := -1
+		lastIndex := -1
+
+		firstIndex = strings.IndexAny(path, "{")
+		lastIndex = strings.IndexAny(path, "}")
+
+		if firstIndex > -1 && lastIndex > -1 {
+			field := path[firstIndex+1 : lastIndex]
+			if len(strings.TrimSpace(field)) > 0 {
+				variables = append(variables, field)
+			}
+			path = path[lastIndex+1:]
+		}
+
+		if firstIndex == -1 || lastIndex == -1 {
+			path = path[1:]
+		}
+	}
+
+	return variables
+}
+
+func checkSetServerOption(servers []toolkit_annotattions.Service_Server, server toolkit_annotattions.Service_Server) bool {
+	for _, val := range servers {
+		if val == server {
+			return true
+		}
+	}
+	return false
 }

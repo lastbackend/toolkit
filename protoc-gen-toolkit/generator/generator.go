@@ -17,87 +17,70 @@ limitations under the License.
 package generator
 
 import (
+	"flag"
 	"github.com/lastbackend/toolkit/protoc-gen-toolkit/descriptor"
-	"github.com/lastbackend/toolkit/protoc-gen-toolkit/genscripts"
 	"github.com/lastbackend/toolkit/protoc-gen-toolkit/gentoolkit"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/types/pluginpb"
-
-	"flag"
-	"fmt"
 )
 
 type Generator struct {
-	targets []*descriptor.File
+	files []*descriptor.File
 }
 
 func Init() *Generator {
 	g := new(Generator)
-	g.targets = make([]*descriptor.File, 0)
+	g.files = make([]*descriptor.File, 0)
 	return g
 }
 
 func (g *Generator) Run() error {
 	var flagSet flag.FlagSet
-	flagSet.String("source_package", "", "set package name for source")
 
 	protogen.Options{
 		ParamFunc: flagSet.Set,
-	}.Run(func(gen *protogen.Plugin) error {
-		sourcePkg := flagSet.Lookup("source_package").Value
-
-		if sourcePkg == nil || sourcePkg.String() == "" {
-			return fmt.Errorf("source_package does not set")
-		}
+	}.Run(func(gen *protogen.Plugin) (err error) {
 
 		gen.SupportedFeatures = uint64(pluginpb.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL)
 
 		desc := descriptor.NewDescriptor()
 
-		// Generate toolkit files
-		generatorToolkit := gentoolkit.New(desc, &gentoolkit.Options{SourcePackage: sourcePkg.String()})
-
 		if err := desc.LoadFromPlugin(gen); err != nil {
 			return err
 		}
 
-		for _, target := range gen.Request.FileToGenerate {
-			f, err := desc.FindFile(target)
-			if err != nil {
-				return err
-			}
-			g.targets = append(g.targets, f)
+		if err := g.LoadFiles(gen, desc); err != nil {
+			return err
 		}
 
-		toolkitFiles, err := generatorToolkit.Generate(g.targets)
+		// Generate generates a *.pb.toolkit.go file containing Toolkit service definitions.
+		contentFiles, err := gentoolkit.New(desc).Generate(g.files)
 		if err != nil {
 			return err
 		}
 
-		for _, f := range toolkitFiles {
+		// Write generated files to disk
+		for _, f := range contentFiles {
 			genFile := gen.NewGeneratedFile(f.GetName(), protogen.GoImportPath(f.GoPkg.Path))
 			if _, err := genFile.Write([]byte(f.GetContent())); err != nil {
 				return err
 			}
 		}
 
-		// Generate scripts scripts
-		generatorScripts := genscripts.New(&genscripts.Options{SourcePackage: sourcePkg.String()})
+		return nil
+	})
 
-		scriptFiles, err := generatorScripts.GenerateDockerfile(g.targets)
+	return nil
+}
+
+func (g *Generator) LoadFiles(gen *protogen.Plugin, desc *descriptor.Descriptor) (err error) {
+	g.files = make([]*descriptor.File, 0)
+	for _, f := range gen.Request.FileToGenerate {
+		file, err := desc.FindFile(f)
 		if err != nil {
 			return err
 		}
-		for _, f := range scriptFiles {
-			if f.Rewrite {
-				genFile := gen.NewGeneratedFile(f.GetName(), protogen.GoImportPath(f.GoPkg.Path))
-				if _, err := genFile.Write([]byte(f.GetContent())); err != nil {
-					return err
-				}
-			}
-		}
-
-		return nil
-	})
-	return nil
+		g.files = append(g.files, file)
+	}
+	return err
 }

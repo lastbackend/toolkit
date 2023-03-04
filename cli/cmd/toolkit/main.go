@@ -14,26 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package middleware
+package main
 
 import (
-	"github.com/lastbackend/toolkit"
-	pb "github.com/lastbackend/toolkit/examples/wss/gen/server"
+	"github.com/lastbackend/toolkit/cli/cmd"
+
+	// register commands
+	_ "github.com/lastbackend/toolkit/cli/cmd/add"
+	_ "github.com/lastbackend/toolkit/cli/cmd/describe"
+	_ "github.com/lastbackend/toolkit/cli/cmd/init"
 )
 
-type Middleware struct {
-	svc toolkit.Service
-}
-
-func New(svc toolkit.Service) Middleware {
-	mw := Middleware{
-		svc: svc,
-	}
-
-	svc.Router().AddMiddleware(mw.RequestID)
-
-	// Example entities
-	pb.SubscribeMiddlewareAdd(mw.ExampleMiddleware)
-
-	return mw
+func main() {
+	cmd.Run()
 }

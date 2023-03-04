@@ -19,17 +19,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/lastbackend/toolkit/pkg/runtime/types"
 	"io"
 	"net/http"
 	"os"
 
-	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/examples/gateway/config"
-	pb "github.com/lastbackend/toolkit/examples/gateway/gen/server"
+	servicepb "github.com/lastbackend/toolkit/examples/gateway/gen/server"
 	"github.com/lastbackend/toolkit/examples/gateway/middleware"
-	"github.com/lastbackend/toolkit/pkg/http"
-	"github.com/lastbackend/toolkit/pkg/logger"
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
 )
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -39,24 +36,37 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 	}
 }
-
 func main() {
+	// define service with name and options
+	app, err := servicepb.NewProxyGatewayService("gateway",
+		runtime.WithVersion("0.1.0"),
+		runtime.WithDescription("Example gateway microservice"),
+		runtime.WithEnvPrefix("GTW"),
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
 
+	// Logger settings
+	app.Log().Info("Run microservice")
 
-	svc := pb.NewService("gateway", types.WithEnvPrefix("GTW"))
-	svc.Log().Infof("Start process")
+	// Add middleware
+	app.Server().HTTP().SetMiddleware("example", middleware.ExampleMiddleware)
+	app.Server().HTTP().SetMiddleware("request_id", middleware.RequestID)
 
-	cfg := config.New()
+	// set middleware as global middleware
+	app.Server().HTTP().UseMiddleware("request_id")
 
-	svc.Config.Provide(cfg)
-	svc.Server().HTTP()..AddMiddleware(middleware.New)
+	// add handler to default http server
+	app.Server().HTTP().
+		AddHandler(http.MethodGet, "/health", HealthCheckHandler, tk_http.WithMiddleware("example"))
 
-	svc.Server().HTTP().
-		AddHandler(http.MethodGet, "/health", HealthCheckHandler)
-
-	if err := svc.Run(context.Background()); err != nil {
-		svc.Log().Errorf("Failed run service: %v", err)
+	// Service run
+	if err := app.Start(context.Background()); err != nil {
+		app.Log().Errorf("could not run the service %v", err)
 		os.Exit(1)
 		return
 	}
+
+	app.Log().Info("graceful stop")
 }

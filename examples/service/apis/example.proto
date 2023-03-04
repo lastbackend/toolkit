@@ -8,15 +8,6 @@ import "github.com/lastbackend/toolkit/protoc-gen-toolkit/toolkit/options/annota
 import "github.com/lastbackend/toolkit/examples/service/apis/ptypes/messages.proto";
 
 // =====================================================
-// Dockerfile spec
-// =====================================================
-option (toolkit.dockerfile_spec) = {
-  expose: [3000]
-  commands: ["/usr/bin/service"]
-  rewrite_if_exists: false
-};
-
-// =====================================================
 // Generate mocks
 // =====================================================
 option (toolkit.tests_spec) = {
@@ -33,30 +24,32 @@ option (toolkit.plugins) = {
   plugin: "postgres_gorm"
 };
 
+option (toolkit.plugins) = {
+  prefix: "redis"
+  plugin: "redis"
+};
+
 
 // =====================================================
 // RPC methods
 // =====================================================
 service Example {
-
-//  option (toolkit.http_server) = {
-//    middlewares: [
-//      "pgsql"
-//    ]
-//  };
-
-
-  option (toolkit.plugins) = {
-    prefix: "redis"
-    plugin: "redis"
+  option (toolkit.service) = {
+    servers: [GRPC]
+  };
+  option (toolkit.http_proxy) = {
+    middlewares: [
+      "request_id"
+    ]
   };
 
   //  Example methods
-  rpc HelloWorld(HelloWorldRequest) returns (HelloWorldResponse) {
-//    option (toolkit.http_server) = {
-//      middlewares: [
-//        "pgsql"
-//      ]
-//    };
-  }
+  rpc HelloWorld(HelloWorldRequest) returns (HelloWorldResponse) {}
+};
+
+service Sample {
+  option (toolkit.service).plugins = {
+    prefix: "redis2"
+    plugin: "redis"
+  };
 };

@@ -13,10 +13,8 @@ import (
 )
 
 // Suppress "imported and not used" errors
-var (
-	_ context.Context
-	_ emptypb.Empty
-)
+var _ context.Context
+var _ emptypb.Empty
 
 // Client gRPC API for Example service
 func NewExampleRPCClient(service string, c grpc.GRPCClient) ExampleRPCClient {
@@ -26,6 +24,15 @@ func NewExampleRPCClient(service string, c grpc.GRPCClient) ExampleRPCClient {
 // Client gRPC API for Example service
 type ExampleRPCClient interface {
 	HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest, opts ...grpc.CallOption) (*typespb.HelloWorldResponse, error)
+}
+
+// Client gRPC API for Sample service
+func NewSampleRPCClient(service string, c grpc.Client) SampleRPCClient {
+	return &sampleGrpcRPCClient{service, c}
+}
+
+// Client gRPC API for Sample service
+type SampleRPCClient interface {
 }
 
 type exampleGrpcRPCClient struct {
@@ -43,6 +50,13 @@ func (c *exampleGrpcRPCClient) HelloWorld(ctx context.Context, req *typespb.Hell
 }
 
 func (exampleGrpcRPCClient) mustEmbedUnimplementedExampleClient() {}
+
+type sampleGrpcRPCClient struct {
+	service string
+	cli     grpc.Client
+}
+
+func (sampleGrpcRPCClient) mustEmbedUnimplementedSampleClient() {}
 
 // Client methods for Example service
 const (

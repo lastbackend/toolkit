@@ -17,10 +17,9 @@ limitations under the License.
 package descriptor
 
 import (
+	"fmt"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/types/descriptorpb"
-
-	"fmt"
 )
 
 type Descriptor struct {
@@ -76,6 +75,7 @@ func (d *Descriptor) loadFile(filePath string, file *protogen.File) {
 			}
 		}
 	}
+
 	f := &File{
 		FileDescriptorProto:     file.Proto,
 		GoPkg:                   pkg,
