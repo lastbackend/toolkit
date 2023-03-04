@@ -114,8 +114,12 @@ func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
 		opts = append(opts, fx.Invoke(c))
 	}
 
-	opts = append(opts, fx.Invoke(func(ctx context.Context) {
+	opts = append(opts, fx.Invoke(func(ctx context.Context) error {
+		if err := c.Tools().OnStart(ctx); err != nil {
+			return err
+		}
 		c.Server().Start(ctx)
+		return nil
 	}))
 
 	for _, f := range fn {
@@ -149,10 +153,6 @@ func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
 func (c *controller) onStart(ctx context.Context) error {
 	c.Plugin().OnStart(ctx)
 	c.Package().OnStart(ctx)
-
-	if err := c.Tools().OnStart(ctx); err != nil {
-		return err
-	}
 	return nil
 }
 

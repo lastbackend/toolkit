@@ -32,7 +32,7 @@ func (c *serverManager) HTTPGet(name string) server.HTTPServer {
 }
 
 func (c *serverManager) HTTPNew(name string, options *server.HTTPServerOptions) server.HTTPServer {
-	srv := http.NewServer(c.runtime, options)
+	srv := http.NewServer(name, c.runtime, options)
 	c.http[name] = srv
 	return c.http[name]
 }

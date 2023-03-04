@@ -67,7 +67,7 @@ type httpServer struct {
 	exit    chan chan error
 }
 
-func NewServer(runtime runtime.Runtime, options *server.HTTPServerOptions) server.HTTPServer {
+func NewServer(name string, runtime runtime.Runtime, options *server.HTTPServerOptions) server.HTTPServer {
 
 	s := &httpServer{
 		runtime:      runtime,
@@ -83,12 +83,16 @@ func NewServer(runtime runtime.Runtime, options *server.HTTPServerOptions) serve
 		handlers:    make(map[string]server.HTTPServerHandler, 0),
 	}
 
+	if name != "" {
+		s.prefix = name
+	}
+
 	if err := runtime.Config().Parse(&s.opts, s.prefix); err != nil {
 		return nil
 	}
 
 	if options != nil {
-		runtime.Config().Print(&s.opts, s.prefix)
+		s.parseOptions(options)
 	}
 
 	return s

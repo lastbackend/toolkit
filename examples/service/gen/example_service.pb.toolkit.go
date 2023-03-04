@@ -7,7 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	examplepb "github.com/lastbackend/toolkit/examples/service/gen/client"
+	examplepb "github.com/lastbackend/toolkit/examples/service/gen/client/example"
 
 	"github.com/lastbackend/toolkit/pkg/server"
 

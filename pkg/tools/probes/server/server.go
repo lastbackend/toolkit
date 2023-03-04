@@ -120,12 +120,12 @@ func (p *probe) Start(_ context.Context) error {
 			}
 		}
 
-		// check if provided port is used on provded http server
+		// check if provided port is used on provided http server
 		httpServers := p.runtime.Server().HTTPList()
 		for _, srv := range httpServers {
 			if srv.Info().Port == p.opts.Port {
-
 				s = srv
+				break
 			}
 		}
 	}
