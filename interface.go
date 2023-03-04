@@ -18,6 +18,7 @@ package toolkit
 
 import (
 	"context"
+	"github.com/lastbackend/toolkit/pkg/client"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"github.com/lastbackend/toolkit/pkg/runtime/meta"
 	"github.com/lastbackend/toolkit/pkg/server"
@@ -37,6 +38,8 @@ type Service interface {
 }
 
 type Client interface {
+	GRPC() client.GRPCClient
+	HTTP() client.HTTPClient
 }
 
 type Config interface {

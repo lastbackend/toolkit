@@ -75,8 +75,6 @@ type plugin struct {
 	opts Config
 
 	db *gorm.DB
-
-	//probe toolkit.Probe
 }
 
 func (p *plugin) DB() *gorm.DB {
@@ -196,7 +194,6 @@ func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
 		return nil
 	}
 
-	//p.probe = service.Probe()
 	runtime.Plugin().Register(p)
 	return p
 }

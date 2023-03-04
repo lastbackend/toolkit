@@ -17,6 +17,7 @@ limitations under the License.
 package grpc
 
 import (
+	"github.com/lastbackend/toolkit/pkg/client"
 	"github.com/lastbackend/toolkit/pkg/client/grpc/selector"
 	"github.com/lastbackend/toolkit/pkg/util/converter"
 
@@ -25,17 +26,17 @@ import (
 	"time"
 )
 
-func exponentialBackoff(ctx context.Context, req *request, attempts int) (time.Duration, error) {
+func exponentialBackoff(ctx context.Context, req *client.GRPCRequest, attempts int) (time.Duration, error) {
 	if attempts > 10 {
 		return 2 * time.Minute, nil
 	}
 	return time.Duration(math.Pow(float64(attempts), math.E)) * time.Millisecond * 100, nil
 }
 
-type CallFunc func(ctx context.Context, addr string, req *request, rsp interface{}, opts CallOptions) error
+type CallFunc func(ctx context.Context, addr string, req *client.GRPCRequest, rsp interface{}, opts client.GRPCCallOptions) error
 type CallMiddlewareFunc func(CallFunc) CallFunc
-type MiddlewareFunc func(Client) Client
-type LookupFunc func(context.Context, *request, CallOptions) ([]string, error)
+type MiddlewareFunc func(client client.GRPCClient) client.GRPCClient
+type LookupFunc func(context.Context, *client.GRPCRequest, client.GRPCCallOptions) ([]string, error)
 
 type Options struct {
 	Context context.Context
@@ -54,22 +55,7 @@ type Options struct {
 	Selector              selector.Selector
 
 	Pool        PoolOptions
-	CallOptions CallOptions
-}
-
-type BackoffFunc func(ctx context.Context, req *request, attempts int) (time.Duration, error)
-type RetryFunc func(ctx context.Context, req *request, retryCount int, err error) (bool, error)
-
-type CallOptions struct {
-	Backoff               BackoffFunc
-	Retries               time.Duration
-	RequestTimeout        time.Duration
-	Context               context.Context
-	Headers               map[string]string
-	MaxCallSendMsgSize    int
-	MaxCallRecvMsgSize    int
-	MaxRetryRPCBufferSize int
-	CallContentSubtype    string
+	CallOptions client.GRPCCallOptions
 }
 
 func defaultOptions() Options {
@@ -78,7 +64,7 @@ func defaultOptions() Options {
 		Context:     context.Background(),
 		ContentType: "application/protobuf",
 		Selector:    slc,
-		CallOptions: CallOptions{
+		CallOptions: client.GRPCCallOptions{
 			Backoff:        exponentialBackoff,
 			Retries:        defaultRetries,
 			RequestTimeout: defaultRequestTimeout,
@@ -90,26 +76,26 @@ func defaultOptions() Options {
 	}
 }
 
-func Headers(h map[string]string) CallOption {
-	return func(o *CallOptions) {
+func Headers(h map[string]string) client.GRPCCallOption {
+	return func(o *client.GRPCCallOptions) {
 		o.Headers = h
 	}
 }
 
-func MaxCallSendMsgSize(bytes int) CallOption {
-	return func(o *CallOptions) {
+func MaxCallSendMsgSize(bytes int) client.GRPCCallOption {
+	return func(o *client.GRPCCallOptions) {
 		o.MaxCallSendMsgSize = bytes
 	}
 }
 
-func MaxCallRecvMsgSize(bytes int) CallOption {
-	return func(o *CallOptions) {
+func MaxCallRecvMsgSize(bytes int) client.GRPCCallOption {
+	return func(o *client.GRPCCallOptions) {
 		o.MaxCallRecvMsgSize = bytes
 	}
 }
 
-func RequestTimeout(timeout time.Duration) CallOption {
-	return func(o *CallOptions) {
+func RequestTimeout(timeout time.Duration) client.GRPCCallOption {
+	return func(o *client.GRPCCallOptions) {
 		o.RequestTimeout = timeout
 	}
 }

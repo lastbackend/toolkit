@@ -76,9 +76,9 @@ func (c *pluginManager) OnStop(ctx context.Context) error {
 	return nil
 }
 
-func newPluginController(_ context.Context, log logger.Logger) runtime.Plugin {
+func newPluginController(_ context.Context, runtime runtime.Runtime) runtime.Plugin {
 	pl := new(pluginManager)
-	pl.log = log
+	pl.log = runtime.Log()
 	pl.provide = make([]interface{}, 0)
 	pl.plugins = make([]interface{}, 0)
 	return pl

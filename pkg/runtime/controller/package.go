@@ -93,9 +93,9 @@ func (c *oackageController) OnStop(ctx context.Context) error {
 	return nil
 }
 
-func newPackageController(_ context.Context, log logger.Logger) runtime.Package {
+func newPackageController(_ context.Context, runtime runtime.Runtime) runtime.Package {
 	pl := new(oackageController)
-	pl.log = log
+	pl.log = runtime.Log()
 	pl.provide = make([]interface{}, 0)
 	pl.packages = make([]interface{}, 0)
 	return pl

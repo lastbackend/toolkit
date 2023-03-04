@@ -18,6 +18,8 @@ package server
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/config"
@@ -33,8 +35,17 @@ type Handlers struct {
 }
 
 func (h Handlers) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error) {
-	// TODO implement me
-	return nil, nil
+
+	resp := typespb.HelloWorldResponse{
+		Id:        "",
+		Name:      fmt.Sprintf("%s: %d", req.Name, time.Now().Unix()),
+		Type:      req.Type,
+		Data:      nil,
+		CreatedAt: time.Now().Unix(),
+		UpdatedAt: time.Now().Unix(),
+	}
+
+	return &resp, nil
 }
 
 func NewServer(app toolkit.Service, cfg *config.Config) servicepb.ExampleRpcServer {

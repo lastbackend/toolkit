@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package consul
+package local
 
 import (
-	rt "github.com/lastbackend/toolkit/pkg/client/network/resolver/route"
+	rt "github.com/lastbackend/toolkit/pkg/client/grpc/resolver/route"
 	"sync"
 	"time"
 )

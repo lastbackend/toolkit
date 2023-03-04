@@ -34,6 +34,9 @@ type controller struct {
 	plugin runtime.Plugin
 	pkg    runtime.Package
 
+	providers []interface{}
+	invokes   []interface{}
+
 	tools runtime.Tools
 }
 
@@ -73,6 +76,10 @@ func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
 		opts = append(opts, fx.Supply(c))
 	}
 
+	for _, p := range c.providers {
+		opts = append(opts, fx.Provide(p))
+	}
+
 	plugins := c.Plugin().Provides()
 	for _, p := range plugins {
 		opts = append(opts, fx.Provide(p))
@@ -93,18 +100,26 @@ func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
 		return c.Plugin().PreStart(ctx)
 	}))
 
-	for _, f := range fn {
-		opts = append(opts, fx.Invoke(f))
-	}
-
 	opts = append(opts, fx.Invoke(func(ctx context.Context) error {
 		return c.Package().PreStart(ctx)
 	}))
+
+	for _, p := range c.invokes {
+		opts = append(opts, fx.Invoke(p))
+	}
 
 	// get constructors from servers
 	constructors := c.Server().Constructors()
 	for _, c := range constructors {
 		opts = append(opts, fx.Invoke(c))
+	}
+
+	opts = append(opts, fx.Invoke(func(ctx context.Context) {
+		c.Server().Start(ctx)
+	}))
+
+	for _, f := range fn {
+		opts = append(opts, fx.Invoke(f))
 	}
 
 	opts = append(opts, fx.Invoke(func(lc fx.Lifecycle) error {
@@ -138,7 +153,7 @@ func (c *controller) onStart(ctx context.Context) error {
 	if err := c.Tools().OnStart(ctx); err != nil {
 		return err
 	}
-	return c.Server().Start(ctx)
+	return nil
 }
 
 func (c *controller) onStop(ctx context.Context) error {
@@ -167,6 +182,14 @@ func (c *controller) Server() runtime.Server {
 	return c.server
 }
 
+func (c *controller) Provide(constructor interface{}) {
+	c.providers = append(c.providers, constructor)
+}
+
+func (c *controller) Invoke(constructor interface{}) {
+	c.invokes = append(c.invokes, constructor)
+}
+
 func (c *controller) Tools() runtime.Tools {
 	return c.tools
 }
@@ -191,18 +214,21 @@ func NewRuntime(ctx context.Context, name string, opts ...runtime.Option) (runti
 		err error
 	)
 
+	rt.providers = make([]interface{}, 0)
+	rt.invokes = make([]interface{}, 0)
+
 	rt.meta = new(meta.Meta)
 	rt.meta.SetName(name)
 	rt.fillMeta(opts...)
 
 	rt.logger = logger.DefaultLogger
 
-	rt.client = newClientController(ctx, rt.logger)
-	rt.config = newConfigController(ctx, rt.logger)
-	rt.plugin = newPluginController(ctx, rt.logger)
-	rt.pkg = newPackageController(ctx, rt.logger)
+	rt.client = newClientController(ctx, rt)
+	rt.config = newConfigController(ctx, rt)
+	rt.plugin = newPluginController(ctx, rt)
+	rt.pkg = newPackageController(ctx, rt)
 
-	rt.server = newServerController(ctx, rt, rt.logger)
+	rt.server = newServerController(ctx, rt)
 
 	rt.config.SetMeta(rt.meta)
 

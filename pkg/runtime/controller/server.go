@@ -122,12 +122,12 @@ func (c *serverManager) Stop(_ context.Context) error {
 	return nil
 }
 
-func newServerController(_ context.Context, runtime runtime.Runtime, log logger.Logger) runtime.Server {
+func newServerController(_ context.Context, runtime runtime.Runtime) runtime.Server {
 
 	pl := new(serverManager)
 
 	pl.runtime = runtime
-	pl.log = log
+	pl.log = runtime.Log()
 
 	pl.http = make(map[string]server.HTTPServer, 0)
 	pl.grpc = make(map[string]server.GRPCServer, 0)

@@ -104,7 +104,6 @@ func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
 		return nil
 	}
 
-	//p.probe = service.Probe()
 	runtime.Plugin().Register(p)
 
 	return p

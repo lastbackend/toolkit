@@ -7,7 +7,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/lastbackend/toolkit/pkg/server"
+
 	"io"
 	"net/http"
 
@@ -19,7 +21,6 @@ import (
 
 	toolkit "github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/gen/ptypes"
-	grpc "github.com/lastbackend/toolkit/pkg/client/grpc"
 
 	errors "github.com/lastbackend/toolkit/pkg/server/http/errors"
 	ws "github.com/lastbackend/toolkit/pkg/server/http/websockets"
@@ -33,7 +34,6 @@ var (
 	_ context.Context
 	_ logger.Logger
 	_ emptypb.Empty
-	_ grpc.Client
 	_ http.Handler
 	_ errors.Err
 	_ io.Reader
@@ -42,8 +42,31 @@ var (
 )
 
 // Definitions
-type service struct {
-	runtime runtime.Runtime
+type Services interface {
+	Example() ExampleClient
+}
+
+type services struct {
+	example ExampleClient
+}
+
+func (s *services) Example() ExampleClient {
+	return s.example
+}
+
+func servicesRegister(runtime runtime.Runtime) (Services, error) {
+	var (
+		err  error
+		svcs = new(services)
+	)
+
+	serviceExampleConntionPool, err := runtime.Client().GRPC().Conn("example")
+	if err != nil {
+		return nil, err
+	}
+
+	svcs.example = NewExampleClient(serviceExampleConntionPool)
+	return svcs, nil
 }
 
 // Plugins define
@@ -99,37 +122,36 @@ const (
 )
 
 func NewService(name string, opts ...runtime.Option) (toolkit.Service, error) {
-	var err error
 
-	app := new(service)
-
-	app.runtime, err = controller.NewRuntime(context.Background(), name, opts...)
+	runtime, err := controller.NewRuntime(context.Background(), name, opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	// loop over plugins and initialize plugin instance
-	plugin_pgsql := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "pgsql"})
-	plugin_redis := redis.NewPlugin(app.runtime, &redis.Options{Name: "redis"})
+	plugin_pgsql := postgres_gorm.NewPlugin(runtime, &postgres_gorm.Options{Name: "pgsql"})
+	plugin_redis := redis.NewPlugin(runtime, &redis.Options{Name: "redis"})
 
 	// loop over plugins and register plugin in toolkit
-	app.runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
-	app.runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
+	runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
+	runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
 
 	// set descriptor to Example grpc server
-	app.runtime.Server().GRPCNew(name, nil)
-	app.runtime.Server().GRPC().SetDescriptor(Example_ServiceDesc)
-	app.runtime.Server().GRPC().SetConstructor(registerExampleGRPCServer)
+	runtime.Server().GRPCNew(name, nil)
+	runtime.Server().GRPC().SetDescriptor(Example_ServiceDesc)
+	runtime.Server().GRPC().SetConstructor(registerExampleGRPCServer)
 
 	// create new Example http server
-	app.runtime.Server().HTTPNew(name, nil)
+	runtime.Server().HTTPNew(name, nil)
 
-	app.runtime.Server().HTTP().UseMiddleware(AuthMiddlerware)
+	runtime.Server().HTTP().UseMiddleware(AuthMiddlerware)
 
-	app.runtime.Server().HTTP().SetMiddleware(AuthMiddlerware, exampleHTTPServerMiddleware)
-	app.runtime.Server().HTTP().SetMiddleware(requestMiddlerware, exampleHTTPServerMiddleware)
+	runtime.Server().HTTP().SetMiddleware(AuthMiddlerware, exampleHTTPServerMiddleware)
+	runtime.Server().HTTP().SetMiddleware(requestMiddlerware, exampleHTTPServerMiddleware)
 
-	app.runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", exampleHTTPServerSubscribeHandler, tk_http.WithMiddleware(requestMiddlerware))
+	runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", exampleHTTPServerSubscribeHandler, tk_http.WithMiddleware(requestMiddlerware))
 
-	return app.runtime.Service(), nil
+	runtime.Provide(servicesRegister)
+
+	return runtime.Service(), nil
 }

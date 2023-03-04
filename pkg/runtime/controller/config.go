@@ -91,8 +91,8 @@ func (c *configController) Print(v interface{}, prefix string) {
 	fmt.Println(tw.Render())
 }
 
-func newConfigController(_ context.Context, log logger.Logger) runtime.Config {
+func newConfigController(_ context.Context, runtime runtime.Runtime) runtime.Config {
 	cfg := new(configController)
-	cfg.log = log
+	cfg.log = runtime.Log()
 	return cfg
 }

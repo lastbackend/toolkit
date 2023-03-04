@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package consul
+package resolver_consul
 
 import (
 	"github.com/hashicorp/consul/api"
-	resolver2 "github.com/lastbackend/toolkit/pkg/client/network/resolver"
-	"github.com/lastbackend/toolkit/pkg/client/network/resolver/route"
+	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver"
+	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver/route"
 	logger2 "github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"time"
 
@@ -30,7 +30,7 @@ type Resolver struct {
 	address string
 
 	table   *table
-	options resolver2.Options
+	options resolver.Options
 
 	watchers map[string]uint64
 }
@@ -39,8 +39,8 @@ type Options struct {
 	Address string
 }
 
-func NewResolver(opts ...resolver2.Option) resolver2.Resolver {
-	options := resolver2.DefaultOptions()
+func NewResolver(opts ...resolver.Option) resolver.Resolver {
+	options := resolver.DefaultOptions()
 	for _, o := range opts {
 		o(&options)
 	}
@@ -52,7 +52,7 @@ func NewResolver(opts ...resolver2.Option) resolver2.Resolver {
 	return r
 }
 
-func (c *Resolver) Lookup(service string, opts ...resolver2.LookupOption) (route.List, error) {
+func (c *Resolver) Lookup(service string, opts ...resolver.LookupOption) (route.List, error) {
 
 	routes, err := c.table.Find(service)
 	if err != nil && err != route.ErrRouteNotFound {
@@ -88,7 +88,7 @@ func (c *Resolver) Lookup(service string, opts ...resolver2.LookupOption) (route
 	return routes, nil
 }
 
-func (c *Resolver) Table() resolver2.Table {
+func (c *Resolver) Table() resolver.Table {
 
 	return c.table
 }

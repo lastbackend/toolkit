@@ -17,7 +17,7 @@ limitations under the License.
 package logger
 
 import (
-	"github.com/lastbackend/toolkit/pkg/runtime/logger/sentry"
+	sentry2 "github.com/lastbackend/toolkit/plugin/sentry"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -162,19 +162,19 @@ func (l *zapLogger) init(opts Options) Logger {
 
 	// Enable sentry
 	if l.opts.SentryDNS != "" {
-		cfg := sentry.Configuration{
+		cfg := sentry2.Configuration{
 			Level:             zapcore.ErrorLevel,
 			EnableBreadcrumbs: true,
 		}
 		if opts.Tags != nil {
 			cfg.Tags = opts.Tags
 		}
-		sentryCore, err := sentry.NewCore(cfg, sentry.NewSentryClientFromDSN(l.opts.SentryDNS))
+		sentryCore, err := sentry2.NewCore(cfg, sentry2.NewSentryClientFromDSN(l.opts.SentryDNS))
 		if err != nil {
 			panic(err)
 		}
-		log = sentry.AttachCoreToLogger(sentryCore, log)
-		log = log.With(sentry.NewScope())
+		log = sentry2.AttachCoreToLogger(sentryCore, log)
+		log = log.With(sentry2.NewScope())
 	}
 
 	l.logger = log.Sugar()

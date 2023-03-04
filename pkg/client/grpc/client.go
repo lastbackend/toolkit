@@ -19,7 +19,10 @@ package grpc
 import (
 	"context"
 	"fmt"
-	"github.com/lastbackend/toolkit/pkg/client/network/resolver"
+	"github.com/lastbackend/toolkit/pkg/client"
+	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver"
+	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver/local"
+	"github.com/lastbackend/toolkit/pkg/runtime"
 	"strings"
 	"time"
 
@@ -38,6 +41,10 @@ func init() {
 }
 
 const (
+
+	// default pool name
+	defaultPoolName = ""
+	// default GRPC port
 	defaultPort = 9000
 	// The default number of times a request is tried
 	defaultRetries = 0 * time.Second
@@ -53,27 +60,64 @@ const (
 	defaultMaxSendMsgSize = 1024 * 1024 * 16
 )
 
-type GRPCClient struct { // nolint
-	prefix string
-	opts   Options
-	pool   *pool
+type grpcClient struct {
+	ctx      context.Context
+	runtime  runtime.Runtime
+	resolver resolver.Resolver
+
+	opts Options
+	pool map[string]*pool
 }
 
-func newClient(prefix string) *GRPCClient {
-	return &GRPCClient{
-		opts:   defaultOptions(),
-		prefix: prefix,
-		pool:   newPool(),
+func NewClient(ctx context.Context, runtime runtime.Runtime) client.GRPCClient {
+
+	client := &grpcClient{
+		ctx:     ctx,
+		runtime: runtime,
+		opts:    defaultOptions(),
+		pool:    make(map[string]*pool, 0),
 	}
+
+	client.pool[defaultPoolName] = newPool()
+
+	return client
 }
 
-func (c *GRPCClient) Init(opts Options) error {
-	c.opts = opts
-	c.pool.Init(opts.Pool)
-	return nil
+func (c *grpcClient) Conn(service string) (grpc.ClientConnInterface, error) {
+	fmt.Println("service:> ", service)
+
+	var p *pool
+	p, ok := c.pool[service]
+	if !ok {
+		p = newPool()
+		c.pool[service] = p
+
+	}
+
+	routes, err := c.getResolver().Lookup(service)
+	if err != nil && !strings.HasSuffix(err.Error(), "route not found") {
+		return nil, status.Error(codes.Unavailable, err.Error())
+	}
+
+	addresses := routes.Addresses()
+	if len(addresses) == 0 {
+		addresses = []string{fmt.Sprintf(":%d", defaultPort)}
+	}
+
+	next, err := c.opts.Selector.Select(addresses)
+	if err != nil {
+		return nil, err
+	}
+
+	return p.getConn(c.ctx, next(), c.makeGrpcDialOptions()...)
+
 }
 
-func (c *GRPCClient) Call(ctx context.Context, service, method string, body, resp interface{}, opts ...CallOption) error {
+func (c *grpcClient) SetResolver(resolver resolver.Resolver) {
+	c.resolver = resolver
+}
+
+func (c *grpcClient) Call(ctx context.Context, service, method string, body, resp interface{}, opts ...client.GRPCCallOption) error {
 	if body == nil {
 		return status.Error(codes.Internal, "request is nil")
 	}
@@ -90,9 +134,9 @@ func (c *GRPCClient) Call(ctx context.Context, service, method string, body, res
 	defer cancel()
 
 	headers := c.makeHeaders(ctx, service, callOpts)
-	req := newRequest(service, method, body, headers)
+	req := client.NewGRPCRequest(service, method, body, headers)
 
-	routes, err := resolver.DefaultResolver.Lookup(req.service)
+	routes, err := c.resolver.Lookup(req.Service())
 	if err != nil && !strings.HasSuffix(err.Error(), "route not found") {
 		return status.Error(codes.Unavailable, err.Error())
 	}
@@ -134,7 +178,7 @@ func (c *GRPCClient) Call(ctx context.Context, service, method string, body, res
 
 }
 
-func (c *GRPCClient) Stream(ctx context.Context, service, method string, body interface{}, opts ...CallOption) (Stream, error) {
+func (c *grpcClient) Stream(ctx context.Context, service, method string, body interface{}, opts ...client.GRPCCallOption) (grpc.ClientStream, error) {
 
 	callOpts := c.opts.CallOptions
 	for _, opt := range opts {
@@ -144,9 +188,9 @@ func (c *GRPCClient) Stream(ctx context.Context, service, method string, body in
 	streamFunc := c.stream
 
 	headers := c.makeHeaders(ctx, service, callOpts)
-	req := newRequest(service, method, body, headers)
+	req := client.NewGRPCRequest(service, method, body, headers)
 
-	routes, err := resolver.DefaultResolver.Lookup(req.service)
+	routes, err := c.getResolver().Lookup(req.Service())
 	if err != nil && !strings.HasSuffix(err.Error(), "route not found") {
 		return nil, status.Error(codes.Unavailable, err.Error())
 	}
@@ -185,17 +229,13 @@ func (c *GRPCClient) Stream(ctx context.Context, service, method string, body in
 	}
 }
 
-func (c *GRPCClient) Close() error {
-	return nil
-}
+func (c *grpcClient) invoke(ctx context.Context, addr string, req *client.GRPCRequest, rsp interface{}, opts client.GRPCCallOptions) error {
 
-func (c *GRPCClient) invoke(ctx context.Context, addr string, req *request, rsp interface{}, opts CallOptions) error {
-
-	md := grpc_md.New(req.headers)
+	md := grpc_md.New(req.Headers())
 	ctx = grpc_md.NewOutgoingContext(ctx, md)
 
 	var gErr error
-	conn, err := c.pool.getConn(ctx, addr, c.makeGrpcDialOptions()...)
+	conn, err := c.pool[defaultPoolName].getConn(ctx, addr, c.makeGrpcDialOptions()...)
 	if err != nil {
 		return status.Error(codes.Internal, fmt.Sprintf("Failed sending request: %v", err))
 	}
@@ -216,13 +256,13 @@ func (c *GRPCClient) invoke(ctx context.Context, addr string, req *request, rsp 
 	return gErr
 }
 
-func (c *GRPCClient) stream(ctx context.Context, addr string, req *request, opts CallOptions) (Stream, error) {
+func (c *grpcClient) stream(ctx context.Context, addr string, req *client.GRPCRequest, opts client.GRPCCallOptions) (grpc.ClientStream, error) {
 
 	md := grpc_md.New(req.Headers())
 	ctx = grpc_md.NewOutgoingContext(ctx, md)
 	ctx, cancel := context.WithCancel(ctx)
 
-	cc, err := c.pool.getConn(ctx, addr, c.makeGrpcDialOptions()...)
+	cc, err := c.pool[defaultPoolName].getConn(ctx, addr, c.makeGrpcDialOptions()...)
 	if err != nil {
 		cancel()
 		return nil, status.Error(codes.Internal, err.Error())
@@ -237,7 +277,7 @@ func (c *GRPCClient) stream(ctx context.Context, addr string, req *request, opts
 	st, err := cc.NewStream(ctx, desc, req.Method(), c.makeGrpcCallOptions(opts)...)
 	if err != nil {
 		cancel()
-		c.pool.release(addr, cc, err)
+		c.pool[defaultPoolName].release(addr, cc, err)
 		return nil, status.Error(codes.Canceled, err.Error())
 	}
 
@@ -250,11 +290,11 @@ func (c *GRPCClient) stream(ctx context.Context, addr string, req *request, opts
 			if err != nil {
 				cancel()
 			}
-			c.pool.release(addr, cc, err)
+			c.pool[defaultPoolName].release(addr, cc, err)
 		},
 	}
 
-	if err := st.SendMsg(req.body); err != nil {
+	if err := st.SendMsg(req.Body()); err != nil {
 		return nil, err
 	}
 
@@ -265,7 +305,7 @@ func (c *GRPCClient) stream(ctx context.Context, addr string, req *request, opts
 	return s, nil
 }
 
-func (c *GRPCClient) makeGrpcCallOptions(opts CallOptions) []grpc.CallOption {
+func (c *grpcClient) makeGrpcCallOptions(opts client.GRPCCallOptions) []grpc.CallOption {
 	grpcCallOptions := make([]grpc.CallOption, 0)
 
 	if opts.MaxCallRecvMsgSize > 0 {
@@ -284,7 +324,7 @@ func (c *GRPCClient) makeGrpcCallOptions(opts CallOptions) []grpc.CallOption {
 	return grpcCallOptions
 }
 
-func (c *GRPCClient) makeGrpcDialOptions() []grpc.DialOption {
+func (c *grpcClient) makeGrpcDialOptions() []grpc.DialOption {
 	grpcDialOptions := make([]grpc.DialOption, 0)
 
 	// TODO: implement auths
@@ -322,7 +362,7 @@ func (c *GRPCClient) makeGrpcDialOptions() []grpc.DialOption {
 	return grpcDialOptions
 }
 
-func (c *GRPCClient) makeHeaders(ctx context.Context, service string, opts CallOptions) map[string]string {
+func (c *grpcClient) makeHeaders(ctx context.Context, service string, opts client.GRPCCallOptions) map[string]string {
 	var headers = make(map[string]string, 0)
 
 	if md, ok := metadata.LoadFromContext(ctx); ok {
@@ -343,4 +383,12 @@ func (c *GRPCClient) makeHeaders(ctx context.Context, service string, opts CallO
 	headers["x-service-name"] = service
 
 	return headers
+}
+
+func (c *grpcClient) getResolver() resolver.Resolver {
+	if c.resolver == nil {
+		c.resolver = local.NewResolver()
+	}
+
+	return c.resolver
 }

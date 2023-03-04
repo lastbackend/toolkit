@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/caarlos0/env/v7"
 	"github.com/lastbackend/toolkit"
+	"github.com/lastbackend/toolkit/pkg/client"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"github.com/lastbackend/toolkit/pkg/runtime/meta"
 	"github.com/lastbackend/toolkit/pkg/server"
@@ -26,11 +27,20 @@ type Runtime interface {
 
 	Service() toolkit.Service
 
+	Provide(constructor interface{})
+	Invoke(constructor interface{})
+
 	Start(ctx context.Context, fn ...interface{}) error
 }
 
 type Client interface {
-	toolkit.Client
+	GRPC() client.GRPCClient
+	HTTP() client.HTTPClient
+}
+
+type HTTPClient interface {
+	Get() error
+	Post() error
 }
 
 type Config interface {
