@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	examplepb "github.com/lastbackend/toolkit/examples/service/gen/client"
 
 	"github.com/lastbackend/toolkit/pkg/server"
 
@@ -43,30 +44,24 @@ var (
 
 // Definitions
 type Services interface {
-	Example() ExampleClient
+	Example() examplepb.ExampleRPCClient
 }
 
 type services struct {
-	example ExampleClient
+	example examplepb.ExampleRPCClient
 }
 
-func (s *services) Example() ExampleClient {
+func (s *services) Example() examplepb.ExampleRPCClient {
 	return s.example
 }
 
-func servicesRegister(runtime runtime.Runtime) (Services, error) {
+func servicesRegister(runtime runtime.Runtime) Services {
 	var (
-		err  error
 		svcs = new(services)
 	)
 
-	serviceExampleConntionPool, err := runtime.Client().GRPC().Conn("example")
-	if err != nil {
-		return nil, err
-	}
-
-	svcs.example = NewExampleClient(serviceExampleConntionPool)
-	return svcs, nil
+	svcs.example = examplepb.NewExampleRPCClient("example", runtime.Client().GRPC())
+	return svcs
 }
 
 // Plugins define

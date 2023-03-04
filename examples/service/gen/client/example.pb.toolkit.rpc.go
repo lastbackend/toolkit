@@ -5,7 +5,7 @@ package examplepb
 
 import (
 	context "context"
-	"github.com/lastbackend/toolkit/pkg/client/grpc"
+	"github.com/lastbackend/toolkit/pkg/client"
 
 	"github.com/lastbackend/toolkit/examples/service/gen/ptypes"
 
@@ -17,17 +17,17 @@ var _ context.Context
 var _ emptypb.Empty
 
 // Client gRPC API for Example service
-func NewExampleRPCClient(service string, c grpc.GRPCClient) ExampleRPCClient {
+func NewExampleRPCClient(service string, c client.GRPCClient) ExampleRPCClient {
 	return &exampleGrpcRPCClient{service, c}
 }
 
 // Client gRPC API for Example service
 type ExampleRPCClient interface {
-	HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest, opts ...grpc.CallOption) (*typespb.HelloWorldResponse, error)
+	HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest, opts ...client.GRPCCallOption) (*typespb.HelloWorldResponse, error)
 }
 
 // Client gRPC API for Sample service
-func NewSampleRPCClient(service string, c grpc.Client) SampleRPCClient {
+func NewSampleRPCClient(service string, c client.GRPCClient) SampleRPCClient {
 	return &sampleGrpcRPCClient{service, c}
 }
 
@@ -37,10 +37,10 @@ type SampleRPCClient interface {
 
 type exampleGrpcRPCClient struct {
 	service string
-	cli     grpc.GRPCClient
+	cli     client.GRPCClient
 }
 
-func (c *exampleGrpcRPCClient) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest, opts ...grpc.CallOption) (*typespb.HelloWorldResponse, error) {
+func (c *exampleGrpcRPCClient) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest, opts ...client.GRPCCallOption) (*typespb.HelloWorldResponse, error) {
 	resp := new(typespb.HelloWorldResponse)
 
 	if err := c.cli.Call(ctx, c.service, Example_HelloWorldMethod, req, resp, opts...); err != nil {
@@ -53,7 +53,7 @@ func (exampleGrpcRPCClient) mustEmbedUnimplementedExampleClient() {}
 
 type sampleGrpcRPCClient struct {
 	service string
-	cli     grpc.Client
+	cli     client.GRPCClient
 }
 
 func (sampleGrpcRPCClient) mustEmbedUnimplementedSampleClient() {}

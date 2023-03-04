@@ -19,6 +19,8 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/lastbackend/toolkit/examples/service/internal/repository"
+
 	"time"
 
 	"github.com/lastbackend/toolkit"
@@ -30,15 +32,18 @@ import (
 type Handlers struct {
 	servicepb.ExampleRpcServer
 
-	app toolkit.Service
-	cfg *config.Config
+	app  toolkit.Service
+	cfg  *config.Config
+	repo *repository.Repository
 }
 
 func (h Handlers) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error) {
 
+	tk := h.repo.Get(ctx)
+
 	resp := typespb.HelloWorldResponse{
 		Id:        "",
-		Name:      fmt.Sprintf("%s: %d", req.Name, time.Now().Unix()),
+		Name:      fmt.Sprintf("%s: %d", req.Name, tk.Count),
 		Type:      req.Type,
 		Data:      nil,
 		CreatedAt: time.Now().Unix(),
@@ -48,9 +53,11 @@ func (h Handlers) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest
 	return &resp, nil
 }
 
-func NewServer(app toolkit.Service, cfg *config.Config) servicepb.ExampleRpcServer {
+func NewServer(app toolkit.Service, cfg *config.Config, repo *repository.Repository) servicepb.ExampleRpcServer {
+	fmt.Println("server handlers invokation")
 	return &Handlers{
-		app: app,
-		cfg: cfg,
+		repo: repo,
+		app:  app,
+		cfg:  cfg,
 	}
 }

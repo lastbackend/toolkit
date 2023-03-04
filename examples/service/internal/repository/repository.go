@@ -32,7 +32,13 @@ func (r *Repository) Meta(_ context.Context) {
 	r.log.Info(">> meta count:", val.Count)
 }
 
-func (r *Repository) PreStart(ctx context.Context) {
+func (r *Repository) Get(_ context.Context) *Tk {
+	val := new(Tk)
+	r.DB().First(val)
+	return val
+}
+
+func (r *Repository) OnStart(ctx context.Context) {
 	val := new(Tk)
 	r.DB().First(val)
 	r.log.Info(">> pre start count:", val.Count)

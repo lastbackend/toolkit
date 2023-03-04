@@ -136,7 +136,7 @@ func (c *grpcClient) Call(ctx context.Context, service, method string, body, res
 	headers := c.makeHeaders(ctx, service, callOpts)
 	req := client.NewGRPCRequest(service, method, body, headers)
 
-	routes, err := c.resolver.Lookup(req.Service())
+	routes, err := c.getResolver().Lookup(req.Service())
 	if err != nil && !strings.HasSuffix(err.Error(), "route not found") {
 		return status.Error(codes.Unavailable, err.Error())
 	}

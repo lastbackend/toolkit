@@ -37,7 +37,7 @@ func (c *Controller) Call(_ context.Context) error {
 		return err
 	}
 
-	c.log.Info(resp.Name)
+	c.log.Info("response from server:> name:", resp.Name)
 	return nil
 }
 
