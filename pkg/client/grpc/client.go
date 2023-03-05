@@ -84,8 +84,6 @@ func NewClient(ctx context.Context, runtime runtime.Runtime) client.GRPCClient {
 }
 
 func (c *grpcClient) Conn(service string) (grpc.ClientConnInterface, error) {
-	fmt.Println("service:> ", service)
-
 	var p *pool
 	p, ok := c.pool[service]
 	if !ok {
@@ -387,7 +385,7 @@ func (c *grpcClient) makeHeaders(ctx context.Context, service string, opts clien
 
 func (c *grpcClient) getResolver() resolver.Resolver {
 	if c.resolver == nil {
-		c.resolver = local.NewResolver()
+		c.resolver = local.NewResolver(c.runtime)
 	}
 
 	return c.resolver

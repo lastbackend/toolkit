@@ -19,22 +19,55 @@ package local
 import (
 	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver"
 	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver/route"
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	"strings"
+)
+
+const (
+	prefix    string = "resolver"
+	separator string = "="
 )
 
 type Resolver struct {
+	runtime runtime.Runtime
 	table   *table
-	options resolver.Options
+	options *Options
 }
 
-func NewResolver(opts ...resolver.Option) resolver.Resolver {
-	options := resolver.DefaultOptions()
-	for _, o := range opts {
-		o(&options)
+type Options struct {
+	Cache     bool
+	Endpoints []string `env:"ENDPOINTS" envSeparator:":"`
+}
+
+func NewResolver(runtime runtime.Runtime) resolver.Resolver {
+
+	opts := new(Options)
+	if err := runtime.Config().Parse(opts, prefix); err != nil {
+		runtime.Log().Errorf("Can not parse config %s: $s", prefix, err.Error())
 	}
+
+	table := newTable()
 	r := &Resolver{
-		options: options,
-		table:   newTable(),
+		table:   table,
+		options: opts,
 	}
+
+	for _, s := range opts.Endpoints {
+
+		if s != "" {
+
+			parts := strings.Split(s, separator)
+			if len(parts) < 2 {
+				continue
+			}
+
+			table.Create(route.Route{
+				Service: parts[0],
+				Address: parts[1],
+			})
+		}
+	}
+
 	return r
 }
 

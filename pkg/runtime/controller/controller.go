@@ -119,6 +119,7 @@ func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
 			return err
 		}
 		c.Server().Start(ctx)
+		c.Plugin().OnStart(ctx)
 		return nil
 	}))
 
@@ -151,7 +152,6 @@ func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
 }
 
 func (c *controller) onStart(ctx context.Context) error {
-	c.Plugin().OnStart(ctx)
 	c.Package().OnStart(ctx)
 	return nil
 }

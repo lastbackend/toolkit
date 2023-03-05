@@ -28,8 +28,8 @@ var (
 )
 
 type Route struct {
-	Service string
-	Address string
+	Service string `json:"service"`
+	Address string `json:"address"`
 }
 
 func (r *Route) Hash() string {

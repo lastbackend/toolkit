@@ -115,7 +115,7 @@ func (p *plugin) PreStart(ctx context.Context) (err error) {
 	return nil
 }
 
-func (p *plugin) OnStop() error {
+func (p *plugin) OnStop(_ context.Context) error {
 	return nil
 }
 

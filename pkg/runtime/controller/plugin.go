@@ -53,7 +53,7 @@ func (c *pluginManager) OnStart(ctx context.Context) error {
 	c.log.Debug(" -- plugin manager : on start hook : start -- ")
 	args := []reflect.Value{reflect.ValueOf(ctx)}
 	for _, p := range c.plugins {
-		meth := reflect.ValueOf(p).Elem().MethodByName(PluginHookMethodOnStart)
+		meth := reflect.ValueOf(p).MethodByName(PluginHookMethodOnStart)
 		if !reflect.ValueOf(meth).IsZero() {
 			c.log.Debug(" -- plugin manager : call onStart -- ")
 			meth.Call(args)
@@ -67,7 +67,7 @@ func (c *pluginManager) OnStop(ctx context.Context) error {
 	args := []reflect.Value{reflect.ValueOf(ctx)}
 	for _, p := range c.plugins {
 		c.log.Debug(reflect.ValueOf(p).Elem().Type())
-		meth := reflect.ValueOf(p).Elem().MethodByName(PluginHookMethodOnStop)
+		meth := reflect.ValueOf(p).MethodByName(PluginHookMethodOnStop)
 		if !reflect.ValueOf(meth).IsZero() {
 			c.log.Debug(" -- plugin manager : call onStop -- ")
 			meth.Call(args)

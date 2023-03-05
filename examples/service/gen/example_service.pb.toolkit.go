@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	examplepb "github.com/lastbackend/toolkit/examples/service/gen/client/example"
+	"github.com/lastbackend/toolkit/plugin/resolver_file"
 
 	"github.com/lastbackend/toolkit/pkg/server"
 
@@ -73,6 +74,10 @@ type RedisPlugin interface {
 	redis.Plugin
 }
 
+type ResolverFilePlugin interface {
+	resolver_file.Plugin
+}
+
 // GRPC servers define
 type ExampleRpcServer interface {
 	HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error)
@@ -126,10 +131,12 @@ func NewService(name string, opts ...runtime.Option) (toolkit.Service, error) {
 	// loop over plugins and initialize plugin instance
 	plugin_pgsql := postgres_gorm.NewPlugin(runtime, &postgres_gorm.Options{Name: "pgsql"})
 	plugin_redis := redis.NewPlugin(runtime, &redis.Options{Name: "redis"})
+	plugin_resolver_file := resolver_file.NewPlugin(runtime, &resolver_file.Options{Name: "resolver_file"})
 
 	// loop over plugins and register plugin in toolkit
 	runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
 	runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
+	runtime.Plugin().Provide(func() ResolverFilePlugin { return plugin_resolver_file })
 
 	// set descriptor to Example grpc server
 	runtime.Server().GRPCNew(name, nil)
