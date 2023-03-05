@@ -56,5 +56,6 @@ func NewController(app toolkit.Service, cfg *config.Config, repo *repository.Rep
 func Start(ctx context.Context, app toolkit.Service, ctr *Controller) {
 	app.Log().Info("---- controller start ----")
 	ctr.repo.DB().Raw("SELECT 1")
+	ctr.repo.RunMigration()
 	ctr.Call(ctx)
 }

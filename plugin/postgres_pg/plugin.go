@@ -45,6 +45,7 @@ const (
 
 type Plugin interface {
 	DB() *pg.DB
+	RunMigration() error
 }
 
 type Options struct {
