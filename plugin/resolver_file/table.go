@@ -27,10 +27,14 @@ import (
 
 type table struct {
 	sync.RWMutex
-	file    string
-	log     logger.Logger
-	x       int
-	updated time.Time                    `json:"Updated"`
+	file string
+	log  logger.Logger
+	x    int
+	Data tableData
+}
+
+type tableData struct {
+	Updated time.Time                    `json:"updated"`
 	Routes  map[string]map[string]*Route `json:"routes"`
 }
 
@@ -44,9 +48,11 @@ func newTable(file string, log logger.Logger) (*table, error) {
 	log.Info("create new resolver table")
 
 	t := &table{
-		file:   file,
-		log:    log,
-		Routes: make(map[string]map[string]*Route, 0),
+		file: file,
+		log:  log,
+		Data: tableData{
+			Routes: make(map[string]map[string]*Route, 0),
+		},
 	}
 
 	if err := t.load(); err != nil {
@@ -55,13 +61,7 @@ func newTable(file string, log logger.Logger) (*table, error) {
 
 	go func() {
 		for {
-			t.watchFile()
 			t.load()
-		}
-	}()
-
-	go func() {
-		for {
 			t.save()
 			time.Sleep(1 * time.Second)
 		}
@@ -92,17 +92,17 @@ func (t *table) load() error {
 		return err
 	}
 
-	err = json.Unmarshal([]byte(file), t.Routes)
+	err = json.Unmarshal(file, &t.Data)
 	if err != nil {
 		t.log.Errorf("can not decode table from file: %s: %s > %s", t.file, string(file), err.Error())
-		return err
+		return nil
 	}
 
 	return nil
 }
 
 func (t *table) save() error {
-	data, err := json.MarshalIndent(t, "", "  ")
+	data, err := json.MarshalIndent(t.Data, "", "  ")
 	if err != nil {
 		t.log.Errorf("can not create table: %s", err.Error())
 		return err
@@ -116,32 +116,6 @@ func (t *table) save() error {
 	return nil
 }
 
-func (t *table) watchFile() error {
-
-	initialStat, err := os.Stat(t.file)
-	if err != nil {
-		if os.IsNotExist(err) {
-			time.Sleep(1 * time.Second)
-			return nil
-		}
-	}
-
-	for {
-		stat, err := os.Stat(t.file)
-		if err != nil {
-			return err
-		}
-
-		if stat.Size() != initialStat.Size() || stat.ModTime() != initialStat.ModTime() {
-			break
-		}
-
-		time.Sleep(1 * time.Second)
-	}
-
-	return nil
-}
-
 func (t *table) Find(service string) ([]rt.Route, error) {
 	var routes []rt.Route
 
@@ -149,7 +123,7 @@ func (t *table) Find(service string) ([]rt.Route, error) {
 	defer t.RUnlock()
 
 	if len(service) > 0 {
-		routeMap, ok := t.Routes[service]
+		routeMap, ok := t.Data.Routes[service]
 		if !ok {
 			return nil, rt.ErrRouteNotFound
 		}
@@ -158,7 +132,7 @@ func (t *table) Find(service string) ([]rt.Route, error) {
 		}
 		return routes, nil
 	}
-	for _, serviceRoutes := range t.Routes {
+	for _, serviceRoutes := range t.Data.Routes {
 		for _, sr := range serviceRoutes {
 			routes = append(routes, sr.Route)
 		}
@@ -177,12 +151,12 @@ func (t *table) Create(r rt.Route) error {
 	defer t.Unlock()
 	defer t.save()
 
-	if _, ok := t.Routes[service]; !ok {
-		t.Routes[service] = make(map[string]*Route)
+	if _, ok := t.Data.Routes[service]; !ok {
+		t.Data.Routes[service] = make(map[string]*Route)
 	}
 
-	t.Routes[service][sum] = &Route{r, time.Now()}
-	t.updated = time.Now()
+	t.Data.Routes[service][sum] = &Route{r, time.Now()}
+	t.Data.Updated = time.Now()
 
 	return nil
 }
@@ -195,18 +169,18 @@ func (t *table) Delete(r rt.Route) error {
 	t.Lock()
 	defer t.Unlock()
 
-	if _, ok := t.Routes[service]; !ok {
+	if _, ok := t.Data.Routes[service]; !ok {
 		return rt.ErrRouteNotFound
 	}
 
-	if _, ok := t.Routes[service][sum]; !ok {
+	if _, ok := t.Data.Routes[service][sum]; !ok {
 		return rt.ErrRouteNotFound
 	}
 
-	delete(t.Routes[service], sum)
+	delete(t.Data.Routes[service], sum)
 
-	if len(t.Routes[service]) == 0 {
-		delete(t.Routes, service)
+	if len(t.Data.Routes[service]) == 0 {
+		delete(t.Data.Routes, service)
 	}
 	return nil
 }
@@ -219,14 +193,14 @@ func (t *table) Update(r rt.Route) error {
 	t.Lock()
 	defer t.Unlock()
 
-	if _, ok := t.Routes[service]; !ok {
-		t.Routes[service] = make(map[string]*Route)
+	if _, ok := t.Data.Routes[service]; !ok {
+		t.Data.Routes[service] = make(map[string]*Route)
 	}
 
-	if _, ok := t.Routes[service][sum]; !ok {
-		t.Routes[service][sum] = &Route{r, time.Now()}
+	if _, ok := t.Data.Routes[service][sum]; !ok {
+		t.Data.Routes[service][sum] = &Route{r, time.Now()}
 		return nil
 	}
-	t.Routes[service][sum] = &Route{r, time.Now()}
+	t.Data.Routes[service][sum] = &Route{r, time.Now()}
 	return nil
 }

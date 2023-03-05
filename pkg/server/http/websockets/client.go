@@ -19,7 +19,7 @@ package websockets
 import (
 	"context"
 	"encoding/json"
-	logger2 "github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -39,6 +39,7 @@ type ClientList map[*Client]bool
 // Client is a websocket client, basically a frontend visitor
 type Client struct {
 	ctx        context.Context
+	log        logger.Logger
 	connection *websocket.Conn
 	manager    *Manager
 }
@@ -54,9 +55,10 @@ var (
 )
 
 // NewClient is used to initialize a new Client with all required values initialized
-func NewClient(ctx context.Context, conn *websocket.Conn, manager *Manager) *Client {
+func NewClient(ctx context.Context, log logger.Logger, conn *websocket.Conn, manager *Manager) *Client {
 	return &Client{
 		ctx:        ctx,
+		log:        log,
 		connection: conn,
 		manager:    manager,
 	}
@@ -65,9 +67,7 @@ func NewClient(ctx context.Context, conn *websocket.Conn, manager *Manager) *Cli
 // WriteMessage is a helper method for getting a writer using NextWriter.
 func (c *Client) WriteMessage(messageType int, data []byte) error {
 	if err := c.connection.WriteMessage(messageType, data); err != nil {
-		if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-			logger2.Errorf("failed write message: %v", err)
-		}
+		c.log.Errorf("failed write message: %v", err)
 		return err
 	}
 	return nil
@@ -76,9 +76,7 @@ func (c *Client) WriteMessage(messageType int, data []byte) error {
 // WriteJSON writes the JSON encoding of v to the connection.
 func (c *Client) WriteJSON(i interface{}) error {
 	if err := c.connection.WriteJSON(i); err != nil {
-		if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-			logger2.Errorf("failed write JSON message: %v", err)
-		}
+		c.log.Errorf("failed write JSON message: %v", err)
 		return err
 	}
 	return nil
@@ -95,9 +93,7 @@ func (c *Client) readMessages() {
 	c.connection.SetReadLimit(512)
 
 	if err := c.connection.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
-		if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-			logger2.Errorf("configure Wait time for Pong response failed %v", err)
-		}
+		c.log.Errorf("configure Wait time for Pong response failed %v", err)
 		return
 	}
 
@@ -108,35 +104,27 @@ func (c *Client) readMessages() {
 
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-					logger2.Errorf("failed reading message: %v", err)
-				}
+				c.log.Errorf("failed reading message: %v", err)
 			}
 			break
 		}
 
 		var request Event
 		if err := json.Unmarshal(payload, &request); err != nil {
-			if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-				logger2.Errorf("failed marshalling message: %v", err)
-			}
+			c.log.Errorf("failed marshalling message: %v", err)
 			c.connection.WriteMessage(TextMessage, []byte(`{"error":"invalid JSON format"}`))
 			continue
 		}
 
 		if err := c.manager.routeEvent(request, c); err != nil {
-			if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-				logger2.Errorf("failed handling message: %v", err)
-			}
+			c.log.Errorf("failed handling message: %v", err)
 		}
 	}
 }
 
 // pongHandler is used to handle PongMessages for the Client
 func (c *Client) pongHandler(_ string) error {
-	if logger2.V(logger2.DebugLevel, logger2.DefaultLogger) {
-		logger2.Debug("Pong")
-	}
+	c.log.Debug("Pong")
 	return c.connection.SetReadDeadline(time.Now().Add(pongWait))
 }
 
@@ -151,14 +139,10 @@ func (c *Client) writeMessages() {
 	for {
 		select {
 		case <-ticker.C:
-			if logger2.V(logger2.DebugLevel, logger2.DefaultLogger) {
-				logger2.Debug("Ping")
-			}
+			c.log.Debug("Ping")
 
 			if err := c.connection.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
-				if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-					logger2.Errorf("failed write ping message: %v", err)
-				}
+				c.log.Errorf("failed write ping message: %v", err)
 				return
 			}
 		}

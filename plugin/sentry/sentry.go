@@ -58,3 +58,22 @@ func sentrySeverity(lvl zapcore.Level) sentry.Level {
 		return sentry.LevelFatal
 	}
 }
+
+/*
+	// Enable sentry
+	if l.opts.SentryDNS != "" {
+		cfg := sentry2.Configuration{
+			Level:             zapcore.ErrorLevel,
+			EnableBreadcrumbs: true,
+		}
+		if opts.Tags != nil {
+			cfg.Tags = opts.Tags
+		}
+		sentryCore, err := sentry2.NewCore(cfg, sentry2.NewSentryClientFromDSN(l.opts.SentryDNS))
+		if err != nil {
+			panic(err)
+		}
+		log = sentry2.AttachCoreToLogger(sentryCore, log)
+		log = log.With(sentry2.NewScope())
+	}
+*/

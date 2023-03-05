@@ -5,6 +5,7 @@ import (
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+	zp "github.com/lastbackend/toolkit/pkg/runtime/logger/zap"
 	"github.com/lastbackend/toolkit/pkg/runtime/meta"
 	"go.uber.org/fx"
 	"os"
@@ -96,6 +97,8 @@ func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
 		opts = append(opts, fx.Provide(s))
 	}
 
+	opts = append(opts, fx.Provide(func() logger.Logger { return c.logger }))
+
 	opts = append(opts, fx.Invoke(func(ctx context.Context) error {
 		return c.Plugin().PreStart(ctx)
 	}))
@@ -142,9 +145,8 @@ func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
 
 	fx.New(
 		fx.Options(opts...),
-		fx.Options(
-			fx.Provide(func() logger.Logger { return c.logger }),
-		),
+		fx.WithLogger(c.logger.Fx),
+
 		//fx.NopLogger,
 	).Run()
 
@@ -221,25 +223,17 @@ func NewRuntime(ctx context.Context, name string, opts ...runtime.Option) (runti
 	rt.meta.SetName(name)
 	rt.fillMeta(opts...)
 
-	rt.logger = logger.DefaultLogger
-
-	rt.client = newClientController(ctx, rt)
 	rt.config = newConfigController(ctx, rt)
-	rt.plugin = newPluginController(ctx, rt)
-	rt.pkg = newPackageController(ctx, rt)
-
-	rt.server = newServerController(ctx, rt)
-
 	rt.config.SetMeta(rt.meta)
 
-	logOpts := logger.Options{}
-	if err := rt.config.Parse(&logOpts, ""); err != nil {
-		return nil, err
-	}
-	rt.logger.Init(logOpts)
-	rt.logger.WithFields(logger.Fields{
+	rt.logger = zp.NewLogger(rt, logger.Fields{
 		"microservice": name,
 	})
+
+	rt.client = newClientController(ctx, rt)
+	rt.plugin = newPluginController(ctx, rt)
+	rt.pkg = newPackageController(ctx, rt)
+	rt.server = newServerController(ctx, rt)
 
 	svc := new(service)
 	svc.runtime = rt

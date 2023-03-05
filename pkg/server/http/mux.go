@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/lastbackend/toolkit/pkg/runtime"
-	logger2 "github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"github.com/lastbackend/toolkit/pkg/server"
 
 	"github.com/lastbackend/toolkit/pkg/server/http/errors"
@@ -79,7 +78,7 @@ func NewServer(name string, runtime runtime.Runtime, options *server.HTTPServerO
 		grpcErrorHandlerFunc: errors.GrpcErrorHandlerFunc,
 
 		middlewares: newMiddlewares(runtime.Log()),
-		wsManager:   websockets.NewManager(),
+		wsManager:   websockets.NewManager(runtime.Log()),
 		handlers:    make(map[string]server.HTTPServerHandler, 0),
 	}
 
@@ -173,11 +172,9 @@ func (s *httpServer) Start(_ context.Context) error {
 	}
 
 	go func() {
-		logger2.Infof("server [http] listening on %s", listener.Addr().String())
+		s.runtime.Log().Infof("server [http] listening on %s", listener.Addr().String())
 		if err := http.Serve(listener, r); err != nil {
-			if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-				logger2.Errorf("server [http] start error: %v", err)
-			}
+			s.runtime.Log().Errorf("server [http] start error: %v", err)
 		}
 	}()
 

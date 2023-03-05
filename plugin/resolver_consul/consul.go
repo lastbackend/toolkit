@@ -20,7 +20,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver"
 	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver/route"
-	logger2 "github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/runtime"
 	"time"
 
 	"fmt"
@@ -28,6 +28,8 @@ import (
 
 type Resolver struct {
 	address string
+
+	runtime runtime.Runtime
 
 	table   *table
 	options resolver.Options
@@ -39,12 +41,13 @@ type Options struct {
 	Address string
 }
 
-func NewResolver(opts ...resolver.Option) resolver.Resolver {
+func NewResolver(runtime runtime.Runtime, opts ...resolver.Option) resolver.Resolver {
 	options := resolver.DefaultOptions()
 	for _, o := range opts {
 		o(&options)
 	}
 	r := &Resolver{
+		runtime:  runtime,
 		options:  options,
 		table:    newTable(),
 		watchers: make(map[string]uint64, 0),
@@ -77,9 +80,7 @@ func (c *Resolver) Lookup(service string, opts ...resolver.LookupOption) (route.
 
 	for _, r := range routes {
 		if err := c.table.Update(route.Route{Service: r.Service, Address: r.Address}); err != nil {
-			if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-				logger2.Errorf("update state error: %v", err)
-			}
+			c.runtime.Log().Errorf("update state error: %v", err)
 		}
 	}
 
@@ -95,26 +96,20 @@ func (c *Resolver) Table() resolver.Table {
 
 func (c *Resolver) watcher(client *api.Client, name string) {
 
-	if logger2.V(logger2.DebugLevel, logger2.DefaultLogger) {
-		logger2.Debugf("calling consul watcher")
-	}
+	c.runtime.Log().Debugf("calling consul watcher")
 
 	for {
 
 		routes, err := c.getRoutes(client, name)
 		if err != nil {
-			if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-				logger2.Errorf("error retrieving instances from Consul: %v", err)
-			}
+			c.runtime.Log().Errorf("error retrieving instances from Consul: %v", err)
 
 			<-time.After(10 * time.Second)
 		}
 
 		for _, r := range routes {
 			if err := c.table.Update(route.Route{Service: r.Service, Address: r.Address}); err != nil {
-				if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-					logger2.Errorf("update state error: %v", err)
-				}
+				c.runtime.Log().Errorf("update state error: %v", err)
 			}
 		}
 
@@ -129,17 +124,13 @@ func (c *Resolver) getRoutes(client *api.Client, service string) (route.List, er
 
 	services, _, err := client.Health().Service(service, "", true, &api.QueryOptions{})
 	if err != nil {
-		if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-			logger2.Errorf("error retrieving instances from Consul: %v", err)
-		}
+		c.runtime.Log().Errorf("error retrieving instances from Consul: %v", err)
 		return nil, err
 	}
 
 	for _, service := range services {
 		addr := fmt.Sprintf("%v:%v", service.Service.Address, service.Service.Port)
-		if logger2.V(logger2.DebugLevel, logger2.DefaultLogger) {
-			logger2.Debugf("adding service addrs: %v", addr)
-		}
+		c.runtime.Log().Debugf("adding service addrs: %v", addr)
 		routes = append(routes, route.Route{Service: service.Service.Service, Address: addr})
 	}
 

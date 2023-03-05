@@ -115,7 +115,7 @@ func (p *plugin) Start(ctx context.Context) error {
 		Durable: true,
 	}
 
-	p.broker = newBroker(p.opts)
+	p.broker = newBroker(p.runtime, p.opts)
 
 	if err := p.broker.Connect(); err != nil {
 		return err

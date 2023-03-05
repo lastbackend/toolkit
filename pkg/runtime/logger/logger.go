@@ -17,30 +17,33 @@ limitations under the License.
 package logger
 
 import (
+	"go.uber.org/fx/fxevent"
 	"io"
-)
-
-var (
-	DefaultLogger Logger = newZapLogger(Options{})
 )
 
 type Fields map[string]interface{}
 
+type Level int8
+
+const (
+	FatalLevel Level = iota
+	PanicLevel
+	ErrorLevel
+	WarnLevel
+	InfoLevel
+	DebugLevel
+)
+
 type Options struct {
-	Level           Level `env:"DEBUG"`
-	VerboseLevel    Level `env:"VERBOSE"`
-	JSONFormat      bool
+	Verbose         Level `env:"VERBOSE"`
+	JSONFormat      bool  `env:"JSON_FORMAT"`
 	CallerSkipCount int
 	Fields          Fields
 	Out             io.Writer
 	Tags            map[string]string
-	SentryDNS       string
 }
 
 type Logger interface {
-	WithFields(fields Fields) Logger
-	Init(opts Options) Logger
-	Options() Options
 	Debug(args ...interface{})
 	Debugf(format string, args ...interface{})
 	Info(args ...interface{})
@@ -53,4 +56,7 @@ type Logger interface {
 	Panicf(format string, args ...interface{})
 	Fatal(args ...interface{})
 	Fatalf(format string, args ...interface{})
+	V(Level) Logger
+	Inject(fn func(level Level))
+	Fx() fxevent.Logger
 }
