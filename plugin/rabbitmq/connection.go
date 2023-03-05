@@ -18,7 +18,7 @@ package rabbitmq
 
 import (
 	"crypto/tls"
-	logger2 "github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/runtime"
 	"regexp"
 	"strings"
 	"sync"
@@ -50,6 +50,7 @@ var (
 type amqpConn struct {
 	sync.Mutex
 
+	runtime         runtime.Runtime
 	conn            *amqp.Connection
 	channel         *amqpChannel
 	exchangeChannel *amqpChannel
@@ -70,7 +71,7 @@ type Exchange struct {
 	Durable bool
 }
 
-func newConnection(ex Exchange, urls []string, prefetchCount int, prefetchGlobal bool) *amqpConn {
+func newConnection(runtime runtime.Runtime, ex Exchange, urls []string, prefetchCount int, prefetchGlobal bool) *amqpConn {
 
 	url := DefaultRabbitURL
 
@@ -79,6 +80,7 @@ func newConnection(ex Exchange, urls []string, prefetchCount int, prefetchGlobal
 	}
 
 	ret := &amqpConn{
+		runtime:        runtime,
 		exchange:       ex,
 		url:            url,
 		prefetchCount:  prefetchCount,
@@ -136,9 +138,7 @@ func (a *amqpConn) reconnect(secure bool, config *amqp.Config) {
 		for notifyClose != nil || chanNotifyClose != nil {
 			select {
 			case err := <-chanNotifyClose:
-				if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-					logger2.Error(err)
-				}
+				a.runtime.Log().Error(err)
 
 				a.Lock()
 				a.connected = false
@@ -148,9 +148,7 @@ func (a *amqpConn) reconnect(secure bool, config *amqp.Config) {
 
 				chanNotifyClose = nil
 			case err := <-notifyClose:
-				if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-					logger2.Error(err)
-				}
+				a.runtime.Log().Error(err)
 
 				a.Lock()
 				a.connected = false

@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"github.com/lastbackend/toolkit/pkg/runtime"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -40,8 +41,8 @@ type brokerOptions struct {
 }
 
 type broker struct {
-	mtx sync.Mutex
-
+	mtx            sync.Mutex
+	runtime        runtime.Runtime
 	conn           *amqpConn
 	opts           Config
 	endpoints      []string
@@ -57,7 +58,7 @@ type message struct {
 	Payload string `json:"payload"`
 }
 
-func newBroker(opts Config) *broker {
+func newBroker(runtime runtime.Runtime, opts Config) *broker {
 
 	exchange := DefaultExchange
 	if opts.DefaultExchange != nil {
@@ -65,6 +66,7 @@ func newBroker(opts Config) *broker {
 	}
 
 	return &broker{
+		runtime:   runtime,
 		endpoints: []string{opts.DSN},
 		opts:      opts,
 		exchange:  exchange,
@@ -155,6 +157,7 @@ func (r *broker) Subscribe(exchange, queue string, handler SubscriberHandler, op
 	}
 
 	sb := &consumer{
+		runtime:      r.runtime,
 		exchange:     exchange,
 		queue:        queue,
 		key:          "*",
@@ -180,7 +183,7 @@ func (r *broker) Channel() (*amqp.Channel, error) {
 
 func (r *broker) Connect() error {
 	if r.conn == nil {
-		r.conn = newConnection(r.exchange, r.endpoints, r.opts.PrefetchCount, r.opts.PrefetchGlobal)
+		r.conn = newConnection(r.runtime, r.exchange, r.endpoints, r.opts.PrefetchCount, r.opts.PrefetchGlobal)
 	}
 
 	conf := defaultAmqpConfig

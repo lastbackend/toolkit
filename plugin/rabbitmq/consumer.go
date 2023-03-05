@@ -17,7 +17,7 @@ limitations under the License.
 package rabbitmq
 
 import (
-	logger2 "github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/runtime"
 	"sync"
 	"time"
 
@@ -25,6 +25,7 @@ import (
 )
 
 type consumer struct {
+	runtime      runtime.Runtime
 	done         bool
 	mtx          sync.Mutex
 	exchange     string
@@ -90,9 +91,7 @@ func (c *consumer) resubscribe() {
 		c.broker.mtx.Unlock()
 
 		if err != nil {
-			if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-				logger2.Error(err)
-			}
+			c.runtime.Log().Error(err)
 
 			if delay > maxDelay {
 				delay = maxDelay

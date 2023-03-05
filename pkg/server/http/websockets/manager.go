@@ -18,7 +18,7 @@ package websockets
 
 import (
 	"context"
-	logger2 "github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"net/http"
 	"reflect"
 	"sync"
@@ -53,13 +53,15 @@ const (
 type Manager struct {
 	sync.RWMutex
 
+	log      logger.Logger
 	clients  ClientList
 	handlers map[string]EventHandler
 }
 
 // NewManager is used to initialize all the values inside the manager
-func NewManager() *Manager {
+func NewManager(log logger.Logger) *Manager {
 	m := &Manager{
+		log:      log,
 		clients:  make(ClientList),
 		handlers: make(map[string]EventHandler),
 	}
@@ -96,9 +98,7 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	// Begin by upgrading the HTTP request
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-			logger2.Errorf("upgrading the HTTP request failed %v", err)
-		}
+		m.log.Errorf("upgrading the HTTP request failed %v", err)
 		return
 	}
 
@@ -127,7 +127,7 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 
 	ctx = context.WithValue(ctx, RequestHeaders, headers)
 
-	client := NewClient(ctx, conn, m)
+	client := NewClient(ctx, m.log, conn, m)
 
 	m.addClient(client)
 
@@ -150,9 +150,7 @@ func (m *Manager) removeClient(client *Client) {
 
 	if _, ok := m.clients[client]; ok {
 		if err := client.connection.Close(); err != nil {
-			if logger2.V(logger2.ErrorLevel, logger2.DefaultLogger) {
-				logger2.Errorf("close client failed %v", err)
-			}
+			m.log.Errorf("close client failed %v", err)
 		}
 		delete(m.clients, client)
 	}

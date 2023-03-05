@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/lastbackend/toolkit/pkg/runtime"
-	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"github.com/lastbackend/toolkit/pkg/server"
 	"net"
 	"net/http"
@@ -211,7 +210,7 @@ func (g *grpcServer) Start(_ context.Context) error {
 		go func() {
 			err = webGRPCServer.ListenAndServe()
 			if err != nil {
-				logger.Errorf("server [grpc] start error: %v", err)
+				g.runtime.Log().Errorf("server [grpc] start error: %v", err)
 			}
 		}()
 
