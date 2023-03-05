@@ -59,6 +59,7 @@ type {{ .GetName | ToLower }}Services struct {
 func (s *{{ $svc.GetName | ToLower }}Services) {{ $value.Service | ToCamel }}() {{ $key }}.{{ $value.Service | ToCamel }}RPCClient {
 	return s.{{ $value.Service | ToLower }}
 }
+{{- end }}
 
 func {{ $svc.GetName | ToLower }}ServicesRegister(runtime runtime.Runtime) {{ $svc.GetName | ToCamel }}Services {
 	s := new({{ $svc.GetName | ToLower }}Services)
@@ -67,7 +68,6 @@ func {{ $svc.GetName | ToLower }}ServicesRegister(runtime runtime.Runtime) {{ $s
 	{{- end }}
 	return s
 }
-{{- end }}
 {{- end }}
 
 // Service {{ $svc.GetName }} define
@@ -123,9 +123,7 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 {{ end }}
 
 {{- if $.Clients }}
-{{- range $key, $value := $.Clients }}
 	app.runtime.Provide({{ $svc.GetName | ToLower }}ServicesRegister)
-{{- end }}
 {{- end }}
 
 	return app.runtime.Service(), nil

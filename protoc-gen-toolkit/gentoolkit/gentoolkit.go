@@ -73,7 +73,7 @@ func (g *generator) Generate(files []*descriptor.File) ([]*descriptor.ResponseFi
 
 		if g.hasServiceMethods(file) {
 			// Generate rpc client
-			filename = filepath.Join(dir, "client", name, "client.pb.toolkit.rpc.go")
+			filename = filepath.Join(dir, "client", name+".pb.toolkit.rpc.go")
 			genFiles, err = g.generate(filename, file, g.generateClient)
 			if err != nil {
 				return nil, err

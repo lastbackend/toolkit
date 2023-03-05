@@ -18,7 +18,6 @@ import (
 	tk_ws "github.com/lastbackend/toolkit/pkg/server/http/websockets"
 	"github.com/lastbackend/toolkit/plugin/postgres_gorm"
 	"github.com/lastbackend/toolkit/plugin/redis"
-	integration "gitlab.com/lastbackend/product/orca/services/prime/gen/integration/client"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -50,25 +49,6 @@ type Redis2Plugin interface {
 	redis.Plugin
 }
 
-// Client services define
-type ExampleServices interface {
-	Integration() integration.IntegrationRPCClient
-}
-
-type exampleServices struct {
-	integration integration.IntegrationRPCClient
-}
-
-func (s *exampleServices) Integration() integration.IntegrationRPCClient {
-	return s.integration
-}
-
-func exampleServicesRegister(runtime runtime.Runtime) ExampleServices {
-	s := new(exampleServices)
-	s.integration = integration.NewIntegrationRPCClient("integration", runtime.Client().GRPC())
-	return s
-}
-
 // Service Example define
 type serviceExample struct {
 	runtime runtime.Runtime
@@ -86,8 +66,6 @@ func NewExampleService(name string, opts ...runtime.Option) (_ toolkit.Service, 
 	app.runtime.Server().GRPCNew(name, nil)
 	app.runtime.Server().GRPC().SetDescriptor(Example_ServiceDesc)
 	app.runtime.Server().GRPC().SetConstructor(registerExampleGRPCServer)
-
-	app.runtime.Provide(exampleServicesRegister)
 
 	return app.runtime.Service(), nil
 }
@@ -113,25 +91,6 @@ func registerExampleGRPCServer(runtime runtime.Runtime, srv ExampleRpcServer) er
 	return nil
 }
 
-// Client services define
-type SampleServices interface {
-	Integration() integration.IntegrationRPCClient
-}
-
-type sampleServices struct {
-	integration integration.IntegrationRPCClient
-}
-
-func (s *sampleServices) Integration() integration.IntegrationRPCClient {
-	return s.integration
-}
-
-func sampleServicesRegister(runtime runtime.Runtime) SampleServices {
-	s := new(sampleServices)
-	s.integration = integration.NewIntegrationRPCClient("integration", runtime.Client().GRPC())
-	return s
-}
-
 // Service Sample define
 type serviceSample struct {
 	runtime runtime.Runtime
@@ -154,8 +113,6 @@ func NewSampleService(name string, opts ...runtime.Option) (_ toolkit.Service, e
 	app.runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
 	app.runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
 	app.runtime.Plugin().Provide(func() Redis2Plugin { return plugin_redis2 })
-
-	app.runtime.Provide(sampleServicesRegister)
 
 	return app.runtime.Service(), nil
 }
