@@ -47,6 +47,7 @@ const (
 type Plugin interface {
 	DB() *gorm.DB
 	Info()
+	RunMigration() error
 }
 
 type Options struct {
