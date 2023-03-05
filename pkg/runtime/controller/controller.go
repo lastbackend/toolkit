@@ -54,6 +54,15 @@ func (c *controller) Log() logger.Logger {
 }
 
 func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
+
+	if c.help() {
+		return nil
+	}
+
+	return c.start(ctx, fn...)
+}
+
+func (c *controller) start(ctx context.Context, fn ...interface{}) error {
 	c.Log().Info("controller start")
 
 	opts := make([]fx.Option, 0)
@@ -146,8 +155,6 @@ func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
 	fx.New(
 		fx.Options(opts...),
 		fx.WithLogger(c.logger.Fx),
-
-		//fx.NopLogger,
 	).Run()
 
 	return nil

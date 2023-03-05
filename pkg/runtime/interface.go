@@ -49,6 +49,8 @@ type Config interface {
 	SetMeta(meta *meta.Meta)
 	Parse(v interface{}, prefix string, opts ...env.Options) error
 	Print(v interface{}, prefix string)
+	PrintTable(all, nocomments bool) string
+	PrintYaml(all, nocomments bool) string
 
 	Configs() []interface{}
 }

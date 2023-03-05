@@ -20,6 +20,7 @@ type configController struct {
 
 	log     logger.Logger
 	configs []interface{}
+	parsed  map[string]interface{}
 	prefix  string
 }
 
@@ -46,9 +47,13 @@ func (c *configController) Configs() []interface{} {
 	return c.configs
 }
 
-func (c *configController) Provide(cfg interface{}) {
+func (c *configController) Provide(cfg interface{}) error {
+	if err := c.Parse(cfg, ""); err != nil {
+		c.log.Errorf("can not parse config: %s", err.Error())
+		return err
+	}
 	c.configs = append(c.configs, cfg)
-	return
+	return nil
 }
 
 func (c *configController) SetMeta(meta *meta.Meta) {
@@ -56,6 +61,7 @@ func (c *configController) SetMeta(meta *meta.Meta) {
 }
 
 func (c *configController) Parse(v interface{}, prefix string, opts ...env.Options) error {
+	c.parsed[prefix] = v
 	opts = append(opts, env.Options{Prefix: c.buildPrefix(prefix)})
 	return env.Parse(v, opts...)
 }
@@ -69,8 +75,6 @@ func (c *configController) Print(v interface{}, prefix string) {
 	tw.Style().Options.SeparateFooter = false
 	tw.Style().Options.SeparateHeader = true
 	tw.Style().Options.SeparateRows = true
-
-	tw.SetCaption("(c) No one!")
 
 	fields := structs.Fields(v)
 	for _, field := range fields {
@@ -91,8 +95,96 @@ func (c *configController) Print(v interface{}, prefix string) {
 	fmt.Println(tw.Render())
 }
 
+func (c *configController) PrintTable(all, nocomments bool) string {
+
+	tw := table.NewWriter()
+
+	if nocomments {
+		tw.AppendHeader(table.Row{"ENVIRONMENT", "DEFAULT VALUE"})
+	} else {
+		tw.AppendHeader(table.Row{"ENVIRONMENT", "DEFAULT VALUE", "REQUIRED", "DESCRIPTION"})
+	}
+
+	tw.Style().Options.DrawBorder = true
+	tw.Style().Options.SeparateColumns = true
+	tw.Style().Options.SeparateFooter = false
+	tw.Style().Options.SeparateHeader = true
+	tw.Style().Options.SeparateRows = true
+
+	for prefix, v := range c.parsed {
+		fields := structs.Fields(v)
+		for _, field := range fields {
+
+			tagE := field.Tag("env")
+			tagD := field.Tag("envDefault")
+			tagR := field.Tag("required")
+			tagC := field.Tag("comment")
+
+			if tagE != "" {
+
+				if tagD == "" && tagR == "" && !all {
+					continue
+				}
+
+				if nocomments {
+					tw.AppendRows([]table.Row{
+						{fmt.Sprintf("%s%s", c.buildPrefix(prefix), tagE), tagD},
+					})
+				} else {
+					tw.AppendRows([]table.Row{
+						{fmt.Sprintf("%s%s", c.buildPrefix(prefix), tagE), tagD, tagR, text.WrapText(tagC, 120)},
+					})
+				}
+
+			}
+
+		}
+	}
+
+	return tw.Render()
+}
+
+func (c *configController) PrintYaml(all, nocomments bool) string {
+
+	yamlStr := "---"
+
+	for prefix, v := range c.parsed {
+		fields := structs.Fields(v)
+		for _, field := range fields {
+
+			tagE := field.Tag("env")
+			tagD := field.Tag("envDefault")
+			tagR := field.Tag("required")
+			tagC := field.Tag("comment")
+
+			if tagE != "" {
+
+				if tagD == "" && tagR == "" && !all {
+					continue
+				}
+				if tagC != "" && !nocomments {
+					yamlStr = fmt.Sprintf("%s\n// %s", yamlStr, tagC)
+				}
+				if tagD != "" {
+					yamlStr = fmt.Sprintf("%s\n%s: '%s'", yamlStr, fmt.Sprintf("%s%s", c.buildPrefix(prefix), tagE), tagD)
+				} else {
+					yamlStr = fmt.Sprintf("%s\n%s:", yamlStr, fmt.Sprintf("%s%s", c.buildPrefix(prefix), tagE))
+				}
+
+			}
+
+		}
+	}
+
+	return yamlStr
+}
+
 func newConfigController(_ context.Context, runtime runtime.Runtime) runtime.Config {
 	cfg := new(configController)
 	cfg.log = runtime.Log()
+
+	cfg.configs = make([]interface{}, 0)
+	cfg.parsed = make(map[string]interface{}, 0)
+
 	return cfg
 }

@@ -43,7 +43,7 @@ type Client interface {
 }
 
 type Config interface {
-	Provide(interface{})
+	Provide(interface{}) error
 }
 
 type Server interface {

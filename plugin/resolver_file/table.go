@@ -45,8 +45,6 @@ type Route struct {
 
 func newTable(file string, log logger.Logger) (*table, error) {
 
-	log.Info("create new resolver table")
-
 	t := &table{
 		file: file,
 		log:  log,
