@@ -24,7 +24,6 @@ var ServiceContentTpl = `
 var (
 	_ context.Context
 	_ emptypb.Empty
-	_ grpc.Client
 	_ http.Handler
 	_ errors.Err
 	_ io.Reader
@@ -42,6 +41,35 @@ var (
 {{- end }}
 
 {{ range $svc := .Services }}
+{{- if $.Clients }}
+// Client services define
+type {{ .GetName | ToCamel }}Services interface {
+	{{- range $key, $value := $.Clients }}
+	{{ $value.Service | ToCamel }}() {{ $key }}.{{ $value.Service | ToCamel }}RPCClient
+	{{- end }}
+}
+
+type {{ .GetName | ToLower }}Services struct {
+	{{- range $key, $value := $.Clients }}
+	{{ $value.Service | ToLower }} {{ $key }}.{{ $value.Service | ToCamel }}RPCClient
+	{{- end }}
+}
+
+{{- range $key, $value := $.Clients }}
+func (s *{{ $svc.GetName | ToLower }}Services) {{ $value.Service | ToCamel }}() {{ $key }}.{{ $value.Service | ToCamel }}RPCClient {
+	return s.{{ $value.Service | ToLower }}
+}
+{{- end }}
+
+func {{ $svc.GetName | ToLower }}ServicesRegister(runtime runtime.Runtime) {{ $svc.GetName | ToCamel }}Services {
+	s := new({{ $svc.GetName | ToLower }}Services)
+	{{- range $key, $value := $.Clients }}
+	s.{{ $value.Service | ToLower }} = {{ $key }}.New{{ $value.Service | ToCamel }}RPCClient("{{ $value.Service | ToLower }}", runtime.Client().GRPC())
+	{{- end }}
+	return s
+}
+{{- end }}
+
 // Service {{ $svc.GetName }} define
 type service{{ $svc.GetName | ToCamel }} struct {
 	runtime runtime.Runtime
@@ -69,14 +97,14 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 
 {{ if and $svc.UseGRPCServer $svc.Methods }}
 	// set descriptor to {{ $svc.GetName }} GRPC server
-	app.runtime.Server().GRPCNew(name)
+	app.runtime.Server().GRPCNew(name, nil)
 	app.runtime.Server().GRPC().SetDescriptor({{ $svc.GetName }}_ServiceDesc)
 	app.runtime.Server().GRPC().SetConstructor(register{{ $svc.GetName }}GRPCServer)
 {{ end }}
 
 {{ if and (or $svc.UseHTTPProxyServer $svc.UseWebsocketProxyServer $svc.UseWebsocketServer) $svc.Methods }}
 	// create new {{ $svc.GetName }} HTTP server
-	app.runtime.Server().HTTPNew(name)
+	app.runtime.Server().HTTPNew(name, nil)
 	{{ if and (or $svc.UseHTTPProxyServer $svc.UseWebsocketProxyServer) $svc.HTTPMiddlewares }}app.runtime.Server().HTTP().UseMiddleware({{ range $index, $mdw := $svc.HTTPMiddlewares }}{{ if lt 0 $index }}, {{ end }}"{{ $mdw }}"{{ end }}){{ end }}
 	{{- range $m := $svc.Methods }}
 	{{- range $binding := $m.Bindings }}
@@ -93,6 +121,10 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 	{{- end }} 
 	{{- end }} 
 {{ end }}
+
+{{- if $.Clients }}
+	app.runtime.Provide({{ $svc.GetName | ToLower }}ServicesRegister)
+{{- end }}
 
 	return app.runtime.Service(), nil
 }

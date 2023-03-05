@@ -137,7 +137,6 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 		"tk_http github.com/lastbackend/toolkit/pkg/server/http",
 		"tk_ws github.com/lastbackend/toolkit/pkg/server/http/websockets",
 		"toolkit github.com/lastbackend/toolkit",
-		"grpc github.com/lastbackend/toolkit/pkg/client/grpc",
 		"errors github.com/lastbackend/toolkit/pkg/server/http/errors",
 		"emptypb google.golang.org/protobuf/types/known/emptypb",
 	})
@@ -260,7 +259,7 @@ func (g *generator) generateClient(file *descriptor.File) ([]byte, error) {
 
 	pkgImports := []string{
 		"context context",
-		"grpc github.com/lastbackend/toolkit/pkg/client/grpc",
+		"client github.com/lastbackend/toolkit/pkg/client",
 		"emptypb google.golang.org/protobuf/types/known/emptypb",
 	}
 
@@ -319,7 +318,7 @@ func (g *generator) generateTestStubs(file *descriptor.File) ([]byte, error) {
 
 	baseImports := []string{
 		"context context",
-		"grpc github.com/lastbackend/toolkit/pkg/client/grpc",
+		"client github.com/lastbackend/toolkit/pkg/client",
 		"emptypb google.golang.org/protobuf/types/known/emptypb",
 		fmt.Sprintf("servicepb %s/client", filepath.Dir(file.GeneratedFilenamePrefix)),
 	}
