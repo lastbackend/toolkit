@@ -54,13 +54,19 @@ func (d *Descriptor) loadServices(file *File) error {
 			eService := proto.GetExtension(svc.Options, toolkit_annotattions.E_Service)
 			if eService != nil {
 				ss := eService.(*toolkit_annotattions.Service)
-				svc.UseGRPCServer = ss.Servers == nil || len(ss.Servers) == 0 || checkSetServerOption(ss.Servers, toolkit_annotattions.Service_GRPC)
+				svc.UseGRPCServer = ss.Servers == nil && len(ss.Servers) == 0 && len(svc.Methods) > 0
 				if ss.Servers != nil {
 					svc.UseHTTPProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Service_HTTP_PROXY)
 					svc.UseWebsocketProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Service_WEBSOCKET_PROXY)
 					svc.UseWebsocketServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Service_WEBSOCKET)
+					svc.UseGRPCServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Service_GRPC)
 				}
 			}
+		}
+
+		if !svc.UseHTTPProxyServer && !svc.UseWebsocketProxyServer && !svc.UseWebsocketServer && !svc.UseGRPCServer {
+			// Use GRPC Server as default if it has methods
+			svc.UseGRPCServer = len(svc.Methods) > 0
 		}
 
 		services = append(services, svc)
@@ -178,7 +184,7 @@ func setBindingsToMethod(method *Method) error {
 				return err
 			}
 			if opts != nil {
-				binding, err := newHttpBinding(method, opts, rOpts)
+				binding, err := newHttpBinding(method, opts, rOpts, false)
 				if err != nil {
 					return err
 				}
@@ -187,7 +193,7 @@ func setBindingsToMethod(method *Method) error {
 					if len(additional.AdditionalBindings) > 0 {
 						continue
 					}
-					b, err := newHttpBinding(method, additional, rOpts)
+					b, err := newHttpBinding(method, additional, rOpts, true)
 					if err != nil {
 						continue
 					}
@@ -231,7 +237,7 @@ func getProxyOptions(m *Method) (*toolkit_annotattions.Server, error) {
 	return opts, nil
 }
 
-func newHttpBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annotattions.HttpProxy) (*Binding, error) {
+func newHttpBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annotattions.HttpProxy, additionalBinding bool) (*Binding, error) {
 	var (
 		httpMethod string
 		httpPath   string
@@ -266,19 +272,20 @@ func newHttpBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annot
 	}
 
 	return &Binding{
-		Method:       method,
-		Index:        len(method.Bindings),
-		Service:      rOpts.GetService(),
-		RpcPath:      rOpts.GetMethod(),
-		RpcMethod:    method.GetName(),
-		HttpMethod:   httpMethod,
-		HttpPath:     httpPath,
-		HttpParams:   getVariablesFromPath(httpPath),
-		RequestType:  method.RequestType,
-		ResponseType: method.ResponseType,
-		Stream:       method.GetClientStreaming(),
-		Middlewares:  rOpts.GetMiddlewares(),
-		RawBody:      opts.Body,
+		Method:            method,
+		Index:             len(method.Bindings),
+		Service:           rOpts.GetService(),
+		RpcPath:           rOpts.GetMethod(),
+		RpcMethod:         method.GetName(),
+		HttpMethod:        httpMethod,
+		HttpPath:          httpPath,
+		HttpParams:        getVariablesFromPath(httpPath),
+		RequestType:       method.RequestType,
+		ResponseType:      method.ResponseType,
+		Stream:            method.GetClientStreaming(),
+		Middlewares:       rOpts.GetMiddlewares(),
+		RawBody:           opts.Body,
+		AdditionalBinding: additionalBinding,
 	}, nil
 }
 

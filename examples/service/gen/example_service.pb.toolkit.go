@@ -6,37 +6,66 @@ package servicepb
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	examplepb "github.com/lastbackend/toolkit/examples/service/gen/client/example"
+	"github.com/lastbackend/toolkit/plugin/resolver_file"
+
+	"github.com/lastbackend/toolkit/pkg/server"
+
 	"io"
 	"net/http"
 
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	"github.com/lastbackend/toolkit/pkg/runtime/controller"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+
+	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
+
 	toolkit "github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/gen/ptypes"
-	runtime "github.com/lastbackend/toolkit/pkg/runtime"
-	controller "github.com/lastbackend/toolkit/pkg/runtime/controller"
-	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
+
 	errors "github.com/lastbackend/toolkit/pkg/server/http/errors"
-	tk_ws "github.com/lastbackend/toolkit/pkg/server/http/websockets"
+	ws "github.com/lastbackend/toolkit/pkg/server/http/websockets"
 	"github.com/lastbackend/toolkit/plugin/postgres_gorm"
 	"github.com/lastbackend/toolkit/plugin/redis"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the toolkit package it is being compiled against and
-// suppress "imported and not used" errors
+// Suppress "imported and not used" errors
 var (
 	_ context.Context
+	_ logger.Logger
 	_ emptypb.Empty
 	_ http.Handler
 	_ errors.Err
 	_ io.Reader
 	_ json.Marshaler
-	_ tk_ws.Client
-	_ tk_http.Handler
+	_ ws.Client
 )
 
 // Definitions
+type Services interface {
+	Example() examplepb.ExampleRPCClient
+}
 
+type services struct {
+	example examplepb.ExampleRPCClient
+}
+
+func (s *services) Example() examplepb.ExampleRPCClient {
+	return s.example
+}
+
+func servicesRegister(runtime runtime.Runtime) Services {
+	var (
+		svcs = new(services)
+	)
+
+	svcs.example = examplepb.NewExampleRPCClient("example", runtime.Client().GRPC())
+	return svcs
+}
+
+// Plugins define
 type PgsqlPlugin interface {
 	postgres_gorm.Plugin
 }
@@ -45,35 +74,14 @@ type RedisPlugin interface {
 	redis.Plugin
 }
 
-type Redis2Plugin interface {
-	redis.Plugin
+type ResolverFilePlugin interface {
+	resolver_file.Plugin
 }
 
-// Service Example define
-type serviceExample struct {
-	runtime runtime.Runtime
-}
-
-func NewExampleService(name string, opts ...runtime.Option) (_ toolkit.Service, err error) {
-	app := new(serviceExample)
-
-	app.runtime, err = controller.NewRuntime(context.Background(), name, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	// set descriptor to Example GRPC server
-	app.runtime.Server().GRPCNew(name, nil)
-	app.runtime.Server().GRPC().SetDescriptor(Example_ServiceDesc)
-	app.runtime.Server().GRPC().SetConstructor(registerExampleGRPCServer)
-
-	return app.runtime.Service(), nil
-}
-
-// Define GRPC services for Example GRPC server
-
+// GRPC servers define
 type ExampleRpcServer interface {
 	HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error)
+	mustEmbedUnimplementedExampleServer()
 }
 
 type exampleGrpcRpcServer struct {
@@ -91,28 +99,61 @@ func registerExampleGRPCServer(runtime runtime.Runtime, srv ExampleRpcServer) er
 	return nil
 }
 
-// Service Sample define
-type serviceSample struct {
-	runtime runtime.Runtime
+// HTTP server middleware
+func exampleHTTPServerMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("Call: ExampleMiddleware")
+
+		// Set example data to request context
+		ctx := context.WithValue(r.Context(), "test-data", "example context data")
+
+		h.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
-func NewSampleService(name string, opts ...runtime.Option) (_ toolkit.Service, err error) {
-	app := new(serviceSample)
+// HTTP server custom handler
+func exampleHTTPServerSubscribeHandler(w http.ResponseWriter, r *http.Request) {
+	return
+}
 
-	app.runtime, err = controller.NewRuntime(context.Background(), name, opts...)
+const (
+	AuthMiddlerware    server.KindMiddleware = "authMiddleware"
+	requestMiddlerware server.KindMiddleware = "requestMiddlerware"
+)
+
+func NewService(name string, opts ...runtime.Option) (toolkit.Service, error) {
+
+	runtime, err := controller.NewRuntime(context.Background(), name, opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	// loop over plugins and initialize plugin instance
-	plugin_pgsql := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "pgsql"})
-	plugin_redis := redis.NewPlugin(app.runtime, &redis.Options{Name: "redis"})
-	plugin_redis2 := redis.NewPlugin(app.runtime, &redis.Options{Name: "redis2"})
+	plugin_pgsql := postgres_gorm.NewPlugin(runtime, &postgres_gorm.Options{Name: "pgsql"})
+	plugin_redis := redis.NewPlugin(runtime, &redis.Options{Name: "redis"})
+	plugin_resolver_file := resolver_file.NewPlugin(runtime, &resolver_file.Options{Name: "resolver_file"})
 
 	// loop over plugins and register plugin in toolkit
-	app.runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
-	app.runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
-	app.runtime.Plugin().Provide(func() Redis2Plugin { return plugin_redis2 })
+	runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
+	runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
+	runtime.Plugin().Provide(func() ResolverFilePlugin { return plugin_resolver_file })
 
-	return app.runtime.Service(), nil
+	// set descriptor to Example grpc server
+	runtime.Server().GRPCNew(name, nil)
+	runtime.Server().GRPC().SetDescriptor(Example_ServiceDesc)
+	runtime.Server().GRPC().SetConstructor(registerExampleGRPCServer)
+
+	// create new Example http server
+	runtime.Server().HTTPNew(name, nil)
+
+	runtime.Server().HTTP().UseMiddleware(AuthMiddlerware)
+
+	runtime.Server().HTTP().SetMiddleware(AuthMiddlerware, exampleHTTPServerMiddleware)
+	runtime.Server().HTTP().SetMiddleware(requestMiddlerware, exampleHTTPServerMiddleware)
+
+	runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", exampleHTTPServerSubscribeHandler, tk_http.WithMiddleware(requestMiddlerware))
+
+	runtime.Provide(servicesRegister)
+
+	return runtime.Service(), nil
 }

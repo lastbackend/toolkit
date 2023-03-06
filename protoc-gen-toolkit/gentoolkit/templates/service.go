@@ -30,6 +30,7 @@ var (
 	_ json.Marshaler
 	_ tk_ws.Client
 	_ tk_http.Handler
+	_ client.GRPCClient
 )
 
 // Definitions
