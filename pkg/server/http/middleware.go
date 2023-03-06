@@ -86,7 +86,7 @@ func (m *Middlewares) apply(handler server.HTTPServerHandler) (http.HandlerFunc,
 	}
 
 	for _, opt := range handler.Options {
-		if opt.Kind() != optionKindMiddleware {
+		if opt.Kind() != optionKindExcludeGlobalMiddleware {
 			continue
 		}
 
@@ -119,8 +119,9 @@ func (m *Middlewares) apply(handler server.HTTPServerHandler) (http.HandlerFunc,
 		mws[g] = middleware
 	}
 
-	for _, m := range mws {
-		h = m.Apply(h)
+	for n, mw := range mws {
+		m.log.V(5).Infof("apply middleware %s to %s", n, handler.Path)
+		h = mw.Apply(h)
 	}
 
 	return h, nil

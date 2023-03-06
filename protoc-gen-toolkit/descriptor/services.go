@@ -272,20 +272,21 @@ func newHttpBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annot
 	}
 
 	return &Binding{
-		Method:            method,
-		Index:             len(method.Bindings),
-		Service:           rOpts.GetService(),
-		RpcPath:           rOpts.GetMethod(),
-		RpcMethod:         method.GetName(),
-		HttpMethod:        httpMethod,
-		HttpPath:          httpPath,
-		HttpParams:        getVariablesFromPath(httpPath),
-		RequestType:       method.RequestType,
-		ResponseType:      method.ResponseType,
-		Stream:            method.GetClientStreaming(),
-		Middlewares:       rOpts.GetMiddlewares(),
-		RawBody:           opts.Body,
-		AdditionalBinding: additionalBinding,
+		Method:                   method,
+		Index:                    len(method.Bindings),
+		Service:                  rOpts.GetService(),
+		RpcPath:                  rOpts.GetMethod(),
+		RpcMethod:                method.GetName(),
+		HttpMethod:               httpMethod,
+		HttpPath:                 httpPath,
+		HttpParams:               getVariablesFromPath(httpPath),
+		RequestType:              method.RequestType,
+		ResponseType:             method.ResponseType,
+		Stream:                   method.GetClientStreaming(),
+		Middlewares:              rOpts.GetMiddlewares(),
+		ExcludeGlobalMiddlewares: rOpts.GetExcludeGlobalMiddlewares(),
+		RawBody:                  opts.Body,
+		AdditionalBinding:        additionalBinding,
 	}, nil
 }
 

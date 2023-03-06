@@ -171,20 +171,21 @@ type ResponseFile struct {
 }
 
 type Binding struct {
-	Method            *Method
-	Index             int
-	RpcMethod         string
-	RpcPath           string
-	Service           string
-	HttpMethod        string
-	HttpPath          string
-	RawBody           string
-	HttpParams        []string
-	Middlewares       []string
-	RequestType       *Message
-	ResponseType      *Message
-	Stream            bool
-	Websocket         bool
-	WebsocketProxy    bool
-	AdditionalBinding bool
+	Method                   *Method
+	Index                    int
+	RpcMethod                string
+	RpcPath                  string
+	Service                  string
+	HttpMethod               string
+	HttpPath                 string
+	RawBody                  string
+	HttpParams               []string
+	Middlewares              []string
+	ExcludeGlobalMiddlewares []string
+	RequestType              *Message
+	ResponseType             *Message
+	Stream                   bool
+	Websocket                bool
+	WebsocketProxy           bool
+	AdditionalBinding        bool
 }

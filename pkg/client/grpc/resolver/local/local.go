@@ -36,7 +36,7 @@ type Resolver struct {
 
 type Options struct {
 	Cache     bool
-	Endpoints []string `env:"ENDPOINTS" envSeparator:":"`
+	Endpoints []string `env:"ENDPOINTS" envSeparator:","`
 }
 
 func NewResolver(runtime runtime.Runtime) resolver.Resolver {

@@ -52,18 +52,18 @@ var _ emptypb.Empty
 					resp := st.Response
 					err := st.Error
 					rpc_mock.On("{{ $m.GetName }}", st.Context, st.Request).Return(
-						func(ctx context.Context, req *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}, opts ...grpc.CallOption) *{{ $m.ResponseType.GoType $m.Service.File.GoPkg.Path }} {
+						func(ctx context.Context, req *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}, opts ...client.GRPCCallOption) *{{ $m.ResponseType.GoType $m.Service.File.GoPkg.Path }} {
 							return resp
 						},
-						func(ctx context.Context, req *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}, opts ...grpc.CallOption) error {
+						func(ctx context.Context, req *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}, opts ...client.GRPCCallOption) error {
 							return err
 						},
 					)
 					rpc_mock.On("{{ $m.GetName }}", st.Context, st.Request, st.CallOptions).Return(
-						func(ctx context.Context, req *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}, opts ...grpc.CallOption) *{{ $m.ResponseType.GoType $m.Service.File.GoPkg.Path }} {
+						func(ctx context.Context, req *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}, opts ...client.GRPCCallOption) *{{ $m.ResponseType.GoType $m.Service.File.GoPkg.Path }} {
 							return resp
 						},
-						func(ctx context.Context, req *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}, opts ...grpc.CallOption) error {
+						func(ctx context.Context, req *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}, opts ...client.GRPCCallOption) error {
 							return err
 						},
 					)
@@ -82,7 +82,7 @@ var _ emptypb.Empty
 				Context     context.Context
 				Request     *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}
 				Response    *{{ $m.ResponseType.GoType $m.Service.File.GoPkg.Path }}
-				CallOptions []grpc.CallOption				
+				CallOptions []client.GRPCCallOption				
 				Error 	    error
 			{{ end }}
 			}

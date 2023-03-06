@@ -63,7 +63,7 @@ func (optionExcludeGlobalMiddleware) Kind() server.HttpOptionKind {
 }
 
 func WithExcludeGlobalMiddleware(middleware server.KindMiddleware) server.HTTPServerOption {
-	return &optionMiddleware{kind: optionKindMiddleware, middleware: middleware}
+	return &optionExcludeGlobalMiddleware{kind: optionKindMiddleware, middleware: middleware}
 }
 
 type Config struct {

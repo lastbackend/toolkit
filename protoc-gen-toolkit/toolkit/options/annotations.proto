@@ -66,6 +66,7 @@ message HttpProxy {
   string service = 1;
   string method = 2;
   repeated string middlewares = 3;
+  repeated string exclude_global_middlewares = 4;
 }
 
 message WsProxy {

@@ -97,7 +97,7 @@ func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
 	return p
 }
 
-func (p *plugin) Start(ctx context.Context) error {
+func (p *plugin) PreStart(ctx context.Context) error {
 
 	p.ctx, p.cancel = context.WithCancel(ctx)
 
