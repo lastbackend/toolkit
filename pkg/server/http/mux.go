@@ -23,7 +23,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/server"
-
 	"github.com/lastbackend/toolkit/pkg/server/http/errors"
 	"github.com/lastbackend/toolkit/pkg/server/http/marshaler"
 	"github.com/lastbackend/toolkit/pkg/server/http/websockets"
@@ -161,13 +160,14 @@ func (s *httpServer) Start(_ context.Context) error {
 
 	for _, h := range s.handlers {
 
-		s.runtime.Log().Debugf("register [http] route: %s", h.Path)
+		s.runtime.Log().Infof("register [http] route: %s", h.Path)
 
-		if err = s.middlewares.apply(r, h); err != nil {
+		handler, err := s.middlewares.apply(h)
+		if err != nil {
 			return err
 		}
+		r.Handle(h.Path, handler).Methods(h.Method)
 
-		r.Handle(h.Path, h.Handler).Methods(h.Method)
 		s.runtime.Log().Infof("bind handler: method: %s, path: %s", h.Method, h.Path)
 	}
 
@@ -216,8 +216,16 @@ func (s *httpServer) UseMiddleware(middlewares ...server.KindMiddleware) {
 	s.middlewares.SetGlobal(middlewares...)
 }
 
-func (s *httpServer) SetMiddleware(name server.KindMiddleware, middleware server.HttpServerMiddleware) {
-	s.middlewares.Add(name, middleware)
+func (s *httpServer) GetMiddlewares() map[server.KindMiddleware]interface{} {
+	return s.middlewares.constructors
+}
+
+func (s *httpServer) GetConstructor() interface{} {
+	return s.constructor
+}
+
+func (s *httpServer) SetMiddleware(name server.KindMiddleware, middleware interface{}) {
+	s.middlewares.AddConstructor(name, middleware)
 }
 
 func (s *httpServer) AddHandler(method string, path string, h http.HandlerFunc, opts ...server.HTTPServerOption) {
@@ -260,6 +268,12 @@ func (s *httpServer) handle(h http.Handler) http.Handler {
 	}
 	h = headers(h)
 	return h
+}
+
+func (s *httpServer) constructor(mws ...server.HttpServerMiddleware) {
+	for _, mw := range mws {
+		s.middlewares.Add(mw)
+	}
 }
 
 func GetMarshaler(s server.HTTPServer, req *http.Request) (inbound, outbound marshaler.Marshaler) {

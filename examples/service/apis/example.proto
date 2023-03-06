@@ -34,6 +34,10 @@ option (toolkit.plugins) = {
   plugin: "redis"
 };
 
+option (toolkit.plugins) = {
+  plugin: "resolver_file"
+};
+
 
 // =====================================================
 // RPC methods

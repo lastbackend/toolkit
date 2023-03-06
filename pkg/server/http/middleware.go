@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"github.com/lastbackend/toolkit/pkg/server"
+	"go.uber.org/fx"
 	"net/http"
 )
 
@@ -27,10 +28,10 @@ const MiddlewareNotFoundError string = "Can not apply middleware router: %s Can 
 	"register middleware, please add Server().HTTP().SetMiddleware(\"%s\", http.Handler) to runtime."
 
 type Middlewares struct {
-	log    logger.Logger
-	global []server.KindMiddleware
-
-	items map[server.KindMiddleware]server.HttpServerMiddleware
+	log          logger.Logger
+	global       []server.KindMiddleware
+	constructors map[server.KindMiddleware]interface{}
+	items        map[server.KindMiddleware]server.HttpServerMiddleware
 }
 
 func (m *Middlewares) SetGlobal(middlewares ...server.KindMiddleware) {
@@ -41,19 +42,24 @@ func (m *Middlewares) SetGlobal(middlewares ...server.KindMiddleware) {
 	}
 }
 
-func (m *Middlewares) Add(name server.KindMiddleware, h server.HttpServerMiddleware) {
-	m.items[name] = h
+func (m *Middlewares) AddConstructor(name server.KindMiddleware, h interface{}) {
+	m.constructors[name] = h
 }
 
-func (m *Middlewares) apply(h http.Handler, handler server.HTTPServerHandler) error {
+func (m *Middlewares) Add(h server.HttpServerMiddleware) {
+	m.items[h.Kind()] = h
+}
 
+func (m *Middlewares) apply(handler server.HTTPServerHandler) (http.HandlerFunc, error) {
+
+	h := handler.Handler
 	for _, opt := range handler.Options {
 
 		if opt.Kind() != optionKindMiddleware {
 			continue
 		}
 
-		o, ok := opt.(optionMiddleware)
+		o, ok := opt.(*optionMiddleware)
 
 		if !ok {
 			continue
@@ -66,29 +72,37 @@ func (m *Middlewares) apply(h http.Handler, handler server.HTTPServerHandler) er
 		}
 
 		if middleware, ok := m.items[o.middleware]; ok {
-			h = middleware(h)
+			m.log.Infof("apply local middleware [%s] for handler: %s", middleware.Kind(), handler.Path)
+			h = middleware.Apply(h)
 		} else {
 			m.log.Errorf(MiddlewareNotFoundError, handler.Path, o.middleware, o.middleware)
-			return fmt.Errorf("can not find global server middleware: %s", o.middleware)
+			return h, fmt.Errorf("can not find global server middleware: %s", o.middleware)
 		}
 	}
 
 	for _, g := range m.global {
 		if middleware, ok := m.items[g]; ok {
-			h = middleware(h)
+			m.log.Infof("apply global middleware [%s] for handler: %s", middleware.Kind(), handler.Path)
+			h = middleware.Apply(h)
 		} else {
 			m.log.Errorf(MiddlewareNotFoundError, handler.Path, g, g)
-			return fmt.Errorf("can not find global server middleware: %s", g)
+			return h, fmt.Errorf("can not find global server middleware: %s", g)
 		}
 	}
 
-	return nil
+	return h, nil
 }
+
+type MiddlewareRegistry struct {
+	fx.In
+}
+
 func newMiddlewares(log logger.Logger) *Middlewares {
 	middlewares := Middlewares{
-		log:    log,
-		global: make([]server.KindMiddleware, 0),
-		items:  make(map[server.KindMiddleware]server.HttpServerMiddleware),
+		log:          log,
+		global:       make([]server.KindMiddleware, 0),
+		constructors: make(map[server.KindMiddleware]interface{}, 0),
+		items:        make(map[server.KindMiddleware]server.HttpServerMiddleware),
 	}
 
 	return &middlewares

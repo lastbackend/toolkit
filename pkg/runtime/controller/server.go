@@ -7,6 +7,7 @@ import (
 	"github.com/lastbackend/toolkit/pkg/server"
 	"github.com/lastbackend/toolkit/pkg/server/grpc"
 	"github.com/lastbackend/toolkit/pkg/server/http"
+	"go.uber.org/fx"
 )
 
 type serverManager struct {
@@ -32,6 +33,11 @@ func (c *serverManager) HTTPGet(name string) server.HTTPServer {
 }
 
 func (c *serverManager) HTTPNew(name string, options *server.HTTPServerOptions) server.HTTPServer {
+
+	if name == "" {
+		name = c.runtime.Meta().GetName()
+	}
+
 	srv := http.NewServer(name, c.runtime, options)
 	c.http[name] = srv
 	return c.http[name]
@@ -72,6 +78,16 @@ func (c *serverManager) Provides() []interface{} {
 			provides = append(provides, service)
 		}
 
+		middlewares := s.GetMiddlewares()
+		for _, middleware := range middlewares {
+			provides = append(provides, fx.Annotate(
+				middleware,
+				fx.As(new(server.HttpServerMiddleware)),
+				fx.ResultTags(`group:"middlewares"`),
+			),
+			)
+		}
+
 	}
 
 	return provides
@@ -83,6 +99,13 @@ func (c *serverManager) Constructors() []interface{} {
 
 	for _, s := range c.grpc {
 		provides = append(provides, s.GetConstructor())
+	}
+
+	for _, s := range c.http {
+
+		provides = append(provides, fx.Annotate(
+			s.GetConstructor(),
+			fx.ParamTags(`group:"middlewares"`)))
 	}
 
 	return provides

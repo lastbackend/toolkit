@@ -34,6 +34,9 @@ type Service interface {
 	Package() Package
 	Plugin() Plugin
 
+	Provide(constructor interface{})
+	Invoke(constructor interface{})
+
 	Start(ctx context.Context, invoke ...interface{}) error
 }
 

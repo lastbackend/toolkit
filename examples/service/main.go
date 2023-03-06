@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/lastbackend/toolkit/pkg/server/http"
 	"os"
 
 	"github.com/lastbackend/toolkit/examples/service/config"
@@ -55,6 +56,9 @@ func main() {
 
 	// Add server
 	app.Server().GRPC().SetService(server.NewServer)
+	app.Server().HTTPNew("", nil)
+	app.Server().HTTP().SetMiddleware("test", server.RegisterExampleHTTPServerMiddleware)
+	app.Server().HTTP().AddHandler(http.MethodGet, "/", server.ExampleHTTPServerHandler, http.WithMiddleware(server.MWAuthenticate))
 
 	// Service run
 	if err := app.Start(context.Background(), controller.Start); err != nil {

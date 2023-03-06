@@ -66,6 +66,7 @@ type Server interface {
 
 	Provides() []interface{}
 	Constructors() []interface{}
+	Middlewares() []interface{}
 }
 
 type Plugin interface {

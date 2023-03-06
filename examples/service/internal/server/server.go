@@ -39,6 +39,7 @@ type Handlers struct {
 
 func (h Handlers) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error) {
 
+	h.app.Log().Info("ExamplseRpcServer: HelloWorld: call")
 	tk := h.repo.Get(ctx)
 
 	resp := typespb.HelloWorldResponse{

@@ -21,7 +21,7 @@ type Config struct {
 }
 
 type NestedConfig struct {
-	Demo string `env:"DEMO""`
+	Demo string `env:"DEMO"`
 }
 
 func New() *Config {

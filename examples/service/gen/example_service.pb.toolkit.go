@@ -20,6 +20,7 @@ import (
 	tk_ws "github.com/lastbackend/toolkit/pkg/server/http/websockets"
 	"github.com/lastbackend/toolkit/plugin/postgres_gorm"
 	"github.com/lastbackend/toolkit/plugin/redis"
+	"github.com/lastbackend/toolkit/plugin/resolver_file"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -46,6 +47,10 @@ type PgsqlPlugin interface {
 
 type RedisPlugin interface {
 	redis.Plugin
+}
+
+type Plugin interface {
+	resolver_file.Plugin
 }
 
 // Client services define
@@ -83,10 +88,12 @@ func NewExampleService(name string, opts ...runtime.Option) (_ toolkit.Service, 
 	// loop over plugins and initialize plugin instance
 	plugin_pgsql := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "pgsql"})
 	plugin_redis := redis.NewPlugin(app.runtime, &redis.Options{Name: "redis"})
+	plugin_ := resolver_file.NewPlugin(app.runtime, &resolver_file.Options{Name: ""})
 
 	// loop over plugins and register plugin in toolkit
 	app.runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
 	app.runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
+	app.runtime.Plugin().Provide(func() Plugin { return plugin_ })
 
 	// set descriptor to Example GRPC server
 	app.runtime.Server().GRPCNew(name, nil)
@@ -154,10 +161,12 @@ func NewSampleService(name string, opts ...runtime.Option) (_ toolkit.Service, e
 	// loop over plugins and initialize plugin instance
 	plugin_pgsql := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "pgsql"})
 	plugin_redis := redis.NewPlugin(app.runtime, &redis.Options{Name: "redis"})
+	plugin_ := resolver_file.NewPlugin(app.runtime, &resolver_file.Options{Name: ""})
 
 	// loop over plugins and register plugin in toolkit
 	app.runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
 	app.runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
+	app.runtime.Plugin().Provide(func() Plugin { return plugin_ })
 
 	app.runtime.Provide(sampleServicesRegister)
 

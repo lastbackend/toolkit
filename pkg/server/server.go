@@ -30,11 +30,15 @@ type HTTPServer interface {
 
 	UseMiddleware(...KindMiddleware)
 
-	SetMiddleware(name KindMiddleware, middleware HttpServerMiddleware)
+	GetMiddlewares() map[KindMiddleware]any
+	SetMiddleware(name KindMiddleware, middleware any)
+
 	AddHandler(method, path string, h http.HandlerFunc, opts ...HTTPServerOption)
 
 	SetService(fn interface{})
 	GetService() interface{}
+
+	GetConstructor() interface{}
 
 	Subscribe(event string, h websockets.EventHandler)
 	Info() ServerInfo
@@ -72,7 +76,11 @@ type HTTPServerOption interface {
 	Kind() HttpOptionKind
 }
 
-type HttpServerMiddleware func(h http.Handler) http.Handler
+type HttpServerMiddleware interface {
+	Apply(h http.HandlerFunc) http.HandlerFunc
+	Kind() KindMiddleware
+}
+
 type KindMiddleware string
 
 type GRPCServer interface {
@@ -96,12 +104,6 @@ type GRPCServerOptions struct {
 	Port int
 
 	TLSConfig *tls.Config
-}
-
-type GRPCServerDecorator interface {
-	Start(ctx context.Context) error
-	Stop() error
-	SetService(constructor interface{})
 }
 
 type ServerKind string
