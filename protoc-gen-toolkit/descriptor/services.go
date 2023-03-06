@@ -52,13 +52,16 @@ func (d *Descriptor) loadServices(file *File) error {
 		}
 		if service.Options != nil && proto.HasExtension(service.Options, toolkit_annotattions.E_Service) {
 			eService := proto.GetExtension(svc.Options, toolkit_annotattions.E_Service)
+			svc.UseGRPCServer = eService == nil
 			if eService != nil {
 				ss := eService.(*toolkit_annotattions.Service)
-				svc.UseGRPCServer = ss.Servers == nil || len(ss.Servers) == 0 || checkSetServerOption(ss.Servers, toolkit_annotattions.Service_GRPC)
+				svc.UseGRPCServer = ss.Servers == nil || len(ss.Servers) == 0
 				if ss.Servers != nil {
 					svc.UseHTTPProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Service_HTTP_PROXY)
 					svc.UseWebsocketProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Service_WEBSOCKET_PROXY)
 					svc.UseWebsocketServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Service_WEBSOCKET)
+					svc.UseGRPCServer = (!svc.UseHTTPProxyServer && !svc.UseWebsocketProxyServer && !svc.UseWebsocketServer) ||
+						checkSetServerOption(ss.Servers, toolkit_annotattions.Service_GRPC)
 				}
 			}
 		}
