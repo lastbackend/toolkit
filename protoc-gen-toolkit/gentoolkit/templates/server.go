@@ -83,7 +83,7 @@ func (s *service{{ $.GetName | ToCamel }}) handlerWSProxy{{ $.GetName | ToCamel 
 
 	if headers := ctx.Value(tk_ws.RequestHeaders); headers != nil {
 		if v, ok := headers.(map[string]string); ok {
-			callOpts = append(callOpts, client.Headers(v))
+			callOpts = append(callOpts, client.GRPCOptionHeaders(v))
 		}
 	}
 
@@ -153,7 +153,7 @@ func (s *service{{ $.GetName | ToCamel }}) handlerHTTP{{ $.GetName | ToCamel }}{
 	}
 
 	callOpts := make([]client.GRPCCallOption, 0)
-	callOpts = append(callOpts, client.Headers(headers))
+	callOpts = append(callOpts, client.GRPCOptionHeaders(headers))
 
 	if err := s.runtime.Client().GRPC().Call(ctx, "{{ $binding.Service }}", "{{ $binding.RpcPath }}", &protoRequest, &protoResponse, callOpts...); err != nil {
 		errors.GrpcErrorHandlerFunc(w, err)
