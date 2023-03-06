@@ -50,16 +50,16 @@ func (d *Descriptor) loadServices(file *File) error {
 				svc.HTTPMiddlewares = ss.Middlewares
 			}
 		}
-		if service.Options != nil && proto.HasExtension(service.Options, toolkit_annotattions.E_Service) {
-			eService := proto.GetExtension(svc.Options, toolkit_annotattions.E_Service)
+		if service.Options != nil && proto.HasExtension(service.Options, toolkit_annotattions.E_Runtime) {
+			eService := proto.GetExtension(svc.Options, toolkit_annotattions.E_Runtime)
 			if eService != nil {
-				ss := eService.(*toolkit_annotattions.Service)
+				ss := eService.(*toolkit_annotattions.Runtime)
 				svc.UseGRPCServer = ss.Servers == nil && len(ss.Servers) == 0 && len(svc.Methods) > 0
 				if ss.Servers != nil {
-					svc.UseHTTPProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Service_HTTP_PROXY)
-					svc.UseWebsocketProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Service_WEBSOCKET_PROXY)
-					svc.UseWebsocketServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Service_WEBSOCKET)
-					svc.UseGRPCServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Service_GRPC)
+					svc.UseHTTPProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_HTTP_PROXY)
+					svc.UseWebsocketProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_WEBSOCKET_PROXY)
+					svc.UseWebsocketServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_WEBSOCKET)
+					svc.UseGRPCServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_GRPC)
 				}
 			}
 		}
@@ -317,7 +317,7 @@ func getVariablesFromPath(path string) (variables []string) {
 	return variables
 }
 
-func checkSetServerOption(servers []toolkit_annotattions.Service_Server, server toolkit_annotattions.Service_Server) bool {
+func checkSetServerOption(servers []toolkit_annotattions.Runtime_Server, server toolkit_annotattions.Runtime_Server) bool {
 	for _, val := range servers {
 		if val == server {
 			return true

@@ -14,7 +14,7 @@ type Controller struct {
 	log      logger.Logger
 	cfg      *config.Config
 	repo     *repository.Repository
-	services servicepb.Services
+	services servicepb.ExampleServices
 }
 
 func (c *Controller) OnStart(ctx context.Context) error {
@@ -46,7 +46,7 @@ func (c *Controller) OnStop(ctx context.Context) error {
 	return nil
 }
 
-func NewController(app toolkit.Service, cfg *config.Config, repo *repository.Repository, services servicepb.Services) *Controller {
+func NewController(app toolkit.Service, cfg *config.Config, repo *repository.Repository, services servicepb.ExampleServices) *Controller {
 	app.Log().Info("---- new controller ----")
 	ctrl := &Controller{log: app.Log(), cfg: cfg, repo: repo, services: services}
 	app.Package().Register(ctrl)

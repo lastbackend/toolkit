@@ -27,12 +27,11 @@ import (
 	"github.com/lastbackend/toolkit/examples/service/internal/repository"
 	"github.com/lastbackend/toolkit/examples/service/internal/server"
 	"github.com/lastbackend/toolkit/pkg/runtime"
-	"github.com/lastbackend/toolkit/pkg/server/http"
 )
 
 func main() {
 	// define service with name and options
-	app, err := servicepb.NewService("example",
+	app, err := servicepb.NewExampleService("example",
 		runtime.WithVersion("0.1.0"),
 		runtime.WithDescription("Example microservice"),
 		runtime.WithEnvPrefix("LB"),
@@ -56,17 +55,6 @@ func main() {
 
 	// Add server
 	app.Server().GRPC().SetService(server.NewServer)
-
-	// Add middleware
-	app.Server().HTTP().SetMiddleware("middleware1", server.ExampleHTTPServerMiddleware1)
-	app.Server().HTTP().SetMiddleware("middleware2", server.ExampleHTTPServerMiddleware2)
-
-	// set middleware as global middleware
-	app.Server().HTTP().UseMiddleware("middleware1")
-
-	// add handler to default http server
-	app.Server().HTTP().
-		AddHandler(http.MethodPost, "/hello", server.ExampleHTTPServerHandler, http.WithMiddleware("middleware1"), http.WithMiddleware("middleware2"))
 
 	// Service run
 	if err := app.Start(context.Background(), controller.Start); err != nil {

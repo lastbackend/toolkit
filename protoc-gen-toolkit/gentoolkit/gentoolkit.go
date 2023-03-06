@@ -192,10 +192,10 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 
 		svc.Plugins = make(map[string][]*descriptor.Plugin, 0)
 
-		if svc.Options != nil && proto.HasExtension(svc.Options, toolkit_annotattions.E_Service) {
-			eService := proto.GetExtension(svc.Options, toolkit_annotattions.E_Service)
+		if svc.Options != nil && proto.HasExtension(svc.Options, toolkit_annotattions.E_Runtime) {
+			eService := proto.GetExtension(svc.Options, toolkit_annotattions.E_Runtime)
 			if eService != nil {
-				ss := eService.(*toolkit_annotattions.Service)
+				ss := eService.(*toolkit_annotattions.Runtime)
 				if ss.Plugins != nil {
 					for _, props := range ss.Plugins {
 						if _, ok := svc.Plugins[props.Plugin]; !ok {
@@ -225,10 +225,10 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 		}
 	}
 
-	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Clients) {
-		eClients := proto.GetExtension(file.Options, toolkit_annotattions.E_Clients)
+	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Services) {
+		eClients := proto.GetExtension(file.Options, toolkit_annotattions.E_Services)
 		if eClients != nil {
-			clnts := eClients.([]*toolkit_annotattions.Client)
+			clnts := eClients.([]*toolkit_annotattions.Service)
 			for _, value := range clnts {
 				if _, ok := clientImportsExists[value.Service]; !ok {
 					imports = append(imports, descriptor.GoPackage{
@@ -286,10 +286,10 @@ func (g *generator) generateClient(file *descriptor.File) ([]byte, error) {
 
 	var clients = make(map[string]*Client, 0)
 
-	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Clients) {
-		eClients := proto.GetExtension(file.Options, toolkit_annotattions.E_Clients)
+	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Services) {
+		eClients := proto.GetExtension(file.Options, toolkit_annotattions.E_Services)
 		if eClients != nil {
-			clnts := eClients.([]*toolkit_annotattions.Client)
+			clnts := eClients.([]*toolkit_annotattions.Service)
 			for _, value := range clnts {
 				clients[value.Service] = &Client{
 					Service: value.Service,

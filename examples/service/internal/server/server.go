@@ -54,7 +54,6 @@ func (h Handlers) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest
 }
 
 func NewServer(app toolkit.Service, cfg *config.Config, repo *repository.Repository) servicepb.ExampleRpcServer {
-	fmt.Println("server handlers invokation")
 	return &Handlers{
 		repo: repo,
 		app:  app,

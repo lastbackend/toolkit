@@ -84,17 +84,15 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 		return nil, err
 	}
 
-{{ if or .Plugins $svc.Plugins }}
+
 	// loop over plugins and initialize plugin instance
 	{{- template "plugin-init" $.Plugins }}
 	{{- template "plugin-init" $svc.Plugins }}
-{{ end }}
 
-{{ if or .Plugins $svc.Plugins }}
 	// loop over plugins and register plugin in toolkit
 	{{- template "plugin-register" $.Plugins }}
 	{{- template "plugin-register" $svc.Plugins }}
-{{ end }}
+
 
 {{ if and $svc.UseGRPCServer $svc.Methods }}
 	// set descriptor to {{ $svc.GetName }} GRPC server
