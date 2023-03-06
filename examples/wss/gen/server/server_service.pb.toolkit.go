@@ -6,12 +6,12 @@ package serverpb
 import (
 	"context"
 	"encoding/json"
+	"github.com/lastbackend/toolkit/pkg/client"
 	"io"
 	"net/http"
 
 	toolkit "github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/helloworld/gen"
-	grpc "github.com/lastbackend/toolkit/pkg/client/grpc"
 	runtime "github.com/lastbackend/toolkit/pkg/runtime"
 	controller "github.com/lastbackend/toolkit/pkg/runtime/controller"
 	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
@@ -27,7 +27,7 @@ import (
 var (
 	_ context.Context
 	_ emptypb.Empty
-	_ grpc.Client
+	_ client.GRPCClient
 	_ http.Handler
 	_ errors.Err
 	_ io.Reader
@@ -62,7 +62,7 @@ func NewRouterService(name string, opts ...runtime.Option) (_ toolkit.Service, e
 	app.runtime.Plugin().Provide(func() Redis1Plugin { return plugin_redis1 })
 
 	// create new Router HTTP server
-	app.runtime.Server().HTTPNew(name)
+	app.runtime.Server().HTTPNew(name, nil)
 	app.runtime.Server().HTTP().UseMiddleware("request_id")
 	app.runtime.Server().HTTP().AddHandler(http.MethodGet, "/events", app.runtime.Server().HTTP().ServerWS)
 	app.runtime.Server().HTTP().Subscribe("SayHello", app.handlerWSProxyRouterSayHello)
@@ -83,11 +83,11 @@ func (s *serviceRouter) handlerWSProxyRouterSayHello(ctx context.Context, event 
 		return err
 	}
 
-	callOpts := make([]grpc.CallOption, 0)
+	callOpts := make([]client.GRPCCallOption, 0)
 
 	if headers := ctx.Value(tk_ws.RequestHeaders); headers != nil {
 		if v, ok := headers.(map[string]string); ok {
-			callOpts = append(callOpts, grpc.Headers(v))
+			callOpts = append(callOpts, client.GRPCOptionHeaders(v))
 		}
 	}
 

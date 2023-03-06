@@ -28,6 +28,30 @@ type GRPCCallOptions struct {
 	CallContentSubtype    string
 }
 
+func GRPCOptionHeaders(h map[string]string) GRPCCallOption {
+	return func(o *GRPCCallOptions) {
+		o.Headers = h
+	}
+}
+
+func GRPCOptionMaxCallSendMsgSize(bytes int) GRPCCallOption {
+	return func(o *GRPCCallOptions) {
+		o.MaxCallSendMsgSize = bytes
+	}
+}
+
+func GRPCOptionMaxCallRecvMsgSize(bytes int) GRPCCallOption {
+	return func(o *GRPCCallOptions) {
+		o.MaxCallRecvMsgSize = bytes
+	}
+}
+
+func GRPCOptionRequestTimeout(timeout time.Duration) GRPCCallOption {
+	return func(o *GRPCCallOptions) {
+		o.RequestTimeout = timeout
+	}
+}
+
 type GRPCBackoffFunc func(ctx context.Context, req *GRPCRequest, attempts int) (time.Duration, error)
 type GRPCRetryFunc func(ctx context.Context, req *GRPCRequest, retryCount int, err error) (bool, error)
 

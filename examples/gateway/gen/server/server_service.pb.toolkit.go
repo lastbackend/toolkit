@@ -6,12 +6,12 @@ package serverpb
 import (
 	"context"
 	"encoding/json"
+	"github.com/lastbackend/toolkit/pkg/client"
 	"io"
 	"net/http"
 
 	toolkit "github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/helloworld/gen"
-	grpc "github.com/lastbackend/toolkit/pkg/client/grpc"
 	runtime "github.com/lastbackend/toolkit/pkg/runtime"
 	controller "github.com/lastbackend/toolkit/pkg/runtime/controller"
 	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
@@ -26,7 +26,7 @@ import (
 var (
 	_ context.Context
 	_ emptypb.Empty
-	_ grpc.Client
+	_ client.GRPCClient
 	_ http.Handler
 	_ errors.Err
 	_ io.Reader
@@ -51,7 +51,7 @@ func NewProxyGatewayService(name string, opts ...runtime.Option) (_ toolkit.Serv
 	}
 
 	// create new ProxyGateway HTTP server
-	app.runtime.Server().HTTPNew(name)
+	app.runtime.Server().HTTPNew(name, nil)
 	app.runtime.Server().HTTP().UseMiddleware("request_id")
 	app.runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", app.handlerHTTPProxyGatewayHelloWorld,
 		tk_http.WithMiddleware("example"))
@@ -87,8 +87,8 @@ func (s *serviceProxyGateway) handlerHTTPProxyGatewayHelloWorld(w http.ResponseW
 		return
 	}
 
-	callOpts := make([]grpc.CallOption, 0)
-	callOpts = append(callOpts, grpc.Headers(headers))
+	callOpts := make([]client.GRPCCallOption, 0)
+	callOpts = append(callOpts, client.GRPCOptionHeaders(headers))
 
 	if err := s.runtime.Client().GRPC().Call(ctx, "helloworld", "/helloworld.Greeter/SayHello", &protoRequest, &protoResponse, callOpts...); err != nil {
 		errors.GrpcErrorHandlerFunc(w, err)

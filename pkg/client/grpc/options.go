@@ -75,27 +75,3 @@ func defaultOptions() Options {
 		},
 	}
 }
-
-func Headers(h map[string]string) client.GRPCCallOption {
-	return func(o *client.GRPCCallOptions) {
-		o.Headers = h
-	}
-}
-
-func MaxCallSendMsgSize(bytes int) client.GRPCCallOption {
-	return func(o *client.GRPCCallOptions) {
-		o.MaxCallSendMsgSize = bytes
-	}
-}
-
-func MaxCallRecvMsgSize(bytes int) client.GRPCCallOption {
-	return func(o *client.GRPCCallOptions) {
-		o.MaxCallRecvMsgSize = bytes
-	}
-}
-
-func RequestTimeout(timeout time.Duration) client.GRPCCallOption {
-	return func(o *client.GRPCCallOptions) {
-		o.RequestTimeout = timeout
-	}
-}
