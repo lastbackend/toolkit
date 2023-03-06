@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/lastbackend/toolkit/pkg/client"
 	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver"
+	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver/file"
 	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver/local"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"strings"
@@ -41,7 +42,8 @@ func init() {
 }
 
 const (
-
+	// default prefix
+	defaultPrefix = "GRPC_CLIENT"
 	// default pool name
 	defaultPoolName = ""
 	// default GRPC port
@@ -79,6 +81,15 @@ func NewClient(ctx context.Context, runtime runtime.Runtime) client.GRPCClient {
 	}
 
 	client.pool[defaultPoolName] = newPool()
+	runtime.Config().Parse(&client.opts, defaultPrefix)
+
+	if client.opts.Resolver == "local" {
+		client.resolver = local.NewResolver(runtime)
+	}
+
+	if client.opts.Resolver == "file" {
+		client.resolver = file.NewResolver(runtime)
+	}
 
 	return client
 }
@@ -109,6 +120,10 @@ func (c *grpcClient) Conn(service string) (grpc.ClientConnInterface, error) {
 
 	return p.getConn(c.ctx, next(), c.makeGrpcDialOptions()...)
 
+}
+
+func (c *grpcClient) GetResolver() resolver.Resolver {
+	return c.resolver
 }
 
 func (c *grpcClient) SetResolver(resolver resolver.Resolver) {

@@ -17,6 +17,7 @@ limitations under the License.
 package local
 
 import (
+	"context"
 	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver"
 	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver/route"
 	"github.com/lastbackend/toolkit/pkg/runtime"
@@ -69,6 +70,10 @@ func NewResolver(runtime runtime.Runtime) resolver.Resolver {
 	}
 
 	return r
+}
+
+func (c *Resolver) OnStart(context.Context) error {
+	return nil
 }
 
 func (c *Resolver) Lookup(service string, opts ...resolver.LookupOption) (route.List, error) {

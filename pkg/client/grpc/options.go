@@ -52,8 +52,9 @@ type Options struct {
 	MaxRecvMsgSize        *int    `env:"MAX_RECV_MSG_SIZE" comment:"Sets the maximum message size in bytes the client can receive (default 16 MB)"`
 	MaxSendMsgSize        *int    `env:"MAX_SEND_MSG_SIZE" comment:"Sets the maximum message size in bytes the client can send (default 16 MB)"`
 	UserAgent             *string `env:"USER_AGENT"  envDefault:"application/protobuf" comment:"Sets the specifies a user agent string for all the RPCs"`
-	Selector              selector.Selector
+	Resolver              string  `env:"RESOLVER" envDefault:"local" comment:"Define resolver used as service registry [local, file, plugin]. "`
 
+	Selector    selector.Selector
 	Pool        PoolOptions
 	CallOptions client.GRPCCallOptions
 }

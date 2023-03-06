@@ -8,6 +8,7 @@ import (
 )
 
 type GRPCClient interface {
+	GetResolver() resolver.Resolver
 	SetResolver(resolver resolver.Resolver)
 	Conn(pool string) (grpc.ClientConnInterface, error)
 	Call(ctx context.Context, service, method string, req, rsp interface{}, opts ...GRPCCallOption) error

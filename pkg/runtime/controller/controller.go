@@ -161,6 +161,7 @@ func (c *controller) start(ctx context.Context, fn ...interface{}) error {
 }
 
 func (c *controller) onStart(ctx context.Context) error {
+	c.client.GRPC().GetResolver().OnStart(ctx)
 	c.Package().OnStart(ctx)
 	return nil
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package resolver
 
 import (
+	"context"
 	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver/route"
 	"github.com/pkg/errors"
 )
@@ -51,6 +52,7 @@ type Options struct {
 type LookupOption func(*LookupOptions)
 
 type Resolver interface {
+	OnStart(ctx context.Context) error
 	Table() Table
 	Lookup(service string, opts ...LookupOption) (route.List, error)
 }

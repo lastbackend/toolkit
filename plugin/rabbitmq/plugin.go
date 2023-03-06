@@ -105,7 +105,7 @@ func (p *plugin) PreStart(ctx context.Context) error {
 			return fmt.Errorf("%s_DSN or %s_Host environment variable required but not set",
 				p.prefix, p.prefix)
 		}
-		p.opts.DSN = fmt.Sprintf("amqp://%s:%s@%s:%d/%s",
+		p.opts.DSN = fmt.Sprintf("amqp://%s:%s@%s:%d%s",
 			p.opts.Username, p.opts.Password, p.opts.Host, p.opts.Port, p.opts.Vhost)
 	}
 

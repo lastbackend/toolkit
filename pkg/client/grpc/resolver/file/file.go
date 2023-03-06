@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resolver_file
+package file
 
 import (
 	"context"
@@ -52,12 +52,12 @@ type Options struct {
 	Name string
 }
 
-func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
+func NewResolver(runtime runtime.Runtime) resolver.Resolver {
 
 	var err error
 
 	r := &Resolver{
-		prefix:  opts.Name,
+		prefix:  prefix,
 		runtime: runtime,
 	}
 
@@ -78,12 +78,10 @@ func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
 		return nil
 	}
 
-	runtime.Plugin().Register(r)
 	return r
 }
 
-func (c *Resolver) OnStart(_ context.Context) error {
-
+func (c *Resolver) OnStart(ctx context.Context) error {
 	c.runtime.Log().Info("resolver file on-start call")
 
 	ip, err := addr.DetectIP()
@@ -99,8 +97,6 @@ func (c *Resolver) OnStart(_ context.Context) error {
 			Address: fmt.Sprintf("%s:%d", ip, srv.Info().Port),
 		})
 	}
-
-	c.runtime.Client().GRPC().SetResolver(c)
 	return nil
 }
 
