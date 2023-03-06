@@ -30,8 +30,8 @@ type HTTPServer interface {
 
 	UseMiddleware(...KindMiddleware)
 
-	GetMiddlewares() map[KindMiddleware]any
-	SetMiddleware(name KindMiddleware, middleware any)
+	GetMiddlewares() []any
+	SetMiddleware(middleware any)
 
 	AddHandler(method, path string, h http.HandlerFunc, opts ...HTTPServerOption)
 

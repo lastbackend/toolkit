@@ -216,7 +216,7 @@ func (s *httpServer) UseMiddleware(middlewares ...server.KindMiddleware) {
 	s.middlewares.SetGlobal(middlewares...)
 }
 
-func (s *httpServer) GetMiddlewares() map[server.KindMiddleware]interface{} {
+func (s *httpServer) GetMiddlewares() []interface{} {
 	return s.middlewares.constructors
 }
 
@@ -224,8 +224,8 @@ func (s *httpServer) GetConstructor() interface{} {
 	return s.constructor
 }
 
-func (s *httpServer) SetMiddleware(name server.KindMiddleware, middleware interface{}) {
-	s.middlewares.AddConstructor(name, middleware)
+func (s *httpServer) SetMiddleware(middleware any) {
+	s.middlewares.AddConstructor(middleware)
 }
 
 func (s *httpServer) AddHandler(method string, path string, h http.HandlerFunc, opts ...server.HTTPServerOption) {

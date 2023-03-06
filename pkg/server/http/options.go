@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	defaultAddress                             = ":8080"
-	optionKindMiddleware server.HttpOptionKind = "middleware"
+	defaultAddress                                          = ":8080"
+	optionKindMiddleware              server.HttpOptionKind = "middleware"
+	optionKindExcludeGlobalMiddleware server.HttpOptionKind = "excludeGlobalMiddleware"
 )
 
 const (
@@ -49,6 +50,19 @@ func (optionMiddleware) Kind() server.HttpOptionKind {
 }
 
 func WithMiddleware(middleware server.KindMiddleware) server.HTTPServerOption {
+	return &optionMiddleware{kind: optionKindMiddleware, middleware: middleware}
+}
+
+type optionExcludeGlobalMiddleware struct {
+	kind       server.HttpOptionKind
+	middleware server.KindMiddleware
+}
+
+func (optionExcludeGlobalMiddleware) Kind() server.HttpOptionKind {
+	return optionKindExcludeGlobalMiddleware
+}
+
+func WithExcludeGlobalMiddleware(middleware server.KindMiddleware) server.HTTPServerOption {
 	return &optionMiddleware{kind: optionKindMiddleware, middleware: middleware}
 }
 

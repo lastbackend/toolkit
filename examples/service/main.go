@@ -48,7 +48,10 @@ func main() {
 	// Config management
 	cfg := config.New()
 
-	app.Config().Provide(cfg)
+	if err := app.Config().Provide(cfg); err != nil {
+		app.Log().Error(err)
+		return
+	}
 
 	// Add packages
 	app.Package().Provide(repository.NewRepository)
@@ -57,7 +60,7 @@ func main() {
 	// Add server
 	app.Server().GRPC().SetService(server.NewServer)
 	app.Server().HTTPNew("", nil)
-	app.Server().HTTP().SetMiddleware("test", server.RegisterExampleHTTPServerMiddleware)
+	app.Server().HTTP().SetMiddleware(server.RegisterExampleHTTPServerMiddleware)
 	app.Server().HTTP().AddHandler(http.MethodGet, "/", server.ExampleHTTPServerHandler, http.WithMiddleware(server.MWAuthenticate))
 
 	// Service run
