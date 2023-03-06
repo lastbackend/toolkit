@@ -132,6 +132,7 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 		"encoding/json",
 		"io",
 		"net/http",
+		"client github.com/lastbackend/toolkit/pkg/client",
 		"runtime github.com/lastbackend/toolkit/pkg/runtime",
 		"controller github.com/lastbackend/toolkit/pkg/runtime/controller",
 		"tk_http github.com/lastbackend/toolkit/pkg/server/http",

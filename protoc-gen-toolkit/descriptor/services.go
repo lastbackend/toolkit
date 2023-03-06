@@ -184,7 +184,7 @@ func setBindingsToMethod(method *Method) error {
 				return err
 			}
 			if opts != nil {
-				binding, err := newHttpBinding(method, opts, rOpts)
+				binding, err := newHttpBinding(method, opts, rOpts, false)
 				if err != nil {
 					return err
 				}
@@ -193,7 +193,7 @@ func setBindingsToMethod(method *Method) error {
 					if len(additional.AdditionalBindings) > 0 {
 						continue
 					}
-					b, err := newHttpBinding(method, additional, rOpts)
+					b, err := newHttpBinding(method, additional, rOpts, true)
 					if err != nil {
 						continue
 					}
@@ -237,7 +237,7 @@ func getProxyOptions(m *Method) (*toolkit_annotattions.Server, error) {
 	return opts, nil
 }
 
-func newHttpBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annotattions.HttpProxy) (*Binding, error) {
+func newHttpBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annotattions.HttpProxy, additionalBinding bool) (*Binding, error) {
 	var (
 		httpMethod string
 		httpPath   string
@@ -272,19 +272,20 @@ func newHttpBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annot
 	}
 
 	return &Binding{
-		Method:       method,
-		Index:        len(method.Bindings),
-		Service:      rOpts.GetService(),
-		RpcPath:      rOpts.GetMethod(),
-		RpcMethod:    method.GetName(),
-		HttpMethod:   httpMethod,
-		HttpPath:     httpPath,
-		HttpParams:   getVariablesFromPath(httpPath),
-		RequestType:  method.RequestType,
-		ResponseType: method.ResponseType,
-		Stream:       method.GetClientStreaming(),
-		Middlewares:  rOpts.GetMiddlewares(),
-		RawBody:      opts.Body,
+		Method:            method,
+		Index:             len(method.Bindings),
+		Service:           rOpts.GetService(),
+		RpcPath:           rOpts.GetMethod(),
+		RpcMethod:         method.GetName(),
+		HttpMethod:        httpMethod,
+		HttpPath:          httpPath,
+		HttpParams:        getVariablesFromPath(httpPath),
+		RequestType:       method.RequestType,
+		ResponseType:      method.ResponseType,
+		Stream:            method.GetClientStreaming(),
+		Middlewares:       rOpts.GetMiddlewares(),
+		RawBody:           opts.Body,
+		AdditionalBinding: additionalBinding,
 	}, nil
 }
 

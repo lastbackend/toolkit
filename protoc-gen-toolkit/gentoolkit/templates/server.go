@@ -66,6 +66,7 @@ func register{{ $.GetName }}GRPCServer(runtime runtime.Runtime, srv {{ $.GetName
 var ServerHTTPDefineTpl = `// Define HTTP handlers for Router HTTP server
 {{- range $m := .Methods }}
 {{- range $binding := $m.Bindings }}
+{{- if not $binding.AdditionalBinding }}
 {{- if and $.UseWebsocketProxyServer $binding.WebsocketProxy (not $binding.Websocket) }}
 func (s *service{{ $.GetName | ToCamel }}) handlerWSProxy{{ $.GetName | ToCamel }}{{ $m.GetName | ToCamel }}(ctx context.Context, event tk_ws.Event, c *tk_ws.Client) error {
 	ctx, cancel := context.WithCancel(ctx)
@@ -78,11 +79,11 @@ func (s *service{{ $.GetName | ToCamel }}) handlerWSProxy{{ $.GetName | ToCamel 
 		return err
 	}
 
-	callOpts := make([]grpc.CallOption, 0)
+	callOpts := make([]client.GRPCCallOption, 0)
 
 	if headers := ctx.Value(tk_ws.RequestHeaders); headers != nil {
 		if v, ok := headers.(map[string]string); ok {
-			callOpts = append(callOpts, grpc.Headers(v))
+			callOpts = append(callOpts, client.Headers(v))
 		}
 	}
 
@@ -151,8 +152,8 @@ func (s *service{{ $.GetName | ToCamel }}) handlerHTTP{{ $.GetName | ToCamel }}{
 		return
 	}
 
-	callOpts := make([]grpc.CallOption, 0)
-	callOpts = append(callOpts, grpc.Headers(headers))
+	callOpts := make([]client.GRPCCallOption, 0)
+	callOpts = append(callOpts, client.Headers(headers))
 
 	if err := s.runtime.Client().GRPC().Call(ctx, "{{ $binding.Service }}", "{{ $binding.RpcPath }}", &protoRequest, &protoResponse, callOpts...); err != nil {
 		errors.GrpcErrorHandlerFunc(w, err)
@@ -173,6 +174,7 @@ func (s *service{{ $.GetName | ToCamel }}) handlerHTTP{{ $.GetName | ToCamel }}{
 	}
 }
 {{ end }}
+{{- end }} 
 {{- end }} 
 {{- end }} 
 `
