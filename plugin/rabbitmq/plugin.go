@@ -83,6 +83,7 @@ func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
 	p.runtime = runtime
 	p.log = runtime.Log()
 
+	p.service = p.runtime.Meta().GetName()
 	p.prefix = opts.Name
 	if p.prefix == "" {
 		p.prefix = defaultPrefix

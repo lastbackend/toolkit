@@ -74,7 +74,7 @@ type Config struct {
 
 	Prefix string
 
-	EnableCORS bool
+	EnableCORS bool `env:"SERVER_CORS_ENABLED" envDefault:"false" comment:"Enable Cross-Origin Resource Sharing header"`
 	IsDisable  bool
 
 	TLSConfig *tls.Config
