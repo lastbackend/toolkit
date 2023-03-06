@@ -17,13 +17,13 @@ limitations under the License.
 package rabbitmq
 
 import (
-	"github.com/lastbackend/toolkit/pkg/runtime"
-	"github.com/lastbackend/toolkit/pkg/runtime/logger"
-	"github.com/streadway/amqp"
-	"sync"
-
 	"context"
 	"fmt"
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/tools/probes"
+	"github.com/streadway/amqp"
+	"sync"
 )
 
 const (
@@ -92,7 +92,6 @@ func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
 		return nil
 	}
 
-	//p.probe = service.Probe()
 	runtime.Plugin().Register(p)
 	return p
 }
@@ -121,9 +120,9 @@ func (p *plugin) PreStart(ctx context.Context) error {
 		return err
 	}
 
-	//p.probe.AddReadinessFunc(p.prefix, func() error {
-	//	return p.broker.Connected()
-	//})
+	p.runtime.Tools().Probes().RegisterCheck(p.prefix, probes.ReadinessProbe, func() error {
+		return p.broker.Connected()
+	})
 
 	return nil
 }
