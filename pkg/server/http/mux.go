@@ -158,6 +158,10 @@ func (s *httpServer) Start(_ context.Context) error {
 	r.NotFoundHandler = s.methodNotFoundHandler()
 	r.MethodNotAllowedHandler = s.methodNotAllowedHandler()
 
+	if s.opts.EnableCORS {
+		s.middlewares.Add(&corsMiddleware{handler: s.corsHandlerFunc})
+	}
+
 	for _, h := range s.handlers {
 
 		s.runtime.Log().Infof("register [http] route: %s", h.Path)
@@ -255,19 +259,6 @@ func (s *httpServer) Subscribe(event string, h websockets.EventHandler) {
 
 func (s *httpServer) ServerWS(w http.ResponseWriter, r *http.Request) {
 	s.wsManager.ServeWS(w, r)
-}
-
-func (s *httpServer) handle(h http.Handler) http.Handler {
-	headers := func(h http.Handler) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			if s.opts.EnableCORS {
-				s.corsHandlerFunc(w, r)
-			}
-			h.ServeHTTP(w, r)
-		}
-	}
-	h = headers(h)
-	return h
 }
 
 func (s *httpServer) constructor(mws ...server.HttpServerMiddleware) {
