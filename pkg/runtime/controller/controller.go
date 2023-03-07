@@ -22,7 +22,7 @@ var shutdownSignals = []os.Signal{
 type controller struct {
 	runtime.Runtime
 
-	app  fx.App
+	app  *fx.App
 	meta *meta.Meta
 
 	service toolkit.Service
@@ -152,10 +152,11 @@ func (c *controller) start(ctx context.Context, fn ...interface{}) error {
 		return nil
 	}))
 
-	fx.New(
+	c.app = fx.New(
 		fx.Options(opts...),
 		fx.WithLogger(c.logger.Fx),
-	).Run()
+	)
+  c.app.Run()
 
 	return nil
 }
@@ -202,6 +203,10 @@ func (c *controller) Invoke(constructor interface{}) {
 
 func (c *controller) Tools() runtime.Tools {
 	return c.tools
+}
+
+func (c *controller) Stop(ctx context.Context) error {
+	return c.app.Stop(ctx)
 }
 
 func (c *controller) fillMeta(opts ...runtime.Option) {

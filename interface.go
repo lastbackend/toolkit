@@ -38,6 +38,7 @@ type Service interface {
 	Invoke(constructor interface{})
 
 	Start(ctx context.Context, invoke ...interface{}) error
+  Stop(ctx context.Context) error
 }
 
 type Client interface {
