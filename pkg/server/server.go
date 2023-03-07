@@ -76,9 +76,16 @@ type HTTPServerOption interface {
 	Kind() HttpOptionKind
 }
 
+type DefaultHttpServerMiddleware struct{}
+
+func (DefaultHttpServerMiddleware) Order() int {
+	return 0
+}
+
 type HttpServerMiddleware interface {
 	Apply(h http.HandlerFunc) http.HandlerFunc
 	Kind() KindMiddleware
+	Order() int
 }
 
 type KindMiddleware string

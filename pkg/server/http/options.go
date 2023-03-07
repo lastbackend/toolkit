@@ -54,16 +54,16 @@ func WithMiddleware(middleware server.KindMiddleware) server.HTTPServerOption {
 }
 
 type optionExcludeGlobalMiddleware struct {
-	kind       server.HttpOptionKind
-	middleware server.KindMiddleware
+	kind   server.HttpOptionKind
+	regexp string
 }
 
 func (optionExcludeGlobalMiddleware) Kind() server.HttpOptionKind {
 	return optionKindExcludeGlobalMiddleware
 }
 
-func WithExcludeGlobalMiddleware(middleware server.KindMiddleware) server.HTTPServerOption {
-	return &optionExcludeGlobalMiddleware{kind: optionKindMiddleware, middleware: middleware}
+func WithExcludeGlobalMiddleware(regexp string) server.HTTPServerOption {
+	return &optionExcludeGlobalMiddleware{kind: optionKindMiddleware, regexp: regexp}
 }
 
 type Config struct {

@@ -22,6 +22,8 @@ import (
 	"github.com/lastbackend/toolkit/pkg/server"
 	"go.uber.org/fx"
 	"net/http"
+	"regexp"
+	"sort"
 )
 
 const MiddlewareNotFoundError string = "Can not apply middleware router: %s Can not find global server middleware: %s. To " +
@@ -37,7 +39,7 @@ type Middlewares struct {
 func (m *Middlewares) SetGlobal(middlewares ...server.KindMiddleware) {
 	for _, item := range middlewares {
 		if item != "" {
-			m.global = append(m.global, item)
+			m.global = append([]server.KindMiddleware{item}, m.global...)
 		}
 	}
 }
@@ -55,7 +57,7 @@ func (m *Middlewares) apply(handler server.HTTPServerHandler) (http.HandlerFunc,
 	h := handler.Handler
 
 	var (
-		exclude = make(map[server.KindMiddleware]server.HttpServerMiddleware, 0)
+		exclude = make([]*regexp.Regexp, 0)
 		mws     = make([]server.HttpServerMiddleware, 0)
 	)
 
@@ -96,18 +98,15 @@ func (m *Middlewares) apply(handler server.HTTPServerHandler) (http.HandlerFunc,
 			continue
 		}
 
-		middleware, ok := m.items[o.middleware]
-		if !ok {
-			m.log.Errorf(MiddlewareNotFoundError, handler.Path, o.middleware, o.middleware)
-			continue
-		}
-		exclude[o.middleware] = middleware
+		exclude = append(exclude, regexp.MustCompile(o.regexp))
 	}
 
 	for _, g := range m.global {
 
-		if _, ok := exclude[g]; ok {
-			continue
+		for _, re := range exclude {
+			if re.MatchString(string(g)) {
+				continue
+			}
 		}
 
 		middleware, ok := m.items[g]
@@ -119,9 +118,13 @@ func (m *Middlewares) apply(handler server.HTTPServerHandler) (http.HandlerFunc,
 		mws = append(mws, middleware)
 	}
 
-	for i := len(mws) - 1; i >= 0; i-- {
-		m.log.V(5).Infof("apply middleware %s to %s", mws[i].Kind(), handler.Path)
-		h = mws[i].Apply(h)
+	sort.Slice(mws, func(i, j int) bool {
+		return mws[i].Order() < mws[j].Order()
+	})
+
+	for _, mw := range mws {
+		m.log.V(5).Infof("apply middleware %s to %s", mw.Kind(), handler.Path)
+		h = mw.Apply(h)
 	}
 
 	return h, nil

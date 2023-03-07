@@ -8,11 +8,16 @@ import (
 const corsMiddlewareKind server.KindMiddleware = "corsMiddleware"
 
 type corsMiddleware struct {
+	server.DefaultHttpServerMiddleware
 	handler http.HandlerFunc
 }
 
 func (corsMiddleware) Kind() server.KindMiddleware {
 	return corsMiddlewareKind
+}
+
+func (corsMiddleware) Order() int {
+	return 999
 }
 
 func (s *corsMiddleware) Apply(h http.HandlerFunc) http.HandlerFunc {

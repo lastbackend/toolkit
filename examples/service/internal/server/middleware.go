@@ -14,6 +14,7 @@ type Data string
 const MWAuthenticate server.KindMiddleware = "mwauthenticate"
 
 type ExampleHTTPServerMiddleware struct {
+	server.DefaultHttpServerMiddleware
 	name    server.KindMiddleware
 	runtime runtime.Runtime
 	service servicepb.ExampleServices
