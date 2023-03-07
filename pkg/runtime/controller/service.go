@@ -45,3 +45,7 @@ func (s *service) Plugin() toolkit.Plugin {
 func (s *service) Start(ctx context.Context, invoke ...interface{}) error {
 	return s.runtime.Start(ctx, invoke...)
 }
+
+func (s *service) Stop(ctx context.Context) error {
+	return s.runtime.Start(ctx)
+}
