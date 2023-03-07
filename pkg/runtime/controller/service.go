@@ -47,5 +47,5 @@ func (s *service) Start(ctx context.Context, invoke ...interface{}) error {
 }
 
 func (s *service) Stop(ctx context.Context) error {
-	return s.runtime.Start(ctx)
+	return s.runtime.Stop(ctx)
 }
