@@ -152,16 +152,13 @@ func (s *httpServer) Start(_ context.Context) error {
 	r := mux.NewRouter()
 
 	if s.opts.EnableCORS {
-		s.middlewares.global = append(s.middlewares.global, corsMiddlewareKind)
 		r.Methods(http.MethodOptions).HandlerFunc(s.corsHandlerFunc)
+		s.middlewares.global = append(s.middlewares.global, corsMiddlewareKind)
+		s.middlewares.Add(&corsMiddleware{handler: s.corsHandlerFunc})
 	}
 
 	r.NotFoundHandler = s.methodNotFoundHandler()
 	r.MethodNotAllowedHandler = s.methodNotAllowedHandler()
-
-	if s.opts.EnableCORS {
-		s.middlewares.Add(&corsMiddleware{handler: s.corsHandlerFunc})
-	}
 
 	for _, h := range s.handlers {
 

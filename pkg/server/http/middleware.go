@@ -18,12 +18,13 @@ package http
 
 import (
 	"fmt"
-	"github.com/lastbackend/toolkit/pkg/runtime/logger"
-	"github.com/lastbackend/toolkit/pkg/server"
 	"go.uber.org/fx"
 	"net/http"
 	"regexp"
 	"sort"
+
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/server"
 )
 
 const MiddlewareNotFoundError string = "Can not apply middleware router: %s Can not find global server middleware: %s. To " +
@@ -98,15 +99,27 @@ func (m *Middlewares) apply(handler server.HTTPServerHandler) (http.HandlerFunc,
 			continue
 		}
 
-		exclude = append(exclude, regexp.MustCompile(o.regexp))
+		exclude = append(exclude, regexp.MustCompile(``+o.regexp))
 	}
 
 	for _, g := range m.global {
+		var skip bool
 
-		for _, re := range exclude {
-			if re.MatchString(string(g)) {
-				continue
+		switch g {
+		case corsMiddlewareKind:
+		default:
+			for _, re := range exclude {
+
+				if re.MatchString(string(g)) {
+					skip = true
+					break
+				}
+
 			}
+		}
+
+		if skip {
+			continue
 		}
 
 		middleware, ok := m.items[g]
@@ -123,7 +136,7 @@ func (m *Middlewares) apply(handler server.HTTPServerHandler) (http.HandlerFunc,
 	})
 
 	for _, mw := range mws {
-		m.log.V(5).Infof("apply middleware %s to %s", mw.Kind(), handler.Path)
+		m.log.Infof("apply middleware %s to %s", mw.Kind(), handler.Path)
 		h = mw.Apply(h)
 	}
 
