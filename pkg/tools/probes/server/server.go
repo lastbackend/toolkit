@@ -19,8 +19,9 @@ const (
 )
 
 type Options struct {
-	Host string `env:"SERVER_LISTEN" envDefault:"0.0.0.0" comment:"Set probes listen host"`
-	Port int    `env:"SERVER_PORT" envDefault:"8080" comment:"Set probes listen port"`
+	Enabled bool   `env:"SERVER_ENABLED" envDefault:"true" comment:"Enable or disable probes server"`
+	Host    string `env:"SERVER_LISTEN" envDefault:"0.0.0.0" comment:"Set probes listen host"`
+	Port    int    `env:"SERVER_PORT" envDefault:"8080" comment:"Set probes listen port"`
 
 	LivenessPath  string `env:"LIVENESS_PATH" envDefault:"/_healthz/liveness" comment:"Set liveness probe path"`
 	ReadinessPath string `env:"READINESS_PATH" envDefault:"/_healthz/readiness" comment:"Set readiness probe path"`
@@ -110,6 +111,10 @@ func (p *probe) Start(_ context.Context) error {
 	var (
 		s server.HTTPServer
 	)
+
+	if !p.opts.Enabled {
+		return nil
+	}
 
 	if p.opts.Port > 0 {
 		// check if provided port is used by grpc server
