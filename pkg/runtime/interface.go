@@ -30,8 +30,9 @@ type Runtime interface {
 	Provide(constructor interface{})
 	Invoke(constructor interface{})
 
+	Run(ctx context.Context, fn ...interface{}) error
 	Start(ctx context.Context, fn ...interface{}) error
-  Stop(ctx context.Context) error
+	Stop(ctx context.Context) error
 }
 
 type Client interface {

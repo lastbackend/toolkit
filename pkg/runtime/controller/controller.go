@@ -38,6 +38,8 @@ type controller struct {
 	providers []interface{}
 	invokes   []interface{}
 
+	stop chan error
+
 	tools runtime.Tools
 }
 
@@ -53,8 +55,28 @@ func (c *controller) Log() logger.Logger {
 	return c.logger
 }
 
-func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
+func (c *controller) Run(ctx context.Context, fn ...interface{}) error {
+	if err := c.Start(ctx, fn); err != nil {
+		return err
+	}
 
+	c.app.Start(ctx)
+
+	ch := make(chan os.Signal, 1)
+	select {
+	// wait on kill signal
+	case <-ch:
+	// wait on context cancel
+	case <-ctx.Done():
+
+	// wait external exit
+	case <-c.stop:
+
+	}
+	return c.app.Stop(ctx)
+}
+
+func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
 	if c.help() {
 		return nil
 	}
@@ -63,6 +85,7 @@ func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
 }
 
 func (c *controller) start(ctx context.Context, fn ...interface{}) error {
+
 	c.Log().Info("controller start")
 
 	opts := make([]fx.Option, 0)
@@ -156,7 +179,6 @@ func (c *controller) start(ctx context.Context, fn ...interface{}) error {
 		fx.Options(opts...),
 		fx.WithLogger(c.logger.Fx),
 	)
-  c.app.Run()
 
 	return nil
 }
@@ -205,8 +227,9 @@ func (c *controller) Tools() runtime.Tools {
 	return c.tools
 }
 
-func (c *controller) Stop(ctx context.Context) error {
-	return c.app.Stop(ctx)
+func (c *controller) Stop(_ context.Context) error {
+	c.stop <- nil
+	return nil
 }
 
 func (c *controller) fillMeta(opts ...runtime.Option) {
@@ -229,6 +252,7 @@ func NewRuntime(ctx context.Context, name string, opts ...runtime.Option) (runti
 		err error
 	)
 
+	rt.stop = make(chan error)
 	rt.providers = make([]interface{}, 0)
 	rt.invokes = make([]interface{}, 0)
 

@@ -64,7 +64,7 @@ func main() {
 	app.Server().HTTP().AddHandler(http.MethodGet, "/", server.ExampleHTTPServerHandler, http.WithMiddleware(server.MWAuthenticate))
 
 	// Service run
-	if err := app.Start(context.Background(), controller.Start); err != nil {
+	if err := app.Run(context.Background(), controller.Start); err != nil {
 		app.Log().Errorf("could not run the service %v", err)
 		os.Exit(1)
 		return
