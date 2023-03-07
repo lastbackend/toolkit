@@ -56,7 +56,7 @@ func (m *Middlewares) apply(handler server.HTTPServerHandler) (http.HandlerFunc,
 
 	var (
 		exclude = make(map[server.KindMiddleware]server.HttpServerMiddleware, 0)
-		mws     = make(map[server.KindMiddleware]server.HttpServerMiddleware, 0)
+		mws     = make([]server.HttpServerMiddleware, 0)
 	)
 
 	for _, opt := range handler.Options {
@@ -82,7 +82,7 @@ func (m *Middlewares) apply(handler server.HTTPServerHandler) (http.HandlerFunc,
 			return h, fmt.Errorf("can not find global server middleware: %s", o.middleware)
 		}
 
-		mws[o.middleware] = middleware
+		mws = append(mws, middleware)
 	}
 
 	for _, opt := range handler.Options {
@@ -116,12 +116,12 @@ func (m *Middlewares) apply(handler server.HTTPServerHandler) (http.HandlerFunc,
 			return h, fmt.Errorf("can not find global server middleware: %s", g)
 		}
 
-		mws[g] = middleware
+		mws = append(mws, middleware)
 	}
 
-	for n, mw := range mws {
-		m.log.V(5).Infof("apply middleware %s to %s", n, handler.Path)
-		h = mw.Apply(h)
+	for i := len(mws) - 1; i >= 0; i-- {
+		m.log.V(5).Infof("apply middleware %s to %s", mws[i].Kind(), handler.Path)
+		h = mws[i].Apply(h)
 	}
 
 	return h, nil
