@@ -1,5 +1,10 @@
 package meta
 
+import (
+	"regexp"
+	"strings"
+)
+
 type Meta struct {
 	name        string
 	version     string
@@ -35,7 +40,7 @@ func (m *Meta) GetDescription() string {
 }
 
 func (m *Meta) SetEnvPrefix(prefix string) *Meta {
-	m.prefix = prefix
+	m.prefix = strings.ToUpper(regexp.MustCompile(`[^_a-zA-Z0-9 ]+`).ReplaceAllString(prefix, ""))
 	return m
 }
 
