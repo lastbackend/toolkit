@@ -23,7 +23,7 @@ import (
 )
 
 // ExampleMiddleware - show request info middleware
-func (m Middleware) ExampleMiddleware(h http.Handler) http.Handler {
+func ExampleMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Call: ExampleMiddleware")
 

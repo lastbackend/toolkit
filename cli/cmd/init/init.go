@@ -19,6 +19,7 @@ package init
 import (
 	"bytes"
 	"fmt"
+	"github.com/lastbackend/toolkit/pkg/util/parser"
 	"os"
 	"path"
 	"text/template"
@@ -26,7 +27,6 @@ import (
 	tcli "github.com/lastbackend/toolkit/cli/cmd"
 	"github.com/lastbackend/toolkit/cli/pkg/scaffold/generator"
 	"github.com/lastbackend/toolkit/cli/pkg/scaffold/templates"
-	"github.com/lastbackend/toolkit/cli/pkg/util/parser"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )

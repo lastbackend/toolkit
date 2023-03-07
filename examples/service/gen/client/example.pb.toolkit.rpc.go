@@ -7,7 +7,7 @@ import (
 	context "context"
 
 	"github.com/lastbackend/toolkit/examples/service/gen/ptypes"
-	grpc "github.com/lastbackend/toolkit/pkg/client/grpc"
+	client "github.com/lastbackend/toolkit/pkg/client"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -16,21 +16,30 @@ var _ context.Context
 var _ emptypb.Empty
 
 // Client gRPC API for Example service
-func NewExampleRPCClient(service string, c grpc.Client) ExampleRPCClient {
+func NewExampleRPCClient(service string, c client.GRPCClient) ExampleRPCClient {
 	return &exampleGrpcRPCClient{service, c}
 }
 
 // Client gRPC API for Example service
 type ExampleRPCClient interface {
-	HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest, opts ...grpc.CallOption) (*typespb.HelloWorldResponse, error)
+	HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest, opts ...client.GRPCCallOption) (*typespb.HelloWorldResponse, error)
+}
+
+// Client gRPC API for Sample service
+func NewSampleRPCClient(service string, c client.GRPCClient) SampleRPCClient {
+	return &sampleGrpcRPCClient{service, c}
+}
+
+// Client gRPC API for Sample service
+type SampleRPCClient interface {
 }
 
 type exampleGrpcRPCClient struct {
 	service string
-	cli     grpc.Client
+	cli     client.GRPCClient
 }
 
-func (c *exampleGrpcRPCClient) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest, opts ...grpc.CallOption) (*typespb.HelloWorldResponse, error) {
+func (c *exampleGrpcRPCClient) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest, opts ...client.GRPCCallOption) (*typespb.HelloWorldResponse, error) {
 	resp := new(typespb.HelloWorldResponse)
 	if err := c.cli.Call(ctx, c.service, Example_HelloWorldMethod, req, resp, opts...); err != nil {
 		return nil, err
@@ -39,6 +48,13 @@ func (c *exampleGrpcRPCClient) HelloWorld(ctx context.Context, req *typespb.Hell
 }
 
 func (exampleGrpcRPCClient) mustEmbedUnimplementedExampleClient() {}
+
+type sampleGrpcRPCClient struct {
+	service string
+	cli     client.GRPCClient
+}
+
+func (sampleGrpcRPCClient) mustEmbedUnimplementedSampleClient() {}
 
 // Client methods for Example service
 const (

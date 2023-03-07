@@ -16,418 +16,126 @@ limitations under the License.
 
 package templates
 
-// ServiceTpl is the service template used for new services.
-var ServiceTpl = `
-type middleware map[string][]func(h http.Handler) http.Handler
+// ServiceContentTpl is the content template used for new services.
+var ServiceContentTpl = `
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the toolkit package it is being compiled against and
+// suppress "imported and not used" errors
+var (
+	_ context.Context
+	_ emptypb.Empty
+	_ http.Handler
+	_ errors.Err
+	_ io.Reader
+	_ json.Marshaler
+	_ tk_ws.Client
+	_ tk_http.Handler
+	_ client.GRPCClient
+)
 
-func (m middleware) getMiddleware(name string) router.Middleware {
-	middleware := router.Middleware{}
-	if m[name] != nil {
-		for _, mdw := range m[name] {
-			middleware.Add(mdw)
-		}
-	}
-	return middleware
-}
-
-var middlewares = make(middleware, 0)
-
-type Service interface {
-	Logger() logger.Logger
-	Meta() toolkit.Meta
-	CLI() toolkit.CLI
-	Client() grpc.Client
-	Router() router.Server
-	Run(ctx context.Context) error
-
-	SetConfig(cfg interface{})
-	{{- if not .HasNotServer }}
-	SetServer(srv interface{})
-	{{ end }}
-
-	AddPackage(pkg interface{})
-	AddMiddleware(mdw interface{})
-	Invoke(fn interface{})
-}
-
-type RPC struct {
-	Grpc grpc.Client
-	{{- range $key, $value := .Clients }}
-		{{ $value.Service | ToCamel }} {{ $key }}.{{ $value.Service | ToCamel }}RPCClient
-	{{- end }}
-}
-
-func NewService(name string) Service {
-	return &service{
-		toolkit: toolkit.NewService(name),
-		{{- if not .HasNotServer }}
-		srv:     make([]interface{}, 0),
-		{{- end }}
-		pkg:     make([]interface{}, 0),
-		inv:     make([]interface{}, 0),
-		rpc:     new(RPC),
-	}
-}
-
-type service struct {
-	toolkit toolkit.Service
-	rpc     *RPC
-	{{- if not .HasNotServer }}
-	srv    []interface{}
-	{{- end }}
-	pkg    []interface{}
-	inv    []interface{}
-	cfg    interface{}
-	mdw    interface{}
-}
-
-func (s *service) Meta() toolkit.Meta {
-	return s.toolkit.Meta()
-}
-
-func (s *service) CLI() toolkit.CLI {
-	return s.toolkit.CLI()
-}
-
-func (s *service) Logger() logger.Logger {
-	return s.toolkit.Logger()
-}
-
-func (s *service) Router() router.Server {
-	return s.toolkit.Router()
-}
-
-func (s *service) Client() grpc.Client {
-	return s.toolkit.Client()
-}
-
-func (s *service) SetConfig(cfg interface{}) {
-	s.cfg = cfg
-}
-
-{{ if not .HasNotServer }}
-func (s *service) SetServer(srv interface{}) {
-	if srv == nil {
-		return 
-	}
-	s.srv = append(s.srv, srv)
-}
-{{ end }}
-
-func (s *service) AddPackage(pkg interface{}) {
-	if pkg == nil {
-		return 
-	}
-	s.pkg = append(s.pkg, pkg)
-}
-
-func (s *service) AddMiddleware(mdw interface{}) {
-	s.mdw = mdw
-}
-
-func (s *service) Invoke(fn interface{}) {
-	if fn == nil {
-		return 
-	}
-	s.inv = append(s.inv, fn)
-}
-
-{{- range $type, $plugins := .Plugins }}
-{{- range $index, $plugin := $plugins }}
-type {{ $plugin.Prefix | ToCamel }}Plugin interface {
-	{{ $type }}.Plugin
-}
-{{ end }}
-{{ end }}
-
-func (s *service) Run(ctx context.Context) error {
-	
-	{{ $count := 0 }}
-
-	{{ range $type, $plugins := .Plugins }}
-		{{- range $index, $plugin := $plugins }}
-			plugin_{{ $count }} := {{ $plugin.Plugin }}.NewPlugin(s.toolkit, &{{ $plugin.Plugin }}.Options{Name: "{{ $plugin.Prefix | ToLower }}"})
-			{{ $count = inc $count }}
-		{{- end }}
-	{{- end }}
-
-	{{ $count = 0 }}
-
-	provide := make([]interface{}, 0)
-	provide = append(provide,
-		fx.Annotate(
-			func() toolkit.Service {
-				return s.toolkit
-			},
-		),
-		func() Service {
-			return s
-		},
-		func() *RPC {
-			return s.rpc
-		},
-		{{- range $type, $plugins := .Plugins }}
-			{{- range $index, $plugin := $plugins }}
-				fx.Annotate(
-					func() {{ $plugin.Prefix | ToCamel }}Plugin {
-						return plugin_{{ $count }}
-					},
-				),
-				{{ $count = inc $count }}	
-			{{- end }}
-		{{- end }}
-	)
-
-	provide = append(provide, s.pkg...)
-	{{- if not .HasNotServer }}
-	provide = append(provide, s.srv...)
-	{{- end }}
-
-	opts := make([]fx.Option, 0)
-	
-	if s.cfg != nil {
-		opts = append(opts, fx.Supply(s.cfg))	
-	}
-
-	opts = append(opts, fx.Provide(provide...))
-	opts = append(opts, fx.Invoke(s.registerClients))
-	{{- if not $.HasNotServer }}
-		{{- range $svc := .Services }}			
-			opts = append(opts, fx.Invoke(s.register{{ $svc.GetName }}Server))
-		{{- end }}
-	{{- end }}
-	opts = append(opts, fx.Invoke(s.inv...))
-	if s.mdw != nil {
-		opts = append(opts, fx.Invoke(s.mdw))
-	}
-	opts = append(opts, fx.Invoke(s.registerRouter))
-	opts = append(opts, fx.Invoke(s.runService))
-
-	app := fx.New(
-		fx.Options(opts...),
-		fx.NopLogger,
-	)
-
-	if err := app.Start(ctx); err != nil {
-		return err
-	}
-	
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, shutdownSignals...)
-
-	select {
-	// wait on kill signal
-	case <-signalCh:
-	// wait on context cancel
-	case <-ctx.Done():
-	}
-
-	return app.Stop(ctx)
-}
-
-
-func (s *service) registerClients() error {
-
-	// Register clients
-	
-	s.rpc.Grpc = s.toolkit.Client()
-
-	{{ range $key, $value := .Clients }}
-		s.rpc.{{ $value.Service | ToCamel }} = {{ $value.Service | ToLower }}.New{{ $value.Service | ToCamel }}RPCClient("{{ $value.Service | ToLower }}", s.rpc.Grpc)
-	{{ end }}
-
-	return nil
-}
-
-{{ if not .HasNotServer }}
-	{{ $lengthService := len .Services }} 
-	{{ range $svc := .Services }}
-	func (s *service) register{{ $svc.GetName }}Server(srv {{ $svc.GetName }}RpcServer) error {
-	
-		// Register servers
-	
-		type {{ $svc.GetName }}GrpcRpcServer struct {
-				{{ $svc.GetName }}Server
-		}
-	
-		h := &{{ $svc.GetName | ToLower }}GrpcRpcServer{srv.({{ $svc.GetName }}RpcServer)}
-
-		{{ if eq $lengthService 1 }}
-		grpc{{ $svc.GetName | ToLower }}Server := server.NewServer(s.toolkit, &server.ServerOptions{Name: "grpc"})
-		{{ else }}
-		grpc{{ $svc.GetName | ToLower }}Server := server.NewServer(s.toolkit, &server.ServerOptions{Name: "{{ $svc.GetName | ToLower }}-grpc"})
-		{{ end }}
-		if err := grpc{{ $svc.GetName | ToLower }}Server.Register(&{{ $svc.GetName }}_ServiceDesc, &{{ $svc.GetName }}GrpcRpcServer{h}); err != nil {
-			return err
-		}
-	
-		if err := s.toolkit.ServerRegister(grpc{{ $svc.GetName | ToLower }}Server); err != nil {
-			return err
-		}
-	
-		return nil
-	}
-	{{ end }}
-{{ end }}
-
-func (s *service) registerRouter() {
-	{{ range $svc := .Services }}
-		{{ range $m := $svc.Methods }}
-			{{ range $binding := $m.Bindings }}
-				
-				{{ if $binding.Websocket }}
-				s.toolkit.Router().Handle(http.MethodGet, "{{ $binding.HttpPath }}", s.Router().ServerWS,
-					router.HandleOptions{Middlewares: middlewares.getMiddleware("{{ $binding.RpcMethod }}")})
-				{{ end }}
-			
-				{{ if or (not $binding.Websocket) ($binding.WebsocketProxy) }}
-				s.toolkit.Router().Subscribe("{{ $binding.RpcMethod }}", func(ctx context.Context, event ws.Event, c *ws.Client) error {
-					ctx, cancel := context.WithCancel(ctx)
-					defer cancel()
-			
-					var protoRequest {{ $binding.RequestType.GoType $binding.Method.Service.File.GoPkg.Path }}
-					var protoResponse {{ $binding.ResponseType.GoType $binding.Method.Service.File.GoPkg.Path }}
-			
-					if err := json.Unmarshal(event.Payload, &protoRequest); err != nil {
-						return err
-					}
-			
-					callOpts := make([]grpc.CallOption, 0)
-		
-					if headers := ctx.Value(ws.RequestHeaders); headers != nil {
-						if v, ok := headers.(map[string]string); ok {
-							callOpts = append(callOpts, grpc.Headers(v))
-						}
-					}
-			
-					if err := s.toolkit.Client().Call(ctx, "{{ $binding.Service }}", "{{ $binding.RpcPath }}", &protoRequest, &protoResponse, callOpts...); err != nil {
-						return err	
-					}
-			
-					return c.WriteJSON(protoResponse)
-				})
-		
-				{{ if not $binding.WebsocketProxy }}
-					s.toolkit.Router().Handle({{ $binding.HttpMethod }}, "{{ $binding.HttpPath }}", func(w http.ResponseWriter, r *http.Request) {
-						ctx, cancel := context.WithCancel(r.Context())
-						defer cancel()
-			
-						var protoRequest {{ $binding.RequestType.GoType $binding.Method.Service.File.GoPkg.Path }}
-						var protoResponse {{ $binding.ResponseType.GoType $binding.Method.Service.File.GoPkg.Path }}
-				
-						{{ if or (eq $binding.HttpMethod "http.MethodPost") (eq $binding.HttpMethod "http.MethodPut") (eq $binding.HttpMethod "http.MethodPatch") }}
-							{{ if eq $binding.RawBody "*" }}
-								im, om := router.GetMarshaler(s.toolkit.Router(), r)
-			
-								reader, err := router.NewReader(r.Body)
-								if err != nil {
-									errors.HTTP.InternalServerError(w)
-									return
-								}
-								
-								if err := im.NewDecoder(reader).Decode(&protoRequest); err != nil && err != io.EOF {
-									errors.HTTP.InternalServerError(w)
-									return
-								}
-							{{ else }}
-								_, om := router.GetMarshaler(s.toolkit.Router(), r)
-			
-								if err := router.SetRawBodyToProto(r, &protoRequest, "{{ $binding.RawBody }}"); err != nil {
-									errors.HTTP.InternalServerError(w)
-									return
-								}
-			
-							{{ end }}
-						{{ else }}
-							_, om := router.GetMarshaler(s.toolkit.Router(), r)
-			
-							if err := r.ParseForm(); err != nil {
-								errors.HTTP.InternalServerError(w)
-								return
-							}
-				
-							if err := router.ParseRequestQueryParametersToProto(&protoRequest, r.Form); err != nil {
-								errors.HTTP.InternalServerError(w)
-								return
-							}
-						{{ end }}
-			
-						{{ range $param := $binding.HttpParams }}
-						if err := router.ParseRequestUrlParametersToProto(r, &protoRequest, "{{ $param | ToTrimRegexFromQueryParameter }}"); err != nil {
-							errors.HTTP.InternalServerError(w)
-							return
-						}
-						{{ end }}
-				
-						headers, err := router.PrepareHeaderFromRequest(r)
-						if err != nil {
-							errors.HTTP.InternalServerError(w)
-							return
-						}
-			
-						callOpts := make([]grpc.CallOption, 0)
-						callOpts = append(callOpts, grpc.Headers(headers))
-			
-						if err := s.toolkit.Client().Call(ctx, "{{ $binding.Service }}", "{{ $binding.RpcPath }}", &protoRequest, &protoResponse, callOpts...); err != nil {
-							errors.GrpcErrorHandlerFunc(w, err)
-							return			
-						}
-				
-						buf, err := om.Marshal(protoResponse)
-						if err != nil {
-							errors.HTTP.InternalServerError(w)
-							return
-						}
-			
-						w.Header().Set("Content-Type", om.ContentType())
-			
-						w.WriteHeader(http.StatusOK)
-						if _, err = w.Write(buf); err != nil {
-							s.toolkit.Logger().Infof("Failed to write response: %v", err)
-							return
-						}
-			
-					}, router.HandleOptions{Middlewares: middlewares.getMiddleware("{{ $binding.RpcMethod }}")})
-					{{ end }}
-				{{ end }} 
-			{{ end }} 
-		{{ end }}
-	{{ end }}
-}
-
-func registerMiddleware(name string, mdw ...func(h http.Handler) http.Handler) {
-	if middlewares[name] == nil {
-		middlewares[name] = make([]func(h http.Handler) http.Handler, 0)
-	}
-	for _, h := range mdw {
-		middlewares[name] = append(middlewares[name], h)
-	}
-}
+// Definitions
+{{ if .Plugins }}
+{{- template "plugin-define" .Plugins }}
+{{- end }}
+{{ range $svc := .Services }}
+{{- template "plugin-define" $svc.Plugins }}
+{{- end }}
 
 {{ range $svc := .Services }}
-	{{ range $m := $svc.Methods }}
-	func {{ $m.GetName }}MiddlewareAdd(mdw ...func(h http.Handler) http.Handler) {
-		registerMiddleware("{{ $m.GetName }}", mdw...)
+{{- if $.Clients }}
+// Client services define
+type {{ .GetName | ToCamel }}Services interface {
+	{{- range $key, $value := $.Clients }}
+	{{ $value.Service | ToCamel }}() {{ $key }}.{{ $value.Service | ToCamel }}RPCClient
+	{{- end }}
+}
+
+type {{ .GetName | ToLower }}Services struct {
+	{{- range $key, $value := $.Clients }}
+	{{ $value.Service | ToLower }} {{ $key }}.{{ $value.Service | ToCamel }}RPCClient
+	{{- end }}
+}
+
+{{- range $key, $value := $.Clients }}
+func (s *{{ $svc.GetName | ToLower }}Services) {{ $value.Service | ToCamel }}() {{ $key }}.{{ $value.Service | ToCamel }}RPCClient {
+	return s.{{ $value.Service | ToLower }}
+}
+{{- end }}
+
+func {{ $svc.GetName | ToLower }}ServicesRegister(runtime runtime.Runtime) {{ $svc.GetName | ToCamel }}Services {
+	s := new({{ $svc.GetName | ToLower }}Services)
+	{{- range $key, $value := $.Clients }}
+	s.{{ $value.Service | ToLower }} = {{ $key }}.New{{ $value.Service | ToCamel }}RPCClient("{{ $value.Service | ToLower }}", runtime.Client().GRPC())
+	{{- end }}
+	return s
+}
+{{- end }}
+
+// Service {{ $svc.GetName }} define
+type service{{ $svc.GetName | ToCamel }} struct {
+	runtime runtime.Runtime
+}
+
+func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolkit.Service, err error) {
+	app := new(service{{ $svc.GetName | ToCamel }})
+
+	app.runtime, err = controller.NewRuntime(context.Background(), name, opts...)
+	if err != nil {
+		return nil, err
 	}
-	{{ end }}
+
+
+	// loop over plugins and initialize plugin instance
+	{{- template "plugin-init" $.Plugins }}
+	{{- template "plugin-init" $svc.Plugins }}
+
+	// loop over plugins and register plugin in toolkit
+	{{- template "plugin-register" $.Plugins }}
+	{{- template "plugin-register" $svc.Plugins }}
+
+
+{{ if and $svc.UseGRPCServer $svc.Methods }}
+	// set descriptor to {{ $svc.GetName }} GRPC server
+	app.runtime.Server().GRPCNew(name, nil)
+	app.runtime.Server().GRPC().SetDescriptor({{ $svc.GetName }}_ServiceDesc)
+	app.runtime.Server().GRPC().SetConstructor(register{{ $svc.GetName }}GRPCServer)
 {{ end }}
 
-func (s *service) runService(lc fx.Lifecycle) error {
-	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			return s.toolkit.Start(ctx)
-		},
-		OnStop: func(ctx context.Context) error {
-			return s.toolkit.Stop(ctx)
-		},
-	})
-	return nil
+{{ if and (or $svc.UseHTTPProxyServer $svc.UseWebsocketProxyServer $svc.UseWebsocketServer) $svc.Methods }}
+	// create new {{ $svc.GetName }} HTTP server
+	app.runtime.Server().HTTPNew(name, nil)
+	{{ if and (or $svc.UseHTTPProxyServer $svc.UseWebsocketProxyServer) $svc.HTTPMiddlewares }}app.runtime.Server().HTTP().UseMiddleware({{ range $index, $mdw := $svc.HTTPMiddlewares }}{{ if lt 0 $index }}, {{ end }}"{{ $mdw }}"{{ end }}){{ end }}
+	{{- range $m := $svc.Methods }}
+	{{- range $binding := $m.Bindings }}
+		{{- if and $binding.Websocket $svc.UseWebsocketServer }}
+			app.runtime.Server().HTTP().AddHandler(http.MethodGet, "{{ $binding.HttpPath }}", app.runtime.Server().HTTP().ServerWS)
+		{{- end }} 
+		{{- if and $svc.UseWebsocketProxyServer $binding.WebsocketProxy (not $binding.Websocket) }}
+		app.runtime.Server().HTTP().Subscribe("{{ $binding.RpcMethod }}", app.handlerWSProxy{{ $svc.GetName | ToCamel }}{{ $m.GetName | ToCamel }})
+		{{- end }}
+		{{- if and $svc.UseHTTPProxyServer (not $binding.WebsocketProxy) (not $binding.Websocket) }}
+		app.runtime.Server().HTTP().AddHandler({{ $binding.HttpMethod }}, "{{ $binding.HttpPath }}", app.handlerHTTP{{ $svc.GetName | ToCamel }}{{ $m.GetName | ToCamel }}{{- if $binding.Middlewares }}, 
+			{{ range $index, $mdw := $binding.Middlewares }}{{ if lt 0 $index }}, {{ end }}tk_http.WithMiddleware("{{ $mdw }}"){{ end }}{{ end }}{{- if $binding.ExcludeGlobalMiddlewares }}, 
+			{{ range $index, $mdw := $binding.ExcludeGlobalMiddlewares }}{{ if lt 0 $index }}, {{ end }}tk_http.WithExcludeGlobalMiddleware("{{ $mdw }}"){{ end }}{{ end }})
+		//{{- end }}
+	{{- end }} 
+	{{- end }} 
+{{ end }}
+
+{{- if $.Clients }}
+	app.runtime.Provide({{ $svc.GetName | ToLower }}ServicesRegister)
+{{- end }}
+
+	return app.runtime.Service(), nil
 }
 
-var shutdownSignals = []os.Signal{
-	syscall.SIGTERM,
-	syscall.SIGINT,
-	syscall.SIGQUIT,
-	syscall.SIGKILL,
-}
+{{ if and $svc.UseGRPCServer .Methods }}
+{{- template "grpc-service-define" . }}
+{{ end }}
+
+{{ if and (or $svc.UseHTTPProxyServer $svc.UseWebsocketProxyServer $svc.UseWebsocketServer) .Methods }}
+{{- template "http-handler-define" . }}
+{{- end }}
+
+{{ end }}
 `

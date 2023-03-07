@@ -23,12 +23,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/lastbackend/toolkit"
-	"github.com/lastbackend/toolkit/examples/gateway/config"
-	pb "github.com/lastbackend/toolkit/examples/gateway/gen/server"
+	servicepb "github.com/lastbackend/toolkit/examples/gateway/gen/server"
 	"github.com/lastbackend/toolkit/examples/gateway/middleware"
-	"github.com/lastbackend/toolkit/pkg/logger"
-	"github.com/lastbackend/toolkit/pkg/router"
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
 )
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -38,39 +36,37 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 	}
 }
-
 func main() {
-	log := logger.DefaultLogger
-	log = log.WithFields(logger.Fields{
-		"service": "gateway",
-	})
+	// define service with name and options
+	app, err := servicepb.NewProxyGatewayService("gateway",
+		runtime.WithVersion("0.1.0"),
+		runtime.WithDescription("Example gateway microservice"),
+		runtime.WithEnvPrefix("GTW"),
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	log.Infof("Start process")
+	// Logger settings
+	app.Log().Info("Run microservice")
 
-	svc := pb.NewService("gateway")
-	svc.Meta().SetEnvPrefix("GTW")
+	// Add middleware
+	app.Server().HTTP().SetMiddleware("example", middleware.ExampleMiddleware)
+	app.Server().HTTP().SetMiddleware("request_id", middleware.RequestID)
 
-	cfg := config.New()
+	// set middleware as global middleware
+	app.Server().HTTP().UseMiddleware("request_id")
 
-	setFlags(svc.CLI(), cfg)
+	// add handler to default http server
+	app.Server().HTTP().
+		AddHandler(http.MethodGet, "/health", HealthCheckHandler, tk_http.WithMiddleware("example"))
 
-	svc.SetConfig(cfg)
-	svc.AddMiddleware(middleware.New)
-
-	svc.Router().Handle(http.MethodGet, "/health", HealthCheckHandler, router.HandleOptions{})
-
-	if err := svc.Run(context.Background()); err != nil {
-		log.Errorf("Failed run service: %v", err)
+	// Service run
+	if err := app.Start(context.Background()); err != nil {
+		app.Log().Errorf("could not run the service %v", err)
 		os.Exit(1)
 		return
 	}
-}
 
-func setFlags(cli toolkit.CLI, cfg *config.Config) {
-
-	// describe flag: "Set demo-flag flag"
-	cli.AddStringFlag("demo-flag", &cfg.Demo).
-		Env("DEMO_FLAG").
-		Usage("Set demo flag")
-
+	app.Log().Info("graceful stop")
 }

@@ -49,6 +49,19 @@ option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
 
 //  Example methods
 service Router {
+  option (toolkit.service) = {
+    servers: [WEBSOCKET_PROXY, WEBSOCKET]
+    plugins: [{
+      prefix: "redis1"
+      plugin: "redis"
+    }]
+  };
+  option (toolkit.http_proxy) = {
+    middlewares: [
+      "middleware1"
+    ]
+  };
+
   rpc Subscribe(SubscribeRequest) returns (SubscribeResponse) {
     option (toolkit.server).websocket = true;
     option (google.api.http) = {
@@ -65,13 +78,13 @@ service Router {
     option (toolkit.server).http_proxy = {
       service: "helloworld"
       method: "/helloworld.Greeter/SayHello"
+      middlewares: ["middleware2"]
     };
     option (google.api.http) = {
       post: "/hello"
     };
   };
 }
-
 
 message SubscribeRequest {}
 

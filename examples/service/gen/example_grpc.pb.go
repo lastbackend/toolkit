@@ -104,3 +104,49 @@ var Example_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "github.com/lastbackend/toolkit/examples/service/apis/example.proto",
 }
+
+// SampleClient is the client API for Sample service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type SampleClient interface {
+}
+
+type sampleClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewSampleClient(cc grpc.ClientConnInterface) SampleClient {
+	return &sampleClient{cc}
+}
+
+// SampleServer is the server API for Sample service.
+// All implementations should embed UnimplementedSampleServer
+// for forward compatibility
+type SampleServer interface {
+}
+
+// UnimplementedSampleServer should be embedded to have forward compatible implementations.
+type UnimplementedSampleServer struct {
+}
+
+// UnsafeSampleServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to SampleServer will
+// result in compilation errors.
+type UnsafeSampleServer interface {
+	mustEmbedUnimplementedSampleServer()
+}
+
+func RegisterSampleServer(s grpc.ServiceRegistrar, srv SampleServer) {
+	s.RegisterService(&Sample_ServiceDesc, srv)
+}
+
+// Sample_ServiceDesc is the grpc.ServiceDesc for Sample service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var Sample_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "lastbackend.example.Sample",
+	HandlerType: (*SampleServer)(nil),
+	Methods:     []grpc.MethodDesc{},
+	Streams:     []grpc.StreamDesc{},
+	Metadata:    "github.com/lastbackend/toolkit/examples/service/apis/example.proto",
+}

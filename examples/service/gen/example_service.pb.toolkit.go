@@ -8,141 +8,37 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 
 	toolkit "github.com/lastbackend/toolkit"
+	example "github.com/lastbackend/toolkit/examples/service/gen/client"
 	"github.com/lastbackend/toolkit/examples/service/gen/ptypes"
-	grpc "github.com/lastbackend/toolkit/pkg/client/grpc"
-	logger "github.com/lastbackend/toolkit/pkg/logger"
-	router "github.com/lastbackend/toolkit/pkg/router"
-	errors "github.com/lastbackend/toolkit/pkg/router/errors"
-	ws "github.com/lastbackend/toolkit/pkg/router/ws"
-	server "github.com/lastbackend/toolkit/pkg/server"
+	client "github.com/lastbackend/toolkit/pkg/client"
+	runtime "github.com/lastbackend/toolkit/pkg/runtime"
+	controller "github.com/lastbackend/toolkit/pkg/runtime/controller"
+	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
+	errors "github.com/lastbackend/toolkit/pkg/server/http/errors"
+	tk_ws "github.com/lastbackend/toolkit/pkg/server/http/websockets"
 	"github.com/lastbackend/toolkit/plugin/postgres_gorm"
 	"github.com/lastbackend/toolkit/plugin/redis"
-	fx "go.uber.org/fx"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the toolkit package it is being compiled against and
 // suppress "imported and not used" errors
-var _ context.Context
-var _ logger.Logger
-var _ emptypb.Empty
-var _ server.Server
-var _ grpc.Client
-var _ http.Handler
-var _ errors.Err
-var _ io.Reader
-var _ json.Marshaler
-var _ ws.Client
-var _ server.Server
+var (
+	_ context.Context
+	_ emptypb.Empty
+	_ http.Handler
+	_ errors.Err
+	_ io.Reader
+	_ json.Marshaler
+	_ tk_ws.Client
+	_ tk_http.Handler
+	_ client.GRPCClient
+)
 
-type middleware map[string][]func(h http.Handler) http.Handler
-
-func (m middleware) getMiddleware(name string) router.Middleware {
-	middleware := router.Middleware{}
-	if m[name] != nil {
-		for _, mdw := range m[name] {
-			middleware.Add(mdw)
-		}
-	}
-	return middleware
-}
-
-var middlewares = make(middleware, 0)
-
-type Service interface {
-	Logger() logger.Logger
-	Meta() toolkit.Meta
-	CLI() toolkit.CLI
-	Client() grpc.Client
-	Router() router.Server
-	Run(ctx context.Context) error
-
-	SetConfig(cfg interface{})
-	SetServer(srv interface{})
-
-	AddPackage(pkg interface{})
-	AddMiddleware(mdw interface{})
-	Invoke(fn interface{})
-}
-
-type RPC struct {
-	Grpc grpc.Client
-}
-
-func NewService(name string) Service {
-	return &service{
-		toolkit: toolkit.NewService(name),
-		srv:     make([]interface{}, 0),
-		pkg:     make([]interface{}, 0),
-		inv:     make([]interface{}, 0),
-		rpc:     new(RPC),
-	}
-}
-
-type service struct {
-	toolkit toolkit.Service
-	rpc     *RPC
-	srv     []interface{}
-	pkg     []interface{}
-	inv     []interface{}
-	cfg     interface{}
-	mdw     interface{}
-}
-
-func (s *service) Meta() toolkit.Meta {
-	return s.toolkit.Meta()
-}
-
-func (s *service) CLI() toolkit.CLI {
-	return s.toolkit.CLI()
-}
-
-func (s *service) Logger() logger.Logger {
-	return s.toolkit.Logger()
-}
-
-func (s *service) Router() router.Server {
-	return s.toolkit.Router()
-}
-
-func (s *service) Client() grpc.Client {
-	return s.toolkit.Client()
-}
-
-func (s *service) SetConfig(cfg interface{}) {
-	s.cfg = cfg
-}
-
-func (s *service) SetServer(srv interface{}) {
-	if srv == nil {
-		return
-	}
-	s.srv = append(s.srv, srv)
-}
-
-func (s *service) AddPackage(pkg interface{}) {
-	if pkg == nil {
-		return
-	}
-	s.pkg = append(s.pkg, pkg)
-}
-
-func (s *service) AddMiddleware(mdw interface{}) {
-	s.mdw = mdw
-}
-
-func (s *service) Invoke(fn interface{}) {
-	if fn == nil {
-		return
-	}
-	s.inv = append(s.inv, fn)
-}
+// Definitions
 
 type PgsqlPlugin interface {
 	postgres_gorm.Plugin
@@ -152,148 +48,58 @@ type RedisPlugin interface {
 	redis.Plugin
 }
 
-func (s *service) Run(ctx context.Context) error {
-
-	plugin_0 := postgres_gorm.NewPlugin(s.toolkit, &postgres_gorm.Options{Name: "pgsql"})
-
-	plugin_1 := redis.NewPlugin(s.toolkit, &redis.Options{Name: "redis"})
-
-	provide := make([]interface{}, 0)
-	provide = append(provide,
-		fx.Annotate(
-			func() toolkit.Service {
-				return s.toolkit
-			},
-		),
-		func() Service {
-			return s
-		},
-		func() *RPC {
-			return s.rpc
-		},
-		fx.Annotate(
-			func() PgsqlPlugin {
-				return plugin_0
-			},
-		),
-
-		fx.Annotate(
-			func() RedisPlugin {
-				return plugin_1
-			},
-		),
-	)
-
-	provide = append(provide, s.pkg...)
-	provide = append(provide, s.srv...)
-
-	opts := make([]fx.Option, 0)
-
-	if s.cfg != nil {
-		opts = append(opts, fx.Supply(s.cfg))
-	}
-
-	opts = append(opts, fx.Provide(provide...))
-	opts = append(opts, fx.Invoke(s.registerClients))
-	opts = append(opts, fx.Invoke(s.registerExampleServer))
-	opts = append(opts, fx.Invoke(s.inv...))
-	if s.mdw != nil {
-		opts = append(opts, fx.Invoke(s.mdw))
-	}
-	opts = append(opts, fx.Invoke(s.registerRouter))
-	opts = append(opts, fx.Invoke(s.runService))
-
-	app := fx.New(
-		fx.Options(opts...),
-		fx.NopLogger,
-	)
-
-	if err := app.Start(ctx); err != nil {
-		return err
-	}
-
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, shutdownSignals...)
-
-	select {
-	// wait on kill signal
-	case <-signalCh:
-	// wait on context cancel
-	case <-ctx.Done():
-	}
-
-	return app.Stop(ctx)
+// Client services define
+type ExampleServices interface {
+	Example() example.ExampleRPCClient
 }
 
-func (s *service) registerClients() error {
-
-	// Register clients
-
-	s.rpc.Grpc = s.toolkit.Client()
-
-	return nil
+type exampleServices struct {
+	example example.ExampleRPCClient
 }
 
-func (s *service) registerExampleServer(srv ExampleRpcServer) error {
+func (s *exampleServices) Example() example.ExampleRPCClient {
+	return s.example
+}
 
-	// Register servers
+func exampleServicesRegister(runtime runtime.Runtime) ExampleServices {
+	s := new(exampleServices)
+	s.example = example.NewExampleRPCClient("example", runtime.Client().GRPC())
+	return s
+}
 
-	type ExampleGrpcRpcServer struct {
-		ExampleServer
+// Service Example define
+type serviceExample struct {
+	runtime runtime.Runtime
+}
+
+func NewExampleService(name string, opts ...runtime.Option) (_ toolkit.Service, err error) {
+	app := new(serviceExample)
+
+	app.runtime, err = controller.NewRuntime(context.Background(), name, opts...)
+	if err != nil {
+		return nil, err
 	}
 
-	h := &exampleGrpcRpcServer{srv.(ExampleRpcServer)}
+	// loop over plugins and initialize plugin instance
+	plugin_pgsql := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "pgsql"})
+	plugin_redis := redis.NewPlugin(app.runtime, &redis.Options{Name: "redis"})
 
-	grpcexampleServer := server.NewServer(s.toolkit, &server.ServerOptions{Name: "grpc"})
+	// loop over plugins and register plugin in toolkit
+	app.runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
+	app.runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
 
-	if err := grpcexampleServer.Register(&Example_ServiceDesc, &ExampleGrpcRpcServer{h}); err != nil {
-		return err
-	}
+	// set descriptor to Example GRPC server
+	app.runtime.Server().GRPCNew(name, nil)
+	app.runtime.Server().GRPC().SetDescriptor(Example_ServiceDesc)
+	app.runtime.Server().GRPC().SetConstructor(registerExampleGRPCServer)
 
-	if err := s.toolkit.ServerRegister(grpcexampleServer); err != nil {
-		return err
-	}
+	app.runtime.Provide(exampleServicesRegister)
 
-	return nil
+	return app.runtime.Service(), nil
 }
 
-func (s *service) registerRouter() {
+// Define GRPC services for Example GRPC server
 
-}
-
-func registerMiddleware(name string, mdw ...func(h http.Handler) http.Handler) {
-	if middlewares[name] == nil {
-		middlewares[name] = make([]func(h http.Handler) http.Handler, 0)
-	}
-	for _, h := range mdw {
-		middlewares[name] = append(middlewares[name], h)
-	}
-}
-
-func HelloWorldMiddlewareAdd(mdw ...func(h http.Handler) http.Handler) {
-	registerMiddleware("HelloWorld", mdw...)
-}
-
-func (s *service) runService(lc fx.Lifecycle) error {
-	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			return s.toolkit.Start(ctx)
-		},
-		OnStop: func(ctx context.Context) error {
-			return s.toolkit.Stop(ctx)
-		},
-	})
-	return nil
-}
-
-var shutdownSignals = []os.Signal{
-	syscall.SIGTERM,
-	syscall.SIGINT,
-	syscall.SIGQUIT,
-	syscall.SIGKILL,
-}
-
-// Server API for Api service
 type ExampleRpcServer interface {
 	HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error)
 }
@@ -307,3 +113,53 @@ func (h *exampleGrpcRpcServer) HelloWorld(ctx context.Context, req *typespb.Hell
 }
 
 func (exampleGrpcRpcServer) mustEmbedUnimplementedExampleServer() {}
+
+func registerExampleGRPCServer(runtime runtime.Runtime, srv ExampleRpcServer) error {
+	runtime.Server().GRPC().RegisterService(&exampleGrpcRpcServer{srv})
+	return nil
+}
+
+// Client services define
+type SampleServices interface {
+	Example() example.ExampleRPCClient
+}
+
+type sampleServices struct {
+	example example.ExampleRPCClient
+}
+
+func (s *sampleServices) Example() example.ExampleRPCClient {
+	return s.example
+}
+
+func sampleServicesRegister(runtime runtime.Runtime) SampleServices {
+	s := new(sampleServices)
+	s.example = example.NewExampleRPCClient("example", runtime.Client().GRPC())
+	return s
+}
+
+// Service Sample define
+type serviceSample struct {
+	runtime runtime.Runtime
+}
+
+func NewSampleService(name string, opts ...runtime.Option) (_ toolkit.Service, err error) {
+	app := new(serviceSample)
+
+	app.runtime, err = controller.NewRuntime(context.Background(), name, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	// loop over plugins and initialize plugin instance
+	plugin_pgsql := postgres_gorm.NewPlugin(app.runtime, &postgres_gorm.Options{Name: "pgsql"})
+	plugin_redis := redis.NewPlugin(app.runtime, &redis.Options{Name: "redis"})
+
+	// loop over plugins and register plugin in toolkit
+	app.runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
+	app.runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
+
+	app.runtime.Provide(sampleServicesRegister)
+
+	return app.runtime.Service(), nil
+}

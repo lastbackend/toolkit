@@ -118,10 +118,23 @@ func (e *Enum) FullyName() string {
 	return strings.Join(parts, ".")
 }
 
+type Plugin struct {
+	Prefix   string
+	Plugin   string
+	Pkg      string
+	IsGlobal bool
+}
+
 type Service struct {
 	*descriptorpb.ServiceDescriptorProto
-	File    *File
-	Methods []*Method
+	File                    *File
+	Methods                 []*Method
+	Plugins                 map[string][]*Plugin
+	HTTPMiddlewares         []string
+	UseGRPCServer           bool
+	UseHTTPProxyServer      bool
+	UseWebsocketProxyServer bool
+	UseWebsocketServer      bool
 }
 
 func (s *Service) FullyName() string {
@@ -135,12 +148,13 @@ func (s *Service) FullyName() string {
 
 type Method struct {
 	*descriptorpb.MethodDescriptorProto
-	Service      *Service
-	RequestType  *Message
-	ResponseType *Message
-	Name         string
-	IsWebsocket  bool
-	Bindings     []*Binding
+	Service          *Service
+	RequestType      *Message
+	ResponseType     *Message
+	Name             string
+	IsWebsocket      bool
+	IsWebsocketProxy bool
+	Bindings         []*Binding
 }
 
 func (m *Method) FullyName() string {
@@ -157,18 +171,21 @@ type ResponseFile struct {
 }
 
 type Binding struct {
-	Method         *Method
-	Index          int
-	RpcMethod      string
-	RpcPath        string
-	Service        string
-	HttpMethod     string
-	HttpPath       string
-	RawBody        string
-	HttpParams     []string
-	RequestType    *Message
-	ResponseType   *Message
-	Stream         bool
-	Websocket      bool
-	WebsocketProxy bool
+	Method                   *Method
+	Index                    int
+	RpcMethod                string
+	RpcPath                  string
+	Service                  string
+	HttpMethod               string
+	HttpPath                 string
+	RawBody                  string
+	HttpParams               []string
+	Middlewares              []string
+	ExcludeGlobalMiddlewares []string
+	RequestType              *Message
+	ResponseType             *Message
+	Stream                   bool
+	Websocket                bool
+	WebsocketProxy           bool
+	AdditionalBinding        bool
 }

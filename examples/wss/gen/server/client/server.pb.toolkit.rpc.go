@@ -22,12 +22,22 @@ func NewRouterRPCClient(service string, c grpc.Client) RouterRPCClient {
 
 // Client gRPC API for Router service
 type RouterRPCClient interface {
+	SayHello(ctx context.Context, req *servicepb.HelloRequest, opts ...grpc.CallOption) (*servicepb.HelloReply, error)
+
 	HelloWorld(ctx context.Context, req *servicepb.HelloRequest, opts ...grpc.CallOption) (*servicepb.HelloReply, error)
 }
 
 type routerGrpcRPCClient struct {
 	service string
 	cli     grpc.Client
+}
+
+func (c *routerGrpcRPCClient) SayHello(ctx context.Context, req *servicepb.HelloRequest, opts ...grpc.CallOption) (*servicepb.HelloReply, error) {
+	resp := new(servicepb.HelloReply)
+	if err := c.cli.Call(ctx, c.service, Router_SayHelloMethod, req, resp, opts...); err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 func (c *routerGrpcRPCClient) HelloWorld(ctx context.Context, req *servicepb.HelloRequest, opts ...grpc.CallOption) (*servicepb.HelloReply, error) {

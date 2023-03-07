@@ -17,11 +17,11 @@ limitations under the License.
 package config
 
 type Config struct {
-	Nested NestedConfig
+	Nested NestedConfig `env:"NESTED""`
 }
 
 type NestedConfig struct {
-	Demo string
+	Demo string `env:"DEMO"`
 }
 
 func New() *Config {

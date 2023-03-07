@@ -26,8 +26,8 @@ import (
 )
 
 type PoolOptions struct {
-	Size *int
-	TTL  *time.Duration
+	Size *int           `env:"POOL_SIZE"  envDefault:"" comment:"Set pool size"`
+	TTL  *time.Duration `env:"POOL_TTL"  envDefault:"" comment:"Set pool ttl"`
 }
 
 type pool struct {

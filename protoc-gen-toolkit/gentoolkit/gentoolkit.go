@@ -123,26 +123,23 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 
 	var pluginImportsExists = make(map[string]bool, 0)
 	var clientImportsExists = make(map[string]bool, 0)
-	var plugins = make(map[string][]*Plugin, 0)
+	var plugins = make(map[string][]*descriptor.Plugin, 0)
 	var clients = make(map[string]*Client, 0)
 	var pkgExists = make(map[string]bool, 0)
+	var plgExists = make(map[string]bool, 0)
 	var imports = g.prepareImports([]string{
 		"context",
-		"io",
-		"os",
-		"os/signal",
-		"net/http",
-		"syscall",
 		"encoding/json",
+		"io",
+		"net/http",
+		"client github.com/lastbackend/toolkit/pkg/client",
+		"runtime github.com/lastbackend/toolkit/pkg/runtime",
+		"controller github.com/lastbackend/toolkit/pkg/runtime/controller",
+		"tk_http github.com/lastbackend/toolkit/pkg/server/http",
+		"tk_ws github.com/lastbackend/toolkit/pkg/server/http/websockets",
 		"toolkit github.com/lastbackend/toolkit",
-		"server github.com/lastbackend/toolkit/pkg/server",
-		"router github.com/lastbackend/toolkit/pkg/router",
-		"logger github.com/lastbackend/toolkit/pkg/logger",
-		"grpc github.com/lastbackend/toolkit/pkg/client/grpc",
-		"errors github.com/lastbackend/toolkit/pkg/router/errors",
-		"ws github.com/lastbackend/toolkit/pkg/router/ws",
+		"errors github.com/lastbackend/toolkit/pkg/server/http/errors",
 		"emptypb google.golang.org/protobuf/types/known/emptypb",
-		"fx go.uber.org/fx",
 	})
 
 	for _, pkg := range g.baseImports {
@@ -150,25 +147,88 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 		imports = append(imports, pkg)
 	}
 
-	// Add imports for server
-	if g.hasServiceMethods(file) {
-
-		for _, svc := range file.Services {
-			for _, m := range svc.Methods {
-				pkg := m.RequestType.File.GoPkg
-				if pkg == file.GoPkg || pkgExists[pkg.Path] {
+	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Plugins) {
+		ePlugins := proto.GetExtension(file.Options, toolkit_annotattions.E_Plugins)
+		if ePlugins != nil {
+			plgs := ePlugins.([]*toolkit_annotattions.Plugin)
+			for _, props := range plgs {
+				if _, ok := plugins[props.Plugin]; !ok {
+					plugins[props.Plugin] = make([]*descriptor.Plugin, 0)
+				}
+				key := fmt.Sprintf("%s/%s", props.Plugin, props.Prefix)
+				if _, ok := plgExists[key]; ok {
 					continue
 				}
-				pkgExists[pkg.Path] = true
-				imports = append(imports, pkg)
+				if _, ok := pluginImportsExists[props.Plugin]; !ok {
+					imports = append(imports, descriptor.GoPackage{
+						Path: fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
+						Name: path.Base(fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
+					})
+				}
+				plugins[props.Plugin] = append(plugins[props.Plugin], &descriptor.Plugin{
+					Plugin:   props.Plugin,
+					Prefix:   props.Prefix,
+					Pkg:      strings.ToLower(props.Plugin),
+					IsGlobal: true,
+				})
+
+				plgExists[key] = true
 			}
 		}
 	}
 
-	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Clients) {
-		eClients := proto.GetExtension(file.Options, toolkit_annotattions.E_Clients)
+	for _, svc := range file.Services {
+		if !svc.UseGRPCServer && !svc.UseHTTPProxyServer && !svc.UseWebsocketProxyServer {
+			continue
+		}
+		for _, m := range svc.Methods {
+			pkg := m.RequestType.File.GoPkg
+			if pkg == file.GoPkg || pkgExists[pkg.Path] {
+				continue
+			}
+			pkgExists[pkg.Path] = true
+			imports = append(imports, pkg)
+		}
+
+		svc.Plugins = make(map[string][]*descriptor.Plugin, 0)
+
+		if svc.Options != nil && proto.HasExtension(svc.Options, toolkit_annotattions.E_Runtime) {
+			eService := proto.GetExtension(svc.Options, toolkit_annotattions.E_Runtime)
+			if eService != nil {
+				ss := eService.(*toolkit_annotattions.Runtime)
+				if ss.Plugins != nil {
+					for _, props := range ss.Plugins {
+						if _, ok := svc.Plugins[props.Plugin]; !ok {
+							svc.Plugins[props.Plugin] = make([]*descriptor.Plugin, 0)
+						}
+						key := fmt.Sprintf("%s/%s", props.Plugin, props.Prefix)
+						if _, ok := plgExists[key]; ok {
+							continue
+						}
+						if _, ok := pluginImportsExists[props.Plugin]; !ok {
+							imports = append(imports, descriptor.GoPackage{
+								Path: fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
+								Name: path.Base(fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
+							})
+						}
+
+						svc.Plugins[props.Plugin] = append(svc.Plugins[props.Plugin], &descriptor.Plugin{
+							Plugin: props.Plugin,
+							Prefix: props.Prefix,
+							Pkg:    strings.ToLower(props.Plugin),
+						})
+
+						plgExists[key] = true
+					}
+				}
+			}
+		}
+	}
+
+	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Services) {
+		eClients := proto.GetExtension(file.Options, toolkit_annotattions.E_Services)
 		if eClients != nil {
-			clnts := eClients.([]*toolkit_annotattions.Client)
+			clnts := eClients.([]*toolkit_annotattions.Service)
 			for _, value := range clnts {
 				if _, ok := clientImportsExists[value.Service]; !ok {
 					imports = append(imports, descriptor.GoPackage{
@@ -184,35 +244,11 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 		}
 	}
 
-	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Plugins) {
-		ePlugins := proto.GetExtension(file.Options, toolkit_annotattions.E_Plugins)
-		if ePlugins != nil {
-			plgs := ePlugins.([]*toolkit_annotattions.Plugin)
-			for _, props := range plgs {
-				if _, ok := plugins[props.Plugin]; !ok {
-					plugins[props.Plugin] = make([]*Plugin, 0)
-				}
-				if _, ok := pluginImportsExists[props.Plugin]; !ok {
-					imports = append(imports, descriptor.GoPackage{
-						Path: fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
-						Name: path.Base(fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
-					})
-				}
-				plugins[props.Plugin] = append(plugins[props.Plugin], &Plugin{
-					Plugin: props.Plugin,
-					Prefix: props.Prefix,
-					Pkg:    strings.ToLower(props.Plugin),
-				})
-			}
-		}
-	}
-
 	to := tplServiceOptions{
-		HasNotServer: !g.hasServiceMethods(file),
-		File:         file,
-		Imports:      imports,
-		Clients:      clients,
-		Plugins:      plugins,
+		File:    file,
+		Imports: imports,
+		Clients: clients,
+		Plugins: plugins,
 	}
 
 	content, err := applyServiceTemplate(to)
@@ -227,7 +263,7 @@ func (g *generator) generateClient(file *descriptor.File) ([]byte, error) {
 
 	pkgImports := []string{
 		"context context",
-		"grpc github.com/lastbackend/toolkit/pkg/client/grpc",
+		"client github.com/lastbackend/toolkit/pkg/client",
 		"emptypb google.golang.org/protobuf/types/known/emptypb",
 	}
 
@@ -235,7 +271,7 @@ func (g *generator) generateClient(file *descriptor.File) ([]byte, error) {
 
 	for _, svc := range file.Services {
 		for _, m := range svc.Methods {
-			if m.IsWebsocket {
+			if m.IsWebsocket || m.IsWebsocketProxy {
 				continue
 			}
 
@@ -250,10 +286,10 @@ func (g *generator) generateClient(file *descriptor.File) ([]byte, error) {
 
 	var clients = make(map[string]*Client, 0)
 
-	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Clients) {
-		eClients := proto.GetExtension(file.Options, toolkit_annotattions.E_Clients)
+	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Services) {
+		eClients := proto.GetExtension(file.Options, toolkit_annotattions.E_Services)
 		if eClients != nil {
-			clnts := eClients.([]*toolkit_annotattions.Client)
+			clnts := eClients.([]*toolkit_annotattions.Service)
 			for _, value := range clnts {
 				clients[value.Service] = &Client{
 					Service: value.Service,
@@ -286,7 +322,7 @@ func (g *generator) generateTestStubs(file *descriptor.File) ([]byte, error) {
 
 	baseImports := []string{
 		"context context",
-		"grpc github.com/lastbackend/toolkit/pkg/client/grpc",
+		"client github.com/lastbackend/toolkit/pkg/client",
 		"emptypb google.golang.org/protobuf/types/known/emptypb",
 		fmt.Sprintf("servicepb %s/client", filepath.Dir(file.GeneratedFilenamePrefix)),
 	}

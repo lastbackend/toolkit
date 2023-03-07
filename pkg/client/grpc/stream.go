@@ -17,6 +17,7 @@ limitations under the License.
 package grpc
 
 import (
+	"github.com/lastbackend/toolkit/pkg/client"
 	"google.golang.org/grpc"
 
 	"context"
@@ -29,7 +30,7 @@ type stream struct {
 
 	grpc.ClientStream
 
-	request *request
+	request *client.GRPCRequest
 	conn    *poolConn
 	close   func(err error)
 }
@@ -39,7 +40,7 @@ func (s *stream) Context() context.Context {
 }
 
 func (s *stream) Headers() map[string]string {
-	return s.request.headers
+	return s.request.Headers()
 }
 
 func (s *stream) SendMsg(msg interface{}) error {

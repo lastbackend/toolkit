@@ -19,6 +19,11 @@ option (toolkit.tests_spec) = {
 // =====================================================
 // Install clients
 // =====================================================
+option (toolkit.services) = {
+  service: "example",
+  package: "github.com/lastbackend/toolkit/examples/service/gen/client"
+};
+
 option (toolkit.plugins) = {
   prefix: "pgsql"
   plugin: "postgres_gorm"
@@ -29,10 +34,31 @@ option (toolkit.plugins) = {
   plugin: "redis"
 };
 
+option (toolkit.plugins) = {
+  plugin: "resolver_file"
+};
+
+
 // =====================================================
 // RPC methods
 // =====================================================
 service Example {
+  option (toolkit.runtime) = {
+    servers: [GRPC]
+  };
+  option (toolkit.http_proxy) = {
+    middlewares: [
+      "request_id"
+    ]
+  };
+
   //  Example methods
   rpc HelloWorld(HelloWorldRequest) returns (HelloWorldResponse) {}
+};
+
+service Sample {
+  option (toolkit.runtime).plugins = {
+    prefix: "redis2"
+    plugin: "redis"
+  };
 };

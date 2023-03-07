@@ -55,6 +55,17 @@ func localIPs() []string {
 	return ipAddrs
 }
 
+func DetectIP() (string, error) {
+	conn, err := net.Dial("udp", "127.0.0.1:9000")
+	if err != nil {
+		return "", err
+	}
+
+	defer conn.Close()
+	addr := conn.LocalAddr().(*net.UDPAddr)
+	return addr.IP.String(), nil
+}
+
 func IPs() []string {
 	return localIPs()
 }

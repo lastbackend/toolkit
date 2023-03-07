@@ -17,11 +17,105 @@ limitations under the License.
 package server
 
 import (
+	"context"
+	"crypto/tls"
+	"github.com/lastbackend/toolkit/pkg/server/http/websockets"
 	"google.golang.org/grpc"
+	"net/http"
 )
 
-type Server interface {
-	Register(sd *grpc.ServiceDesc, ss interface{}) error
-	Start() error
+type HTTPServer interface {
+	Start(ctx context.Context) error
 	Stop() error
+
+	UseMiddleware(...KindMiddleware)
+
+	GetMiddlewares() []any
+	SetMiddleware(middleware any)
+
+	AddHandler(method, path string, h http.HandlerFunc, opts ...HTTPServerOption)
+
+	SetService(fn interface{})
+	GetService() interface{}
+
+	GetConstructor() interface{}
+
+	Subscribe(event string, h websockets.EventHandler)
+	Info() ServerInfo
+
+	ServerWS(w http.ResponseWriter, r *http.Request)
+	SetCorsHandlerFunc(hf http.HandlerFunc)
+	SetErrorHandlerFunc(hf func(http.ResponseWriter, error))
 }
+
+type HTTPServerOptions struct {
+	Host string
+	Port int
+
+	TLSConfig *tls.Config
+}
+
+type ServerInfo struct {
+	Kind ServerKind
+	Host string
+	Port int
+
+	TLSConfig *tls.Config
+}
+
+type HTTPServerHandler struct {
+	Method  string
+	Path    string
+	Handler http.HandlerFunc
+	Options []HTTPServerOption
+}
+
+type HttpOptionKind string
+
+type HTTPServerOption interface {
+	Kind() HttpOptionKind
+}
+
+type DefaultHttpServerMiddleware struct{}
+
+func (DefaultHttpServerMiddleware) Order() int {
+	return 0
+}
+
+type HttpServerMiddleware interface {
+	Apply(h http.HandlerFunc) http.HandlerFunc
+	Kind() KindMiddleware
+	Order() int
+}
+
+type KindMiddleware string
+
+type GRPCServer interface {
+	Start(ctx context.Context) error
+	Stop() error
+
+	SetDescriptor(descriptor grpc.ServiceDesc)
+
+	SetService(constructor interface{})
+	SetConstructor(fn interface{})
+
+	GetService() interface{}
+	GetConstructor() interface{}
+
+	RegisterService(service interface{})
+	Info() ServerInfo
+}
+
+type GRPCServerOptions struct {
+	Host string
+	Port int
+
+	TLSConfig *tls.Config
+}
+
+type ServerKind string
+
+const (
+	ServerKindHTTPServer = "http"
+	ServerKindGRPCServer = "grpc"
+)

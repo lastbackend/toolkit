@@ -11,15 +11,31 @@ message Plugin {
   string prefix = 2;
 }
 
-message Client {
+message Service {
   string service = 1;
   string package = 2;
 }
 
 extend google.protobuf.FileOptions {
   repeated Plugin plugins = 50001;
-  repeated Client clients = 50002;
+  repeated Service services = 50002;
   TestSpec tests_spec = 50004;
+}
+
+message Runtime {
+  enum Server {
+    GRPC = 0;
+    HTTP_PROXY = 1;
+    WEBSOCKET_PROXY = 2;
+    WEBSOCKET = 3;
+  }
+  repeated Plugin plugins = 1;
+  repeated Server servers = 2;
+}
+
+extend google.protobuf.ServiceOptions {
+  Runtime runtime = 70001;
+  ServiceHttpProxy http_proxy = 70002;
 }
 
 message TestSpec {
@@ -42,9 +58,15 @@ message Server {
   }
 }
 
+message ServiceHttpProxy {
+  repeated string middlewares = 3;
+}
+
 message HttpProxy {
   string service = 1;
   string method = 2;
+  repeated string middlewares = 3;
+  repeated string exclude_global_middlewares = 4;
 }
 
 message WsProxy {

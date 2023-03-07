@@ -18,25 +18,46 @@ package server
 
 import (
 	"context"
+	"fmt"
+	"github.com/lastbackend/toolkit/examples/service/internal/repository"
 
+	"time"
+
+	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/config"
 	servicepb "github.com/lastbackend/toolkit/examples/service/gen"
 	typespb "github.com/lastbackend/toolkit/examples/service/gen/ptypes"
 )
 
 type Handlers struct {
-	svc servicepb.Service
-	cfg *config.Config
+	servicepb.ExampleRpcServer
+
+	app  toolkit.Service
+	cfg  *config.Config
+	repo *repository.Repository
 }
 
 func (h Handlers) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error) {
-	//TODO implement me
-	panic("implement me")
+
+	h.app.Log().Info("ExamplseRpcServer: HelloWorld: call")
+	tk := h.repo.Get(ctx)
+
+	resp := typespb.HelloWorldResponse{
+		Id:        "",
+		Name:      fmt.Sprintf("%s: %d", req.Name, tk.Count),
+		Type:      req.Type,
+		Data:      nil,
+		CreatedAt: time.Now().Unix(),
+		UpdatedAt: time.Now().Unix(),
+	}
+
+	return &resp, nil
 }
 
-func NewServer(svc servicepb.Service, cfg *config.Config) servicepb.ExampleRpcServer {
+func NewServer(app toolkit.Service, cfg *config.Config, repo *repository.Repository) servicepb.ExampleRpcServer {
 	return &Handlers{
-		svc: svc,
-		cfg: cfg,
+		repo: repo,
+		app:  app,
+		cfg:  cfg,
 	}
 }

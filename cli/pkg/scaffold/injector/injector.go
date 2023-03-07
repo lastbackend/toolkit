@@ -19,14 +19,14 @@ package injector
 import (
 	"bytes"
 	"fmt"
-	"github.com/jhump/protoreflect/desc/protoparse"
-	"github.com/lastbackend/toolkit/cli/pkg/scaffold/templates"
-	ustrings "github.com/lastbackend/toolkit/cli/pkg/util/strings"
 	"os"
 	"strings"
 	"text/template"
 
-	"github.com/lastbackend/toolkit/cli/pkg/util/filesystem"
+	"github.com/jhump/protoreflect/desc/protoparse"
+	"github.com/lastbackend/toolkit/cli/pkg/scaffold/templates"
+	"github.com/lastbackend/toolkit/pkg/util/filesystem"
+	ustrings "github.com/lastbackend/toolkit/pkg/util/strings"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/descriptorpb"
 )

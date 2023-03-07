@@ -18,7 +18,6 @@ package descriptor
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 
 	toolkit_annotattions "github.com/lastbackend/toolkit/protoc-gen-toolkit/toolkit/options"
@@ -33,6 +32,7 @@ func (d *Descriptor) loadServices(file *File) error {
 		svc := &Service{
 			File:                   file,
 			ServiceDescriptorProto: service,
+			HTTPMiddlewares:        make([]string, 0),
 		}
 
 		for _, md := range service.GetMethod() {
@@ -41,6 +41,32 @@ func (d *Descriptor) loadServices(file *File) error {
 				return err
 			}
 			svc.Methods = append(svc.Methods, method)
+		}
+
+		if service.Options != nil && proto.HasExtension(service.Options, toolkit_annotattions.E_HttpProxy) {
+			eHTTPProxy := proto.GetExtension(svc.Options, toolkit_annotattions.E_HttpProxy)
+			if eHTTPProxy != nil {
+				ss := eHTTPProxy.(*toolkit_annotattions.ServiceHttpProxy)
+				svc.HTTPMiddlewares = ss.Middlewares
+			}
+		}
+		if service.Options != nil && proto.HasExtension(service.Options, toolkit_annotattions.E_Runtime) {
+			eService := proto.GetExtension(svc.Options, toolkit_annotattions.E_Runtime)
+			if eService != nil {
+				ss := eService.(*toolkit_annotattions.Runtime)
+				svc.UseGRPCServer = ss.Servers == nil && len(ss.Servers) == 0 && len(svc.Methods) > 0
+				if ss.Servers != nil {
+					svc.UseHTTPProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_HTTP_PROXY)
+					svc.UseWebsocketProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_WEBSOCKET_PROXY)
+					svc.UseWebsocketServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_WEBSOCKET)
+					svc.UseGRPCServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_GRPC)
+				}
+			}
+		}
+
+		if !svc.UseHTTPProxyServer && !svc.UseWebsocketProxyServer && !svc.UseWebsocketServer && !svc.UseGRPCServer {
+			// Use GRPC Server as default if it has methods
+			svc.UseGRPCServer = len(svc.Methods) > 0
 		}
 
 		services = append(services, svc)
@@ -122,8 +148,8 @@ func setBindingsToMethod(method *Method) error {
 			binding := &Binding{
 				Method:       method,
 				Index:        len(method.Bindings),
+				HttpMethod:   "http.MethodGet",
 				RpcMethod:    method.GetName(),
-				HttpMethod:   http.MethodGet,
 				HttpPath:     opts.GetGet(),
 				HttpParams:   getVariablesFromPath(opts.GetGet()),
 				RequestType:  method.RequestType,
@@ -135,15 +161,15 @@ func setBindingsToMethod(method *Method) error {
 		case pOpts.GetWebsocketProxy() != nil:
 			rOpts := pOpts.GetWebsocketProxy()
 
-			method.IsWebsocket = true
+			method.IsWebsocketProxy = true
 
 			binding := &Binding{
 				Method:         method,
 				Index:          len(method.Bindings),
+				HttpMethod:     "http.MethodGet",
+				RpcMethod:      method.GetName(),
 				Service:        rOpts.GetService(),
 				RpcPath:        rOpts.GetMethod(),
-				RpcMethod:      method.GetName(),
-				HttpMethod:     http.MethodGet,
 				RequestType:    method.RequestType,
 				ResponseType:   method.ResponseType,
 				WebsocketProxy: true,
@@ -153,63 +179,21 @@ func setBindingsToMethod(method *Method) error {
 
 		case pOpts.GetHttpProxy() != nil && proto.HasExtension(method.Options, options.E_Http):
 			rOpts := pOpts.GetHttpProxy()
-
 			opts, err := getHTTPOptions(method)
 			if err != nil {
 				return err
 			}
-
 			if opts != nil {
-				var (
-					httpMethod string
-					httpPath   string
-				)
-				switch {
-				case opts.GetGet() != "":
-					httpMethod = "http.MethodGet"
-					httpPath = opts.GetGet()
-				case opts.GetPut() != "":
-					httpMethod = "http.MethodPut"
-					httpPath = opts.GetPut()
-				case opts.GetPost() != "":
-					httpMethod = "http.MethodPost"
-					httpPath = opts.GetPost()
-				case opts.GetDelete() != "":
-					httpMethod = "http.MethodDelete"
-					httpPath = opts.GetDelete()
-				case opts.GetPatch() != "":
-					httpMethod = "http.MethodPatch"
-					httpPath = opts.GetPatch()
-				default:
-					return fmt.Errorf("unknown http method: %v", opts.GetGet())
-				}
-
-				binding := &Binding{
-					Method:       method,
-					Index:        len(method.Bindings),
-					Service:      rOpts.GetService(),
-					RpcPath:      rOpts.GetMethod(),
-					RpcMethod:    method.GetName(),
-					HttpMethod:   httpMethod,
-					HttpPath:     httpPath,
-					HttpParams:   getVariablesFromPath(httpPath),
-					RequestType:  method.RequestType,
-					ResponseType: method.ResponseType,
-					Stream:       method.GetClientStreaming(),
-				}
-
-				binding, err := newBinding(method, opts, rOpts)
+				binding, err := newHttpBinding(method, opts, rOpts, false)
 				if err != nil {
 					return err
 				}
-
 				method.Bindings = append(method.Bindings, binding)
-
 				for _, additional := range opts.GetAdditionalBindings() {
 					if len(additional.AdditionalBindings) > 0 {
 						continue
 					}
-					b, err := newBinding(method, additional, rOpts)
+					b, err := newHttpBinding(method, additional, rOpts, true)
 					if err != nil {
 						continue
 					}
@@ -253,7 +237,7 @@ func getProxyOptions(m *Method) (*toolkit_annotattions.Server, error) {
 	return opts, nil
 }
 
-func newBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annotattions.HttpProxy) (*Binding, error) {
+func newHttpBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annotattions.HttpProxy, additionalBinding bool) (*Binding, error) {
 	var (
 		httpMethod string
 		httpPath   string
@@ -288,18 +272,21 @@ func newBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annotatti
 	}
 
 	return &Binding{
-		Method:       method,
-		Index:        len(method.Bindings),
-		Service:      rOpts.GetService(),
-		RpcPath:      rOpts.GetMethod(),
-		RpcMethod:    method.GetName(),
-		HttpMethod:   httpMethod,
-		HttpPath:     httpPath,
-		HttpParams:   getVariablesFromPath(httpPath),
-		RequestType:  method.RequestType,
-		ResponseType: method.ResponseType,
-		Stream:       method.GetClientStreaming(),
-		RawBody:      opts.Body,
+		Method:                   method,
+		Index:                    len(method.Bindings),
+		Service:                  rOpts.GetService(),
+		RpcPath:                  rOpts.GetMethod(),
+		RpcMethod:                method.GetName(),
+		HttpMethod:               httpMethod,
+		HttpPath:                 httpPath,
+		HttpParams:               getVariablesFromPath(httpPath),
+		RequestType:              method.RequestType,
+		ResponseType:             method.ResponseType,
+		Stream:                   method.GetClientStreaming(),
+		Middlewares:              rOpts.GetMiddlewares(),
+		ExcludeGlobalMiddlewares: rOpts.GetExcludeGlobalMiddlewares(),
+		RawBody:                  opts.Body,
+		AdditionalBinding:        additionalBinding,
 	}, nil
 }
 
@@ -329,4 +316,13 @@ func getVariablesFromPath(path string) (variables []string) {
 	}
 
 	return variables
+}
+
+func checkSetServerOption(servers []toolkit_annotattions.Runtime_Server, server toolkit_annotattions.Runtime_Server) bool {
+	for _, val := range servers {
+		if val == server {
+			return true
+		}
+	}
+	return false
 }
