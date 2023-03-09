@@ -41,7 +41,10 @@ func (c *packageController) Register(packages []toolkit.Package) {
 
 func (c *packageController) PreStart(ctx context.Context) error {
 	c.log.V(5).Info("packageManager.PreStart.start")
-	c.hook(ctx, PackageHookMethodPreStart, true)
+	err := c.hook(ctx, PackageHookMethodPreStart, true)
+	if err != nil {
+		return err
+	}
 	c.log.V(5).Info("packageManager.PreStart.end")
 	return nil
 }
@@ -49,8 +52,15 @@ func (c *packageController) PreStart(ctx context.Context) error {
 func (c *packageController) OnStart(ctx context.Context) error {
 	c.log.V(5).Info("packageManager.OnStart.start")
 
-	c.hook(ctx, PackageHookMethodOnStart, true)
-	c.hook(ctx, PackageHookMethodOnStartSync, true)
+	err := c.hook(ctx, PackageHookMethodOnStart, false)
+	if err != nil {
+		return err
+	}
+
+	err = c.hook(ctx, PackageHookMethodOnStartSync, true)
+	if err != nil {
+		return err
+	}
 
 	c.log.V(5).Info("packageManager.OnStart.end")
 	return nil
@@ -59,8 +69,15 @@ func (c *packageController) OnStart(ctx context.Context) error {
 func (c *packageController) OnStop(ctx context.Context) error {
 	c.log.V(5).Info("packageManager.OnStop.start")
 
-	c.hook(ctx, PackageHookMethodOnStop, true)
-	c.hook(ctx, PackageHookMethodOnStopSync, true)
+	err := c.hook(ctx, PackageHookMethodOnStop, false)
+	if err != nil {
+		return err
+	}
+
+	err = c.hook(ctx, PackageHookMethodOnStopSync, true)
+	if err != nil {
+		return err
+	}
 
 	c.log.V(5).Info("packageManager.OnStop.end")
 	return nil

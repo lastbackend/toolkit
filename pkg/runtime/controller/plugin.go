@@ -40,23 +40,40 @@ func (c *pluginManager) Register(plugins []toolkit.Plugin) {
 
 func (c *pluginManager) PreStart(ctx context.Context) error {
 	c.log.V(5).Info("pluginManager.PreStart.start")
-	c.hook(ctx, PluginHookMethodPreStart, true)
+	err := c.hook(ctx, PluginHookMethodPreStart, true)
+	if err != nil {
+		return err
+	}
 	c.log.V(5).Info("pluginManager.PreStart.end")
 	return nil
 }
 
 func (c *pluginManager) OnStart(ctx context.Context) error {
 	c.log.V(5).Info("pluginManager.OnStart.start")
-	c.hook(ctx, PluginHookMethodOnStart, true)
-	c.hook(ctx, PluginHookMethodOnStartSync, true)
+
+	err := c.hook(ctx, PluginHookMethodOnStart, false)
+	if err != nil {
+		return err
+	}
+
+	err = c.hook(ctx, PluginHookMethodOnStartSync, true)
+	if err != nil {
+		return err
+	}
 	c.log.V(5).Info("pluginManager.OnStart.end")
 	return nil
 }
 
 func (c *pluginManager) OnStop(ctx context.Context) error {
 	c.log.V(5).Info("pluginManager.OnStop.start")
-	c.hook(ctx, PluginHookMethodOnStop, true)
-	c.hook(ctx, PluginHookMethodOnStopSync, true)
+	err := c.hook(ctx, PluginHookMethodOnStop, false)
+	if err != nil {
+		return err
+	}
+	err = c.hook(ctx, PluginHookMethodOnStopSync, true)
+	if err != nil {
+		return err
+	}
 	c.log.V(5).Info("pluginManager.OnStop.end")
 	return nil
 }
