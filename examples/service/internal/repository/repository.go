@@ -41,7 +41,7 @@ func (r *Repository) Get(_ context.Context) *Tk {
 func (r *Repository) OnStart(ctx context.Context) {
 	val := new(Tk)
 	r.DB().First(val)
-	r.log.Info(">> pre start count:", val.Count)
+	r.log.Info(">> onStart count:", val.Count)
 	val.Count = val.Count + 1
 	r.DB().Save(val)
 }
@@ -50,6 +50,5 @@ func (r *Repository) OnStart(ctx context.Context) {
 func NewRepository(app toolkit.Service, psql servicepb.PgsqlPlugin, cfg *config.Config) *Repository {
 	repo := &Repository{psql, cfg, app.Log()}
 	app.Log().Info("repository init")
-	app.Package().Register(repo)
 	return repo
 }

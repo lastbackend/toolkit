@@ -30,9 +30,14 @@ type Runtime interface {
 	Provide(constructor interface{})
 	Invoke(constructor interface{})
 
-	Run(ctx context.Context, fn ...interface{}) error
-	Start(ctx context.Context, fn ...interface{}) error
-	Stop(ctx context.Context) error
+	Start(ctx context.Context) error
+	Stop(ctx context.Context, err error)
+
+	RegisterOnStartHook(fn ...func(ctx context.Context) error)
+	RegisterOnStartSyncHook(fn ...func(ctx context.Context) error)
+
+	RegisterOnStopHook(fn ...func(ctx context.Context) error)
+	RegisterOnStopSyncHook(fn ...func(ctx context.Context) error)
 }
 
 type Client interface {
@@ -43,18 +48,6 @@ type Client interface {
 type HTTPClient interface {
 	Get() error
 	Post() error
-}
-
-type Config interface {
-	toolkit.Config
-
-	SetMeta(meta *meta.Meta)
-	Parse(v interface{}, prefix string, opts ...env.Options) error
-	Print(v interface{}, prefix string)
-	PrintTable(all, nocomments bool) string
-	PrintYaml(all, nocomments bool) string
-
-	Configs() []interface{}
 }
 
 type Server interface {
@@ -68,16 +61,25 @@ type Server interface {
 
 	Provides() []interface{}
 	Constructors() []interface{}
-	Middlewares() []interface{}
+}
+
+type Config interface {
+	Provide(...any) error
+
+	SetMeta(meta *meta.Meta)
+	Parse(v interface{}, prefix string, opts ...env.Options) error
+	Print(v interface{}, prefix string)
+	PrintTable(all, nocomments bool) string
+	PrintYaml(all, nocomments bool) string
+
+	Configs() []any
 }
 
 type Plugin interface {
-	toolkit.Plugin
+	Provide(constructor ...interface{})
 
-	Plugins() []interface{}
-
-	Provide(interface{})
-	Provides() []interface{}
+	Constructors() []interface{}
+	Register(plugins []toolkit.Plugin)
 
 	PreStart(ctx context.Context) error
 	OnStart(ctx context.Context) error
@@ -85,10 +87,10 @@ type Plugin interface {
 }
 
 type Package interface {
-	toolkit.Package
+	Provide(constructor ...interface{})
 
-	Provides() []interface{}
-	Packages() []interface{}
+	Constructors() []interface{}
+	Register(packages []toolkit.Package)
 
 	PreStart(ctx context.Context) error
 	OnStart(ctx context.Context) error

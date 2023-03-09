@@ -8,7 +8,6 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/lastbackend/toolkit/pkg/runtime"
-	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"github.com/lastbackend/toolkit/pkg/runtime/meta"
 	"strings"
 )
@@ -18,8 +17,8 @@ const ConfigPrefixSeparator = "_"
 type configController struct {
 	runtime.Config
 
-	log     logger.Logger
-	configs []interface{}
+	runtime runtime.Runtime
+	configs []any
 	parsed  map[string]interface{}
 	prefix  string
 }
@@ -43,16 +42,24 @@ func (c *configController) buildPrefix(prefix string) string {
 	return ""
 }
 
-func (c *configController) Configs() []interface{} {
+func (c *configController) Configs() []any {
 	return c.configs
 }
 
-func (c *configController) Provide(cfg interface{}) error {
-	if err := c.Parse(cfg, ""); err != nil {
-		c.log.Errorf("can not parse config: %s", err.Error())
-		return err
+func (c *configController) Provide(cfgs ...any) error {
+
+	if len(cfgs) == 0 {
+		return nil
 	}
-	c.configs = append(c.configs, cfg)
+
+	for _, cfg := range cfgs {
+		if err := c.Parse(cfg, ""); err != nil {
+			c.runtime.Log().V(5).Errorf("can not parse config: %s", err.Error())
+			return err
+		}
+		c.configs = append(c.configs, cfg)
+	}
+
 	return nil
 }
 
@@ -181,7 +188,7 @@ func (c *configController) PrintYaml(all, nocomments bool) string {
 
 func newConfigController(_ context.Context, runtime runtime.Runtime) runtime.Config {
 	cfg := new(configController)
-	cfg.log = runtime.Log()
+	cfg.runtime = runtime
 
 	cfg.configs = make([]interface{}, 0)
 	cfg.parsed = make(map[string]interface{}, 0)

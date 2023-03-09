@@ -18,7 +18,6 @@ package http
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/lastbackend/toolkit/pkg/runtime"
@@ -27,7 +26,6 @@ import (
 	"github.com/lastbackend/toolkit/pkg/server/http/marshaler"
 	"github.com/lastbackend/toolkit/pkg/server/http/websockets"
 	"mime"
-	"net"
 	"net/http"
 	"sync"
 )
@@ -61,8 +59,8 @@ type httpServer struct {
 
 	wsManager *websockets.Manager
 
-	service interface{}
-	exit    chan chan error
+	server *http.Server
+	exit   chan chan error
 }
 
 func NewServer(name string, runtime runtime.Runtime, options *server.HTTPServerOptions) server.HTTPServer {
@@ -131,22 +129,8 @@ func (s *httpServer) Start(_ context.Context) error {
 	}
 	s.RUnlock()
 
-	var (
-		listener net.Listener
-		err      error
-	)
-
 	if s.grpcErrorHandlerFunc != nil {
 		errors.GrpcErrorHandlerFunc = s.grpcErrorHandlerFunc
-	}
-
-	if transportConfig := s.opts.TLSConfig; transportConfig != nil {
-		listener, err = tls.Listen("tcp", fmt.Sprintf("%s:%d", s.opts.Host, s.opts.Port), transportConfig)
-	} else {
-		listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", s.opts.Host, s.opts.Port))
-	}
-	if err != nil {
-		return err
 	}
 
 	r := mux.NewRouter()
@@ -160,9 +144,15 @@ func (s *httpServer) Start(_ context.Context) error {
 	r.NotFoundHandler = s.methodNotFoundHandler()
 	r.MethodNotAllowedHandler = s.methodNotAllowedHandler()
 
+	s.server = &http.Server{
+		Addr:      fmt.Sprintf("%s:%d", s.opts.Host, s.opts.Port),
+		Handler:   r,
+		TLSConfig: s.opts.TLSConfig,
+	}
+
 	for _, h := range s.handlers {
 
-		s.runtime.Log().Infof("register [http] route: %s", h.Path)
+		s.runtime.Log().V(5).Infof("register [http] route: %s", h.Path)
 
 		handler, err := s.middlewares.apply(h)
 		if err != nil {
@@ -170,48 +160,37 @@ func (s *httpServer) Start(_ context.Context) error {
 		}
 		r.Handle(h.Path, handler).Methods(h.Method)
 
-		s.runtime.Log().Infof("bind handler: method: %s, path: %s", h.Method, h.Path)
+		s.runtime.Log().V(5).Infof("bind handler: method: %s, path: %s", h.Method, h.Path)
 	}
-
-	go func() {
-		s.runtime.Log().Infof("server [http] listening on %s", listener.Addr().String())
-		if err := http.Serve(listener, r); err != nil {
-			s.runtime.Log().Errorf("server [http] start error: %v", err)
-		}
-	}()
 
 	s.Lock()
 	s.isRunning = true
 	s.Unlock()
 
 	go func() {
-		ch := <-s.exit
-		ch <- listener.Close()
+		s.runtime.Log().V(5).Infof("server [http] [%s] started", s.server.Addr)
+		if err := s.server.ListenAndServe(); err != http.ErrServerClosed {
+			s.runtime.Log().Errorf("server [http] [%s] start error: %v", s.server.Addr, err)
+		}
+		s.runtime.Log().V(5).Infof("server [http] [%s] stopped", s.server.Addr)
+		s.Lock()
+		s.isRunning = false
+		s.Unlock()
 	}()
 
 	return nil
 }
 
-func (s *httpServer) Stop() error {
-	s.RLock()
-	if !s.isRunning {
-		s.RUnlock()
-		return nil
-	}
-	s.RUnlock()
+func (s *httpServer) Stop(ctx context.Context) error {
+	s.runtime.Log().V(5).Infof("server [http] [%s] stop call start", s.server.Addr)
 
-	ch := make(chan error)
-	s.exit <- ch
-
-	var err error
-	select {
-	case err = <-ch:
-		s.Lock()
-		s.isRunning = false
-		s.Unlock()
+	if err := s.server.Shutdown(ctx); err != nil {
+		s.runtime.Log().Errorf("server [http] [%s] stop call error: %v", s.server.Addr, err)
+		return err
 	}
 
-	return err
+	s.runtime.Log().V(5).Infof("server [http] [%s] stop call end", s.server.Addr)
+	return nil
 }
 
 func (s *httpServer) UseMiddleware(middlewares ...server.KindMiddleware) {
@@ -233,14 +212,6 @@ func (s *httpServer) SetMiddleware(middleware any) {
 func (s *httpServer) AddHandler(method string, path string, h http.HandlerFunc, opts ...server.HTTPServerOption) {
 	key := fmt.Sprintf("%s:%s", method, path)
 	s.handlers[key] = server.HTTPServerHandler{Method: method, Path: path, Handler: h, Options: opts}
-}
-
-func (s *httpServer) SetService(fn interface{}) {
-	s.service = fn
-}
-
-func (s *httpServer) GetService() interface{} {
-	return s.service
 }
 
 func (s *httpServer) SetCorsHandlerFunc(hf http.HandlerFunc) {

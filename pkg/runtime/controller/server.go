@@ -73,11 +73,6 @@ func (c *serverManager) Provides() []interface{} {
 	}
 
 	for _, s := range c.http {
-		service := s.GetService()
-		if service != nil {
-			provides = append(provides, service)
-		}
-
 		middlewares := s.GetMiddlewares()
 		for _, middleware := range middlewares {
 			provides = append(provides, fx.Annotate(
@@ -128,15 +123,15 @@ func (c *serverManager) Start(ctx context.Context) error {
 	return nil
 }
 
-func (c *serverManager) Stop(_ context.Context) error {
+func (c *serverManager) Stop(ctx context.Context) error {
 
-	for _, s := range c.grpc {
-		if err := s.Stop(); err != nil {
+	for _, s := range c.http {
+		if err := s.Stop(ctx); err != nil {
 			return err
 		}
 	}
 
-	for _, s := range c.http {
+	for _, s := range c.grpc {
 		if err := s.Stop(); err != nil {
 			return err
 		}

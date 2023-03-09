@@ -18,9 +18,9 @@ type Controller struct {
 }
 
 func (c *Controller) OnStart(ctx context.Context) error {
-	c.log.Info("controller: on start")
+	c.log.Info("> service controller: on start")
 	c.repo.Meta(ctx)
-	//c.repo.Info()
+	c.Call(ctx)
 
 	return nil
 }
@@ -37,24 +37,17 @@ func (c *Controller) Call(_ context.Context) error {
 		return err
 	}
 
-	c.log.Info("response from server:> name:", resp.Name)
+	c.log.Info("> service response from server:> name:", resp.Name)
 	return nil
 }
 
 func (c *Controller) OnStop(ctx context.Context) error {
-	c.log.Info("controller: on stop")
+	c.log.Info("> service controller: on stop")
 	return nil
 }
 
 func NewController(app toolkit.Service, cfg *config.Config, repo *repository.Repository, services servicepb.ExampleServices) *Controller {
-	app.Log().Info("---- new controller ----")
+	app.Log().Info("> service controller ----")
 	ctrl := &Controller{log: app.Log(), cfg: cfg, repo: repo, services: services}
-	app.Package().Register(ctrl)
 	return ctrl
-}
-
-func Start(ctx context.Context, app toolkit.Service, ctr *Controller) {
-	app.Log().Info("---- controller start ----")
-	ctr.repo.DB().Raw("SELECT 1")
-	ctr.Call(ctx)
 }

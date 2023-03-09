@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"reflect"
@@ -9,94 +10,94 @@ import (
 
 const PackageHookMethodPreStart = "PreStart"
 const PackageHookMethodOnStart = "OnStart"
+const PackageHookMethodOnStartSync = "OnStartSync"
 const PackageHookMethodOnStop = "OnStop"
+const PackageHookMethodOnStopSync = "OnStopSync"
 
-type oackageController struct {
+type packageController struct {
 	runtime.Package
+
 	log logger.Logger
 
-	provide  []interface{}
-	packages []interface{}
+	constructors []any
+	packages     []toolkit.Package
 }
 
-func (c *oackageController) Provide(pkg interface{}) {
-	c.provide = append(c.provide, pkg)
+func (c *packageController) Provide(constructor ...any) {
+	c.constructors = append(c.constructors, constructor...)
 	return
 }
 
-func (c *oackageController) Provides() []interface{} {
-	return c.provide
+func (c *packageController) Constructors() []any {
+	return c.constructors
 }
 
-func (c *oackageController) Register(pkg interface{}) {
-	c.packages = append(c.packages, pkg)
+func (c *packageController) Register(packages []toolkit.Package) {
+	c.log.V(5).Info("packageManager.Register.start")
+	c.packages = append(c.packages, packages...)
+	c.log.V(5).Infof("packageManager.Register.packages: %v", c.packages)
+	c.log.V(5).Info("packageManager.Register.end")
 }
 
-func (c *oackageController) Packages() []interface{} {
-	return c.packages
+func (c *packageController) PreStart(ctx context.Context) error {
+	c.log.V(5).Info("packageManager.PreStart.start")
+	c.hook(ctx, PackageHookMethodPreStart, true)
+	c.log.V(5).Info("packageManager.PreStart.end")
+	return nil
 }
 
-func (c *oackageController) PreStart(ctx context.Context) error {
-	c.log.Debug(" -- package manager : pre start hook : start  -- ")
+func (c *packageController) OnStart(ctx context.Context) error {
+	c.log.V(5).Info("packageManager.OnStart.start")
 
-	args := []reflect.Value{reflect.ValueOf(ctx)}
-	for _, p := range c.packages {
+	c.hook(ctx, PackageHookMethodOnStart, true)
+	c.hook(ctx, PackageHookMethodOnStartSync, true)
 
-		c.log.Debug(reflect.ValueOf(p).Type())
+	c.log.V(5).Info("packageManager.OnStart.end")
+	return nil
+}
 
-		meth := reflect.ValueOf(p).MethodByName(PackageHookMethodPreStart)
-		if !reflect.ValueOf(meth).IsZero() {
-			c.log.Debug(" -- package manager : call preStart -- ")
-			meth.Call(args)
+func (c *packageController) OnStop(ctx context.Context) error {
+	c.log.V(5).Info("packageManager.OnStop.start")
+
+	c.hook(ctx, PackageHookMethodOnStop, true)
+	c.hook(ctx, PackageHookMethodOnStopSync, true)
+
+	c.log.V(5).Info("packageManager.OnStop.end")
+	return nil
+}
+
+func (c *packageController) hook(ctx context.Context, kind string, sync bool) error {
+
+	for i := 0; i < len(c.packages); i++ {
+
+		if c.packages[i] == nil {
+			continue
 		}
-	}
 
-	c.log.Debug(" -- package manager : pre start hook : stop  -- ")
+		if sync {
+			c.call(ctx, c.packages[i], kind)
+		} else {
+			go c.call(ctx, c.packages[i], kind)
+		}
+
+	}
 
 	return nil
 }
 
-func (c *oackageController) OnStart(ctx context.Context) error {
-
-	c.log.Debug(" -- package manager : on start hook: start -- ")
-
+func (c *packageController) call(ctx context.Context, pkg toolkit.Package, kind string) {
 	args := []reflect.Value{reflect.ValueOf(ctx)}
-	for _, p := range c.packages {
-		meth := reflect.ValueOf(p).MethodByName(PackageHookMethodOnStart)
-		if !reflect.ValueOf(meth).IsZero() {
-			c.log.Debug(" -- package manager : call onStart -- ")
-			meth.Call(args)
-		}
+	meth := reflect.ValueOf(pkg).MethodByName(kind)
+	if !reflect.ValueOf(meth).IsZero() {
+		c.log.V(5).Infof("packageManager.%s.call", kind)
+		meth.Call(args)
 	}
-
-	c.log.Debug(" -- package manager : on start hook: stop -- ")
-
-	return nil
-}
-
-func (c *oackageController) OnStop(ctx context.Context) error {
-
-	c.log.Debug(" -- package manager : on stop hook : start -- ")
-
-	args := []reflect.Value{reflect.ValueOf(ctx)}
-	for _, p := range c.packages {
-		item := reflect.ValueOf(p)
-		meth := item.MethodByName(PackageHookMethodOnStop)
-		if !reflect.ValueOf(meth).IsZero() {
-			c.log.Debug(" -- package manager : call onStop -- ")
-			meth.Call(args)
-		}
-	}
-
-	c.log.Debug(" -- package manager : on stop hook : stop -- ")
-
-	return nil
 }
 
 func newPackageController(_ context.Context, runtime runtime.Runtime) runtime.Package {
-	pl := new(oackageController)
+	pl := new(packageController)
 	pl.log = runtime.Log()
-	pl.provide = make([]interface{}, 0)
-	pl.packages = make([]interface{}, 0)
+	pl.constructors = make([]any, 0)
+	pl.packages = make([]toolkit.Package, 0)
 	return pl
 }

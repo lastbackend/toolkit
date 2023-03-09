@@ -136,7 +136,7 @@ func (m *Middlewares) apply(handler server.HTTPServerHandler) (http.HandlerFunc,
 	})
 
 	for _, mw := range mws {
-		m.log.Infof("apply middleware %s to %s", mw.Kind(), handler.Path)
+		m.log.V(5).Infof("apply middleware %s to %s", mw.Kind(), handler.Path)
 		h = mw.Apply(h)
 	}
 

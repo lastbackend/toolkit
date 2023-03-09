@@ -21,6 +21,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file" // nolint
+	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"github.com/lastbackend/toolkit/pkg/tools/probes"
@@ -45,6 +46,7 @@ const (
 )
 
 type Plugin interface {
+	toolkit.Plugin
 	DB() *gorm.DB
 	Info()
 	RunMigration() error
@@ -87,8 +89,6 @@ func (p *plugin) Info() {
 }
 
 func (p *plugin) PreStart(ctx context.Context) (err error) {
-
-	p.log.Debug("-- postgresql:plugin: pre start --")
 
 	if p.opts.DSN == "" {
 		if p.opts.Host == "" {
@@ -195,6 +195,5 @@ func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
 		return nil
 	}
 
-	runtime.Plugin().Register(p)
 	return p
 }

@@ -72,7 +72,7 @@ func (t *table) load() error {
 
 	if _, err := os.Stat(t.file); err != nil {
 		if os.IsNotExist(err) {
-			t.log.Infof("can not load file: %s, create a new one", err.Error())
+			t.log.V(5).Infof("can not load file: %s, create a new one", err.Error())
 			f, err := os.Create(t.file)
 			if err != nil {
 				t.log.Errorf("can not create file: %s", err.Error())
@@ -140,7 +140,7 @@ func (t *table) Find(service string) ([]rt.Route, error) {
 
 func (t *table) Create(r rt.Route) error {
 
-	t.log.Infof("create Route record in table: %s with addr: %s", r.Service, r.Address)
+	t.log.V(5).Infof("create Route record in table: %s with addr: %s", r.Service, r.Address)
 
 	service := r.Service
 	sum := r.Hash()

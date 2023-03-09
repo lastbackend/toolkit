@@ -28,7 +28,7 @@ func dialer() func(context.Context, string) (net.Conn, error) {
 
 	srv := grpc.NewServer()
 	runtime, _ := controller.NewRuntime(context.Background(), "test")
-	server := NewServer(runtime.Service(), nil)
+	server := NewServer(runtime.Service(), nil, nil)
 	servicepb.RegisterExampleServer(srv, server)
 
 	go func() {

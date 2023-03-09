@@ -19,6 +19,7 @@ package centrifuge
 import (
 	"context"
 	"github.com/centrifugal/centrifuge-go"
+	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"sync"
 	"time"
@@ -72,7 +73,7 @@ type plugin struct {
 	client *centrifuge.Client
 }
 
-func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
+func NewPlugin(runtime runtime.Runtime, opts *Options) toolkit.Plugin {
 	p := new(plugin)
 
 	p.runtime = runtime
@@ -85,7 +86,6 @@ func NewPlugin(runtime runtime.Runtime, opts *Options) Plugin {
 		return nil
 	}
 
-	runtime.Plugin().Register(p)
 	return p
 }
 

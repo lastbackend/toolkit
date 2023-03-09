@@ -86,32 +86,7 @@ func NewLogger(runtime runtime.Runtime, fields logger.Fields) logger.Logger {
 		),
 	)
 
-	// finally construct the logger with the tee core
 	l.logger = zap.New(core, zapOptions...).Sugar().With(fields)
-
-	/*
-		zapCores := make([]zapcore.Core, 0)
-		zapOptions := make([]zap.Option, 0)
-
-
-		level := zap.NewAtomicLevelAt(getZapLevel(l.opts.Verbose))
-
-		writer := zapcore.Lock(zapcore.NewMultiWriteSyncer(zapcore.AddSync(l.opts.Out)))
-
-
-		core := zapcore.NewCore(zapcore.NewConsoleEncoder(encoderConfig), writer, level)
-
-		if l.opts.JSONFormat {
-			core = zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), writer, level)
-		}
-
-		zapCores = append(zapCores, core)
-
-
-		log := zap.New(zapcore.NewTee(zapCores...), zapOptions...)
-
-		l.logger = log.Sugar().With(fields)
-	*/
 
 	return l
 }
@@ -166,7 +141,7 @@ func (l *zapLogger) Fatalf(format string, args ...interface{}) {
 
 func (l *zapLogger) V(level logger.Level) logger.Logger {
 
-	if level <= l.opts.Verbose {
+	if l.opts.Verbose < level {
 		return l.empty
 	}
 
@@ -178,6 +153,11 @@ func (l *zapLogger) Inject(fn func(level logger.Level)) {
 }
 
 func (l *zapLogger) Fx() fxevent.Logger {
+
+	if l.opts.Verbose < 6 {
+		return l.empty.Fx()
+	}
+
 	return &fxevent.ZapLogger{
 		Logger: l.logger.Desugar(),
 	}

@@ -26,7 +26,7 @@ import (
 
 type HTTPServer interface {
 	Start(ctx context.Context) error
-	Stop() error
+	Stop(ctx context.Context) error
 
 	UseMiddleware(...KindMiddleware)
 
@@ -34,9 +34,6 @@ type HTTPServer interface {
 	SetMiddleware(middleware any)
 
 	AddHandler(method, path string, h http.HandlerFunc, opts ...HTTPServerOption)
-
-	SetService(fn interface{})
-	GetService() interface{}
 
 	GetConstructor() interface{}
 

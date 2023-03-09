@@ -56,7 +56,7 @@ type grpcServer struct {
 	grpc      *grpc.Server
 	isRunning bool
 
-	exit chan chan error
+	wait *sync.WaitGroup
 }
 
 // NewServer - init and return new grpc server instance
@@ -70,7 +70,7 @@ func NewServer(runtime runtime.Runtime, name string, options *server.GRPCServerO
 		runtime: runtime,
 		prefix:  name,
 		opts:    defaultOptions(),
-		exit:    make(chan chan error),
+		wait:    &sync.WaitGroup{},
 	}
 
 	if err := runtime.Config().Parse(&srv.opts, srv.prefix); err != nil {
@@ -187,7 +187,7 @@ func (g *grpcServer) Start(_ context.Context) error {
 		listener = netutil.LimitListener(listener, g.opts.MaxConnSize)
 	}
 
-	g.runtime.Log().Infof("server [grpc] Listening on %s", listener.Addr().String())
+	g.runtime.Log().V(5).Infof("server [grpc] Listening on %s", listener.Addr().String())
 
 	g.Lock()
 	g.address = listener.Addr().String()
@@ -208,25 +208,25 @@ func (g *grpcServer) Start(_ context.Context) error {
 		}
 
 		go func() {
-			err = webGRPCServer.ListenAndServe()
-			if err != nil {
-				g.runtime.Log().Errorf("server [grpc] start error: %v", err)
+			g.wait.Add(1)
+			g.runtime.Log().V(5).Infof("server [gRPC-Web] [%s:%d] started", g.opts.GRPCWebHost, g.opts.GRPCWebPort)
+			if err = webGRPCServer.ListenAndServe(); err != nil {
+				g.runtime.Log().Errorf("server [grpc] [%s:%d]  start error: %v", g.opts.GRPCWebHost, g.opts.GRPCWebPort, err)
 			}
+			g.runtime.Log().V(5).Infof("server [gRPC-Web] [%s:%d] stopped", g.opts.GRPCWebHost, g.opts.GRPCWebPort)
+			g.wait.Done()
 		}()
-
-		g.runtime.Log().Infof("server [gRPC-Web] Listening on %s:%d", g.opts.GRPCWebHost, g.opts.GRPCWebPort)
 
 	}
 
 	go func() {
+		g.wait.Add(1)
+		g.runtime.Log().V(5).Infof("server [grpc] [%s:%d] started", g.opts.Host, g.opts.Port)
 		if err := g.grpc.Serve(listener); err != nil {
 			g.runtime.Log().Errorf("server [grpc] start error: %v", err)
 		}
-	}()
-
-	go func() {
-		ch := <-g.exit
-		ch <- listener.Close()
+		g.wait.Done()
+		g.runtime.Log().V(5).Infof("server [grpc] [%s:%d] stopped", g.opts.Host, g.opts.Port)
 	}()
 
 	g.Lock()
@@ -238,26 +238,12 @@ func (g *grpcServer) Start(_ context.Context) error {
 
 func (g *grpcServer) Stop() error {
 
-	g.grpc.Stop()
+	g.runtime.Log().V(5).Infof("server [grpc] [%s:%d] stop call start", g.opts.Host, g.opts.Port)
+	g.grpc.GracefulStop()
+	g.wait.Wait()
+	g.runtime.Log().V(5).Infof("server [grpc] [%s:%d] stop call end", g.opts.Host, g.opts.Port)
 
-	g.RLock()
-	if !g.isRunning {
-		g.RUnlock()
-		return nil
-	}
-	g.RUnlock()
-
-	ch := make(chan error)
-	g.exit <- ch
-
-	var err error
-	if err = <-ch; true {
-		g.Lock()
-		g.isRunning = false
-		g.Unlock()
-	}
-
-	return err
+	return nil
 }
 
 // TODO: need implement defaultHandler method

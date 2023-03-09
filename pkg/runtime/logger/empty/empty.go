@@ -1,6 +1,9 @@
 package empty
 
-import "github.com/lastbackend/toolkit/pkg/runtime/logger"
+import (
+	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"go.uber.org/fx/fxevent"
+)
 
 type emptyLogger struct {
 	logger.Logger
@@ -36,6 +39,10 @@ func (l *emptyLogger) V(logger.Level) logger.Logger {
 
 func (l *emptyLogger) Inject(_ func(level logger.Level)) {
 
+}
+
+func (l *emptyLogger) Fx() fxevent.Logger {
+	return fxevent.NopLogger
 }
 
 func NewLogger() logger.Logger {

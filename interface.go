@@ -29,26 +29,25 @@ type Service interface {
 
 	Log() logger.Logger
 	Client() Client
-	Config() Config
 	Server() Server
-	Package() Package
-	Plugin() Plugin
 
-	Provide(constructor interface{})
-	Invoke(constructor interface{})
+	RegisterConfig(config ...any) error
+	RegisterPlugin(constructor ...any)
+	RegisterPackage(constructor ...any)
 
-	Run(ctx context.Context, invoke ...interface{}) error
-	Start(ctx context.Context, invoke ...interface{}) error
-	Stop(ctx context.Context) error
+	Start(ctx context.Context) error
+	Stop(ctx context.Context, err error)
+
+	RegisterOnStartHook(...func(ctx context.Context) error)
+	RegisterOnStartSyncHook(...func(ctx context.Context) error)
+
+	RegisterOnStopHook(...func(ctx context.Context) error)
+	RegisterOnStopSyncHook(...func(ctx context.Context) error)
 }
 
 type Client interface {
 	GRPC() client.GRPCClient
 	HTTP() client.HTTPClient
-}
-
-type Config interface {
-	Provide(interface{}) error
 }
 
 type Server interface {
@@ -62,11 +61,8 @@ type Server interface {
 	GRPCNew(name string, options *server.GRPCServerOptions) server.GRPCServer
 }
 
-type Package interface {
-	Provide(interface{})
-	Register(interface{})
-}
+type Config any
 
-type Plugin interface {
-	Register(interface{})
-}
+type Package any
+
+type Plugin any

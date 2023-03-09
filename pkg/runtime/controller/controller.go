@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"github.com/common-nighthawk/go-figure"
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
@@ -9,6 +10,7 @@ import (
 	"github.com/lastbackend/toolkit/pkg/runtime/meta"
 	"go.uber.org/fx"
 	"os"
+	"os/signal"
 	"syscall"
 )
 
@@ -20,6 +22,7 @@ var shutdownSignals = []os.Signal{
 }
 
 type controller struct {
+	fx.Out
 	runtime.Runtime
 
 	app  *fx.App
@@ -38,9 +41,14 @@ type controller struct {
 	providers []interface{}
 	invokes   []interface{}
 
-	stop chan error
+	onStartHook []func(ctx context.Context) error
+	onStopHook  []func(ctx context.Context) error
+
+	onStartSyncHook []func(ctx context.Context) error
+	onStopSyncHook  []func(ctx context.Context) error
 
 	tools runtime.Tools
+	done  chan error
 }
 
 func (c *controller) Service() toolkit.Service {
@@ -55,38 +63,20 @@ func (c *controller) Log() logger.Logger {
 	return c.logger
 }
 
-func (c *controller) Run(ctx context.Context, fn ...interface{}) error {
-	if err := c.Start(ctx, fn); err != nil {
-		return err
-	}
-
-	c.app.Start(ctx)
-
-	ch := make(chan os.Signal, 1)
-	select {
-	// wait on kill signal
-	case <-ch:
-	// wait on context cancel
-	case <-ctx.Done():
-
-	// wait external exit
-	case <-c.stop:
-
-	}
-	return c.app.Stop(ctx)
-}
-
-func (c *controller) Start(ctx context.Context, fn ...interface{}) error {
+func (c *controller) Start(ctx context.Context) error {
 	if c.help() {
 		return nil
 	}
 
-	return c.start(ctx, fn...)
+	return c.start(ctx)
 }
 
-func (c *controller) start(ctx context.Context, fn ...interface{}) error {
+func (c *controller) start(ctx context.Context) error {
 
-	c.Log().Info("controller start")
+	banner := figure.NewFigure(c.meta.GetName(), "", true)
+	banner.Print()
+
+	c.Log().V(5).Info("runtime.controller.start")
 
 	opts := make([]fx.Option, 0)
 	opts = append(opts, fx.Provide(
@@ -100,67 +90,104 @@ func (c *controller) start(ctx context.Context, fn ...interface{}) error {
 				func() toolkit.Service {
 					return c.Service()
 				},
-			),
-		),
+			)),
+		fx.Provide(
+			fx.Annotate(
+				func() logger.Logger {
+					return c.logger
+				},
+			)),
+		fx.Provide(
+			fx.Annotate(
+				func() toolkit.Client {
+					return c.service.Client()
+				},
+			)),
+		fx.Provide(
+			fx.Annotate(
+				func() toolkit.Server {
+					return c.service.Server()
+				},
+			)),
 		fx.Provide(func() context.Context { return ctx }))
 
 	cfgs := c.Config().Configs()
+
+	c.Log().V(5).Info("runtime.controller: configs supply")
 	for _, c := range cfgs {
 		opts = append(opts, fx.Supply(c))
 	}
 
+	c.Log().V(5).Info("runtime.controller: user custom provide")
 	for _, p := range c.providers {
 		opts = append(opts, fx.Provide(p))
 	}
 
-	plugins := c.Plugin().Provides()
+	// Provide plugins
+	c.Log().V(5).Info("runtime.controller: plugins provide start")
+
+	plugins := c.Plugin().Constructors()
 	for _, p := range plugins {
-		opts = append(opts, fx.Provide(p))
+		opts = append(opts, fx.Provide(
+			fx.Annotate(
+				build(p, new(toolkit.Plugin)),
+				fx.ResultTags(``, `group:"plugins"`))))
 	}
 
-	packages := c.Package().Provides()
+	c.Log().V(5).Info("runtime.controller: plugins provide end")
+
+	// Provide packages
+	c.Log().V(5).Info("runtime.controller: packages provide start")
+	packages := c.Package().Constructors()
 	for _, p := range packages {
-		opts = append(opts, fx.Provide(p))
+		opts = append(opts, fx.Provide(
+			fx.Annotate(build(p, new(toolkit.Package)),
+				fx.ResultTags(``, `group:"packages"`))))
 	}
+	c.Log().V(5).Info("runtime.controller: packages provide end")
 
-	// get provides from servers
+	// Provide servers
+	c.Log().V(5).Info("runtime.controller: servers provide start")
 	servers := c.Server().Provides()
 	for _, s := range servers {
 		opts = append(opts, fx.Provide(s))
 	}
+	c.Log().V(5).Info("runtime.controller: servers provide end")
 
-	opts = append(opts, fx.Provide(func() logger.Logger { return c.logger }))
+	// Start invocations
+	// Invoke plugin PreStart
+	c.Log().V(5).Info("runtime.controller: plugins invoke registration")
+	opts = append(opts, fx.Invoke(fx.Annotate(
+		c.Plugin().Register,
+		fx.ParamTags(`group:"plugins"`))))
 
-	opts = append(opts, fx.Invoke(func(ctx context.Context) error {
-		return c.Plugin().PreStart(ctx)
-	}))
+	c.Log().V(5).Info("runtime.controller: plugins invoke PreStart")
+	opts = append(opts, fx.Invoke(c.Plugin().PreStart))
 
-	opts = append(opts, fx.Invoke(func(ctx context.Context) error {
-		return c.Package().PreStart(ctx)
-	}))
+	// Invoke packages PreStart
+	c.Log().V(5).Info("runtime.controller: package invoke registration")
+	opts = append(opts, fx.Invoke(fx.Annotate(
+		c.Package().Register,
+		fx.ParamTags(`group:"packages"`))))
 
+	c.Log().V(5).Info("runtime.controller: package invoke PreStart")
+	opts = append(opts, fx.Invoke(c.Package().PreStart))
+
+	c.Log().V(5).Info("runtime.controller: user custom invoke")
 	for _, p := range c.invokes {
 		opts = append(opts, fx.Invoke(p))
 	}
 
 	// get constructors from servers
+	c.Log().V(5).Info("runtime.controller: servers constructors invoke")
 	constructors := c.Server().Constructors()
 	for _, c := range constructors {
 		opts = append(opts, fx.Invoke(c))
 	}
 
-	opts = append(opts, fx.Invoke(func(ctx context.Context) error {
-		if err := c.Tools().OnStart(ctx); err != nil {
-			return err
-		}
-		c.Server().Start(ctx)
-		c.Plugin().OnStart(ctx)
-		return nil
-	}))
+	opts = append(opts, fx.Invoke(func(ctx context.Context) {
 
-	for _, f := range fn {
-		opts = append(opts, fx.Invoke(f))
-	}
+	}))
 
 	opts = append(opts, fx.Invoke(func(lc fx.Lifecycle) error {
 
@@ -180,19 +207,87 @@ func (c *controller) start(ctx context.Context, fn ...interface{}) error {
 		fx.WithLogger(c.logger.Fx),
 	)
 
+	go func() {
+		c.app.Run()
+	}()
+	c.Log().V(5).Info("runtime.controller.started")
+
+	sign := make(chan os.Signal)
+	signal.Notify(sign, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case <-sign:
+	case err := <-c.done:
+		if err != nil {
+			c.Log().Errorf("runtime.controller: stop with err: %v", err)
+		}
+	}
+
+	c.app.Stop(context.Background())
+	c.Log().V(5).Info("runtime.controller.stopped")
 	return nil
 }
 
 func (c *controller) onStart(ctx context.Context) error {
+
+	c.Log().V(5).Info("runtime.controller.onStart: start")
+
+	c.Log().V(5).Info("runtime.controller.onStart: tools OnStart")
+	if err := c.Tools().OnStart(ctx); err != nil {
+		return err
+	}
+
+	c.Log().V(5).Info("runtime.controller.onStart: server start")
+	c.Server().Start(ctx)
+
+	c.Log().V(5).Info("runtime.controller.onStart: resolver OnStart call")
 	c.client.GRPC().GetResolver().OnStart(ctx)
+
+	c.Log().V(5).Info("runtime.controller.onStart: plugin OnStart call")
+	c.Plugin().OnStart(ctx)
+
+	c.Log().V(5).Info("runtime.controller.onStart: package OnStart call")
 	c.Package().OnStart(ctx)
+
+	for _, fn := range c.onStartHook {
+		go func() {
+			if err := fn(ctx); err != nil {
+				c.Log().Error(err)
+			}
+		}()
+	}
+
+	for _, fn := range c.onStartSyncHook {
+		if err := fn(ctx); err != nil {
+			return err
+		}
+	}
+	c.Log().V(5).Info("runtime.controller: started")
 	return nil
 }
 
 func (c *controller) onStop(ctx context.Context) error {
+
 	c.Plugin().OnStop(ctx)
 	c.Package().OnStop(ctx)
-	return c.Server().Stop(ctx)
+
+	c.Server().Stop(ctx)
+
+	for _, fn := range c.onStopHook {
+		go func() {
+			if err := fn(ctx); err != nil {
+				c.Log().Error(err)
+			}
+		}()
+	}
+
+	for _, fn := range c.onStopSyncHook {
+		if err := fn(ctx); err != nil {
+			return err
+		}
+	}
+
+	c.Log().V(0).Info("runtime.controller: stopped")
+	return nil
 }
 
 func (c *controller) Config() runtime.Config {
@@ -227,9 +322,25 @@ func (c *controller) Tools() runtime.Tools {
 	return c.tools
 }
 
-func (c *controller) Stop(_ context.Context) error {
-	c.stop <- nil
-	return nil
+func (c *controller) Stop(_ context.Context, err error) {
+	c.done <- err
+	return
+}
+
+func (c *controller) RegisterOnStartHook(fn ...func(ctx context.Context) error) {
+	c.onStartHook = append(c.onStartHook, fn...)
+}
+
+func (c *controller) RegisterOnStopHook(fn ...func(ctx context.Context) error) {
+	c.onStopHook = append(c.onStopHook, fn...)
+}
+
+func (c *controller) RegisterOnStartSyncHook(fn ...func(ctx context.Context) error) {
+	c.onStartSyncHook = append(c.onStartSyncHook, fn...)
+}
+
+func (c *controller) RegisterOnStopSyncHook(fn ...func(ctx context.Context) error) {
+	c.onStopSyncHook = append(c.onStopSyncHook, fn...)
 }
 
 func (c *controller) fillMeta(opts ...runtime.Option) {
@@ -252,9 +363,16 @@ func NewRuntime(ctx context.Context, name string, opts ...runtime.Option) (runti
 		err error
 	)
 
-	rt.stop = make(chan error)
+	rt.done = make(chan error)
+
 	rt.providers = make([]interface{}, 0)
 	rt.invokes = make([]interface{}, 0)
+
+	rt.onStartHook = make([]func(context.Context) error, 0)
+	rt.onStopHook = make([]func(context.Context) error, 0)
+
+	rt.onStartSyncHook = make([]func(context.Context) error, 0)
+	rt.onStopSyncHook = make([]func(context.Context) error, 0)
 
 	rt.meta = new(meta.Meta)
 	rt.meta.SetName(name)
@@ -274,6 +392,7 @@ func NewRuntime(ctx context.Context, name string, opts ...runtime.Option) (runti
 
 	svc := new(service)
 	svc.runtime = rt
+
 	rt.service = svc
 
 	if rt.tools, err = newToolsRegistration(rt); err != nil {

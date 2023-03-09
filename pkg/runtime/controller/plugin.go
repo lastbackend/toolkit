@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"reflect"
@@ -9,77 +10,89 @@ import (
 
 const PluginHookMethodPreStart = "PreStart"
 const PluginHookMethodOnStart = "OnStart"
+const PluginHookMethodOnStartSync = "OnStartSync"
 const PluginHookMethodOnStop = "OnStop"
+const PluginHookMethodOnStopSync = "OnStopSync"
 
 type pluginManager struct {
 	runtime.Plugin
 
-	log     logger.Logger
-	provide []interface{}
-	plugins []interface{}
+	log          logger.Logger
+	constructors []any
+	plugins      []toolkit.Plugin
 }
 
-func (c *pluginManager) Provide(plugin interface{}) {
-	c.provide = append(c.provide, plugin)
+func (c *pluginManager) Provide(constructor ...any) {
+	c.constructors = append(c.constructors, constructor...)
 }
 
-func (c *pluginManager) Provides() []interface{} {
-	return c.provide
+func (c *pluginManager) Constructors() []any {
+	return c.constructors
 }
 
-func (c *pluginManager) Register(plugin interface{}) {
-	c.plugins = append(c.plugins, plugin)
+func (c *pluginManager) Register(plugins []toolkit.Plugin) {
+	c.log.V(5).Info("pluginManager.Register.start")
+	c.plugins = append(c.plugins, plugins...)
+	c.log.V(5).Infof("pluginManager.Register.plugins %v", c.plugins)
+	c.log.V(5).Info("pluginManager.Register.end")
 	return
 }
 
-func (c *pluginManager) Plugins() []interface{} {
-	return c.plugins
-}
-
 func (c *pluginManager) PreStart(ctx context.Context) error {
-	c.log.Debug(" -- plugin manager : pre start -- ")
-	args := []reflect.Value{reflect.ValueOf(ctx)}
-	for _, p := range c.plugins {
-		meth := reflect.ValueOf(p).MethodByName(PluginHookMethodPreStart)
-		if !reflect.ValueOf(meth).IsZero() {
-			c.log.Debug(" -- plugin manager : call preStart -- ")
-			meth.Call(args)
-		}
-	}
+	c.log.V(5).Info("pluginManager.PreStart.start")
+	c.hook(ctx, PluginHookMethodPreStart, true)
+	c.log.V(5).Info("pluginManager.PreStart.end")
 	return nil
 }
 
 func (c *pluginManager) OnStart(ctx context.Context) error {
-	c.log.Debug(" -- plugin manager : on start hook : start -- ")
-	args := []reflect.Value{reflect.ValueOf(ctx)}
-	for _, p := range c.plugins {
-		meth := reflect.ValueOf(p).MethodByName(PluginHookMethodOnStart)
-		if !reflect.ValueOf(meth).IsZero() {
-			c.log.Debug(" -- plugin manager : call onStart -- ")
-			meth.Call(args)
-		}
-	}
-	c.log.Debug(" -- plugin manager : on start hook : stop -- ")
+	c.log.V(5).Info("pluginManager.OnStart.start")
+	c.hook(ctx, PluginHookMethodOnStart, true)
+	c.hook(ctx, PluginHookMethodOnStartSync, true)
+	c.log.V(5).Info("pluginManager.OnStart.end")
 	return nil
 }
 
 func (c *pluginManager) OnStop(ctx context.Context) error {
-	args := []reflect.Value{reflect.ValueOf(ctx)}
-	for _, p := range c.plugins {
-		c.log.Debug(reflect.ValueOf(p).Elem().Type())
-		meth := reflect.ValueOf(p).MethodByName(PluginHookMethodOnStop)
-		if !reflect.ValueOf(meth).IsZero() {
-			c.log.Debug(" -- plugin manager : call onStop -- ")
-			meth.Call(args)
-		}
-	}
+	c.log.V(5).Info("pluginManager.OnStop.start")
+	c.hook(ctx, PluginHookMethodOnStop, true)
+	c.hook(ctx, PluginHookMethodOnStopSync, true)
+	c.log.V(5).Info("pluginManager.OnStop.end")
 	return nil
+}
+
+func (c *pluginManager) hook(ctx context.Context, kind string, sync bool) error {
+
+	for i := 0; i < len(c.plugins); i++ {
+
+		if c.plugins[i] == nil {
+			continue
+		}
+
+		if sync {
+			c.call(ctx, c.plugins[i], kind)
+		} else {
+			go c.call(ctx, c.plugins[i], kind)
+		}
+
+	}
+
+	return nil
+}
+
+func (c *pluginManager) call(ctx context.Context, pkg toolkit.Plugin, kind string) {
+	args := []reflect.Value{reflect.ValueOf(ctx)}
+	meth := reflect.ValueOf(pkg).MethodByName(kind)
+	if !reflect.ValueOf(meth).IsZero() {
+		c.log.V(5).Infof("pluginManager.%s.call", kind)
+		meth.Call(args)
+	}
 }
 
 func newPluginController(_ context.Context, runtime runtime.Runtime) runtime.Plugin {
 	pl := new(pluginManager)
 	pl.log = runtime.Log()
-	pl.provide = make([]interface{}, 0)
-	pl.plugins = make([]interface{}, 0)
+	pl.constructors = make([]any, 0)
+	pl.plugins = make([]toolkit.Plugin, 0)
 	return pl
 }
