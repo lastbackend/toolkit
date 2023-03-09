@@ -209,7 +209,7 @@ func (c *controller) start(ctx context.Context) error {
 	c.Log().V(5).Info("runtime.controller.started")
 
 	sign := make(chan os.Signal)
-	signal.Notify(sign, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sign, shutdownSignals...)
 	select {
 	case <-sign:
 	case err := <-c.done:
