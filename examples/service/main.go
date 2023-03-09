@@ -19,6 +19,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/lastbackend/toolkit/examples/service/config"
 	servicepb "github.com/lastbackend/toolkit/examples/service/gen"
 	"github.com/lastbackend/toolkit/examples/service/internal/controller"
@@ -26,8 +29,6 @@ import (
 	"github.com/lastbackend/toolkit/examples/service/internal/server"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/server/http"
-	"os"
-	"time"
 )
 
 func main() {
@@ -61,7 +62,7 @@ func main() {
 	app.RegisterOnStartHook(func(ctx context.Context) error {
 		time.Sleep(3 * time.Second)
 		app.Log().Info("call gracefully stop")
-		app.Stop(ctx, nil)
+		app.Stop(ctx, fmt.Errorf("test error"))
 		return nil
 	})
 
@@ -78,8 +79,8 @@ func main() {
 		return
 	}
 
-	//time.Sleep(10 * time.Second)
-	//app.Stop(context.Background())
+	// time.Sleep(10 * time.Second)
+	// app.Stop(context.Background())
 
 	app.Log().Info("graceful stop")
 }

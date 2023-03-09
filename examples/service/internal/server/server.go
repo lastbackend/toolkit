@@ -19,9 +19,9 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/lastbackend/toolkit/examples/service/internal/repository"
-
 	"time"
+
+	"github.com/lastbackend/toolkit/examples/service/internal/repository"
 
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/config"
@@ -38,7 +38,6 @@ type Handlers struct {
 }
 
 func (h Handlers) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error) {
-
 	h.app.Log().Info("ExamplseRpcServer: HelloWorld: call")
 	tk := h.repo.Get(ctx)
 

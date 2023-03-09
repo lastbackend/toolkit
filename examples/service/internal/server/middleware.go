@@ -2,11 +2,12 @@ package server
 
 import (
 	"context"
+	"net/http"
+
 	servicepb "github.com/lastbackend/toolkit/examples/service/gen"
 	typespb "github.com/lastbackend/toolkit/examples/service/gen/ptypes"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/server"
-	"net/http"
 )
 
 type Data string

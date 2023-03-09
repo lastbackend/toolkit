@@ -82,7 +82,7 @@ func (Gen) Protobuf() error {
 	color.Blue("### Protobuf")
 	mg.SerialDeps(Prototool.Lint)
 
-	return sh.RunV("prototool", "generate")
+	return sh.RunV("buf", "generate")
 }
 
 // -----------------------------------------------------------------------------
@@ -91,12 +91,12 @@ type Prototool mg.Namespace
 
 func (Prototool) Lint() error {
 	fmt.Println("#### Lint protobuf")
-	return sh.RunV("prototool", "lint")
+	return sh.RunV("buf", "lint")
 }
 
 func (Prototool) Format() error {
 	fmt.Println("#### Format protobuf")
-	return sh.RunV("prototool", "format")
+	return sh.RunV("buf", "format")
 }
 
 // -----------------------------------------------------------------------------
@@ -106,7 +106,7 @@ type Go mg.Namespace
 // Generate go code
 func (Go) Generate() error {
 	color.Cyan("## Generate code")
-	// mg.SerialDeps(Gen.Protobuf, Gen.Mocks)
+	mg.SerialDeps(Gen.Protobuf, Gen.Mocks)
 	return nil
 }
 

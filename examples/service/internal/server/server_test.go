@@ -26,15 +26,11 @@ type ExampleServer struct {
 func dialer() func(context.Context, string) (net.Conn, error) {
 	listener := bufconn.Listen(1024 * 1024)
 
-	srv := grpc.NewServer()
 	runtime, _ := controller.NewRuntime(context.Background(), "test")
-	server := NewServer(runtime.Service(), nil, nil)
-	servicepb.RegisterExampleServer(srv, server)
+	runtime.Server().GRPC().RegisterService(NewServer(runtime.Service(), nil, nil))
 
 	go func() {
-		if err := srv.Serve(listener); err != nil {
-			log.Fatal(err)
-		}
+		runtime.Server().GRPC().Start(context.Background())
 	}()
 
 	return func(context.Context, string) (net.Conn, error) {

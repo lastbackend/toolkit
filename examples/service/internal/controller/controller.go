@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/config"
 	servicepb "github.com/lastbackend/toolkit/examples/service/gen"
@@ -32,7 +33,6 @@ func (c *Controller) Call(_ context.Context) error {
 		Type: "type",
 		Data: nil,
 	})
-
 	if err != nil {
 		c.log.Error(err.Error())
 		return err
