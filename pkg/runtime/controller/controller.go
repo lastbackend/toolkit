@@ -185,10 +185,6 @@ func (c *controller) start(ctx context.Context) error {
 		opts = append(opts, fx.Invoke(c))
 	}
 
-	opts = append(opts, fx.Invoke(func(ctx context.Context) {
-
-	}))
-
 	opts = append(opts, fx.Invoke(func(lc fx.Lifecycle) error {
 
 		lc.Append(fx.Hook{

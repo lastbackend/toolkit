@@ -27,6 +27,7 @@ import (
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/server/http"
 	"os"
+	"time"
 )
 
 func main() {
@@ -57,12 +58,12 @@ func main() {
 	app.Server().HTTP().SetMiddleware(server.RegisterExampleHTTPServerMiddleware)
 	app.Server().HTTP().AddHandler(http.MethodGet, "/", server.ExampleHTTPServerHandler, http.WithMiddleware(server.MWAuthenticate))
 
-	//app.RegisterOnStartHook(func(ctx context.Context) error {
-	//	time.Sleep(3 * time.Second)
-	//	app.Log().Info("call gracefully stop")
-	//	app.Stop(ctx, nil)
-	//	return nil
-	//})
+	app.RegisterOnStartHook(func(ctx context.Context) error {
+		time.Sleep(3 * time.Second)
+		app.Log().Info("call gracefully stop")
+		app.Stop(ctx, nil)
+		return nil
+	})
 
 	//go func() {
 	//	time.Sleep(5 * time.Second)

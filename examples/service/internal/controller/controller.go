@@ -11,6 +11,7 @@ import (
 )
 
 type Controller struct {
+	app      toolkit.Service
 	log      logger.Logger
 	cfg      *config.Config
 	repo     *repository.Repository
@@ -48,6 +49,6 @@ func (c *Controller) OnStop(ctx context.Context) error {
 
 func NewController(app toolkit.Service, cfg *config.Config, repo *repository.Repository, services servicepb.ExampleServices) *Controller {
 	app.Log().Info("> service controller ----")
-	ctrl := &Controller{log: app.Log(), cfg: cfg, repo: repo, services: services}
+	ctrl := &Controller{app: app, log: app.Log(), cfg: cfg, repo: repo, services: services}
 	return ctrl
 }
