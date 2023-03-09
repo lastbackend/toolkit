@@ -217,6 +217,7 @@ func (c *controller) start(ctx context.Context) error {
 	case err := <-c.done:
 		if err != nil {
 			c.Log().Errorf("runtime.controller: stop with err: %v", err)
+			return err
 		}
 	}
 
