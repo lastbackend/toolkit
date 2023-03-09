@@ -206,6 +206,8 @@ func (c *controller) start(ctx context.Context) error {
 	go func() {
 		c.app.Run()
 	}()
+
+	defer c.app.Stop(context.Background())
 	c.Log().V(5).Info("runtime.controller.started")
 
 	sign := make(chan os.Signal)
@@ -218,7 +220,6 @@ func (c *controller) start(ctx context.Context) error {
 		}
 	}
 
-	c.app.Stop(context.Background())
 	c.Log().V(5).Info("runtime.controller.stopped")
 	return nil
 }
