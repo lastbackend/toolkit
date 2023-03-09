@@ -97,7 +97,7 @@ func (p *plugin) DB() *pg.DB {
 	return p.db
 }
 
-func (p *plugin) Start(ctx context.Context) (err error) {
+func (p *plugin) PreStart(ctx context.Context) (err error) {
 
 	if p.opts.DSN == "" {
 		if p.opts.Host == "" {
@@ -125,7 +125,7 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 	return nil
 }
 
-func (p *plugin) Stop() error {
+func (p *plugin) OnStop(context.Context) error {
 	return nil
 }
 

@@ -21,6 +21,11 @@ func (m *Meta) GetName() string {
 	return m.name
 }
 
+func (m *Meta) GetSlug() string {
+	slug := regexp.MustCompile(`[^_a-zA-Z0-9 ]+`).ReplaceAllString(m.name, "_")
+	return slug
+}
+
 func (m *Meta) SetVersion(version string) *Meta {
 	m.version = version
 	return m

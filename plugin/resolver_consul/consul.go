@@ -17,6 +17,7 @@ limitations under the License.
 package resolver_consul
 
 import (
+	"context"
 	"github.com/hashicorp/consul/api"
 	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver"
 	"github.com/lastbackend/toolkit/pkg/client/grpc/resolver/route"
@@ -53,6 +54,10 @@ func NewResolver(runtime runtime.Runtime, opts ...resolver.Option) resolver.Reso
 		watchers: make(map[string]uint64, 0),
 	}
 	return r
+}
+
+func (c *Resolver) OnStart(_ context.Context) error {
+	return nil
 }
 
 func (c *Resolver) Lookup(service string, opts ...resolver.LookupOption) (route.List, error) {

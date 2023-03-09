@@ -99,10 +99,8 @@ func (a *amqpConn) connect(secure bool, config *amqp.Config) error {
 		return err
 	}
 
-	a.Lock()
 	a.connected = true
 	a.err = nil
-	a.Unlock()
 
 	go a.reconnect(secure, config)
 
@@ -111,10 +109,8 @@ func (a *amqpConn) connect(secure bool, config *amqp.Config) error {
 
 func (a *amqpConn) reconnect(secure bool, config *amqp.Config) {
 
-	var connect bool
-
 	for {
-		if connect {
+		if !a.connected {
 			if err := a.tryConnect(secure, config); err != nil {
 				time.Sleep(1 * time.Second)
 				continue
@@ -128,7 +124,6 @@ func (a *amqpConn) reconnect(secure bool, config *amqp.Config) {
 			close(a.waitConnection)
 		}
 
-		connect = true
 		notifyClose := make(chan *amqp.Error)
 		a.conn.NotifyClose(notifyClose)
 		chanNotifyClose := make(chan *amqp.Error)
@@ -166,19 +161,17 @@ func (a *amqpConn) reconnect(secure bool, config *amqp.Config) {
 
 func (a *amqpConn) Connect(secure bool, config *amqp.Config) error {
 	a.Lock()
-
 	if a.connected {
 		a.Unlock()
 		return nil
 	}
+	a.Unlock()
 
 	select {
 	case <-a.close:
 		a.close = make(chan bool)
 	default:
 	}
-
-	a.Unlock()
 
 	return a.connect(secure, config)
 }
@@ -188,8 +181,9 @@ func (a *amqpConn) Connected() error {
 }
 
 func (a *amqpConn) Close() error {
-	a.Lock()
-	defer a.Unlock()
+	if a.conn == nil {
+		return nil
+	}
 
 	select {
 	case <-a.close:
@@ -204,9 +198,6 @@ func (a *amqpConn) Close() error {
 }
 
 func (a *amqpConn) Channel() (*amqp.Channel, error) {
-	a.Lock()
-	defer a.Unlock()
-
 	if !a.connected {
 		return nil, errors.New("connection closed")
 	}

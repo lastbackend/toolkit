@@ -109,7 +109,7 @@ func (p *plugin) DB() *sqlx.DB {
 	return p.db
 }
 
-func (p *plugin) Start(ctx context.Context) (err error) {
+func (p *plugin) PreStart(_ context.Context) (err error) {
 
 	if p.opts.DSN == "" {
 		if p.opts.Host == "" {
@@ -133,8 +133,8 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 	return nil
 }
 
-func (p *plugin) Stop() error {
-	return nil
+func (p *plugin) OnStop(context.Context) error {
+	return p.db.Close()
 }
 
 func PostgresPingChecker(database *sqlx.DB, timeout time.Duration) probes.HandleFunc {

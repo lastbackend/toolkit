@@ -27,6 +27,7 @@ import (
 	"github.com/lastbackend/toolkit/pkg/server/http/websockets"
 	"mime"
 	"net/http"
+	"regexp"
 	"sync"
 )
 
@@ -78,6 +79,8 @@ func NewServer(name string, runtime runtime.Runtime, options *server.HTTPServerO
 		wsManager:   websockets.NewManager(runtime.Log()),
 		handlers:    make(map[string]server.HTTPServerHandler, 0),
 	}
+
+	name = regexp.MustCompile(`[^_a-zA-Z0-9 ]+`).ReplaceAllString(name, "_")
 
 	if name != "" {
 		s.prefix = name

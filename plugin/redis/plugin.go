@@ -115,7 +115,7 @@ func (p *plugin) ClusterDB() *redis.ClusterClient {
 	return p.cdb
 }
 
-func (p *plugin) Start(ctx context.Context) (err error) {
+func (p *plugin) PreStart(ctx context.Context) (err error) {
 
 	if p.opts.Cluster {
 		client := redis.NewClusterClient(p.prepareClusterOptions(p.opts))
@@ -130,8 +130,8 @@ func (p *plugin) Start(ctx context.Context) (err error) {
 	return nil
 }
 
-func (p *plugin) Stop() error {
-	return nil
+func (p *plugin) OnStop(context.Context) error {
+	return p.db.Close()
 }
 
 func (p *plugin) prepareOptions(opts Config) *redis.Options {

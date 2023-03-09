@@ -207,7 +207,13 @@ func (c *controller) start(ctx context.Context) error {
 		c.app.Run()
 	}()
 
-	defer c.app.Stop(context.Background())
+	defer func(app *fx.App, ctx context.Context) {
+		err := app.Stop(ctx)
+		if err != nil {
+			c.Log().V(5).Errorf("stop runtime.controller failed: %v", err)
+		}
+	}(c.app, context.Background())
+
 	c.Log().V(5).Info("runtime.controller.started")
 
 	sign := make(chan os.Signal)
@@ -235,18 +241,27 @@ func (c *controller) onStart(ctx context.Context) error {
 	}
 
 	c.Log().V(5).Info("runtime.controller.onStart: server start")
-	c.Server().Start(ctx)
+	if err := c.Server().Start(ctx); err != nil {
+		return err
+	}
 
 	c.Log().V(5).Info("runtime.controller.onStart: resolver OnStart call")
-	c.client.GRPC().GetResolver().OnStart(ctx)
+	if err := c.client.GRPC().GetResolver().OnStart(ctx); err != nil {
+		return err
+	}
 
 	c.Log().V(5).Info("runtime.controller.onStart: plugin OnStart call")
-	c.Plugin().OnStart(ctx)
+	if err := c.Plugin().OnStart(ctx); err != nil {
+		return err
+	}
 
 	c.Log().V(5).Info("runtime.controller.onStart: package OnStart call")
-	c.Package().OnStart(ctx)
+	if err := c.Package().OnStart(ctx); err != nil {
+		return err
+	}
 
 	for _, fn := range c.onStartHook {
+		fn := fn
 		go func() {
 			if err := fn(ctx); err != nil {
 				c.Log().Error(err)
@@ -265,12 +280,18 @@ func (c *controller) onStart(ctx context.Context) error {
 
 func (c *controller) onStop(ctx context.Context) error {
 
-	c.Plugin().OnStop(ctx)
-	c.Package().OnStop(ctx)
-
-	c.Server().Stop(ctx)
+	if err := c.Plugin().OnStop(ctx); err != nil {
+		return err
+	}
+	if err := c.Package().OnStop(ctx); err != nil {
+		return err
+	}
+	if err := c.Server().Stop(ctx); err != nil {
+		return err
+	}
 
 	for _, fn := range c.onStopHook {
+		fn := fn
 		go func() {
 			if err := fn(ctx); err != nil {
 				c.Log().Error(err)

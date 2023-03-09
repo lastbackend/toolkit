@@ -127,7 +127,7 @@ func (p *plugin) PreStart(ctx context.Context) error {
 	return nil
 }
 
-func (p *plugin) Stop() error {
+func (p *plugin) OnStop(context.Context) error {
 	return p.broker.Disconnect()
 }
 

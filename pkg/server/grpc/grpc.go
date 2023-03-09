@@ -24,6 +24,7 @@ import (
 	"github.com/lastbackend/toolkit/pkg/server"
 	"net"
 	"net/http"
+	"regexp"
 	"sync"
 
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
@@ -65,6 +66,8 @@ func NewServer(runtime runtime.Runtime, name string, options *server.GRPCServerO
 	if name == "" {
 		name = serviceName
 	}
+
+	name = regexp.MustCompile(`[^_a-zA-Z0-9 ]+`).ReplaceAllString(name, "_")
 
 	srv := &grpcServer{
 		runtime: runtime,

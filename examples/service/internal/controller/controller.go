@@ -42,7 +42,7 @@ func (c *Controller) Call(_ context.Context) error {
 	return nil
 }
 
-func (c *Controller) OnStop(ctx context.Context) error {
+func (c *Controller) OnStop(context.Context) error {
 	c.log.Info("> service controller: on stop")
 	return nil
 }

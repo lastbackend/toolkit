@@ -196,6 +196,10 @@ func (r *broker) Connect() error {
 		conf.TLSClientConfig = &tls.Config{Certificates: []tls.Certificate{cer}}
 	}
 
+	conf.Properties = amqp.Table{
+		"connection_name": r.runtime.Meta().GetName(),
+	}
+
 	return r.conn.Connect(r.opts.TLSVerify, &conf)
 }
 
