@@ -203,9 +203,10 @@ func (c *controller) start(ctx context.Context) error {
 		fx.WithLogger(c.logger.Fx),
 	)
 
-	go func() {
-		c.app.Run()
-	}()
+	if err := c.app.Start(ctx); err != nil {
+		c.Log().V(5).Errorf("start runtime.controller failed: %v", err)
+		return err
+	}
 
 	defer func(app *fx.App, ctx context.Context) {
 		err := app.Stop(ctx)
