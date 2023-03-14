@@ -19,16 +19,17 @@ package http
 import (
 	"context"
 	"fmt"
+	"mime"
+	"net/http"
+	"regexp"
+	"sync"
+
 	"github.com/gorilla/mux"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/server"
 	"github.com/lastbackend/toolkit/pkg/server/http/errors"
 	"github.com/lastbackend/toolkit/pkg/server/http/marshaler"
 	"github.com/lastbackend/toolkit/pkg/server/http/websockets"
-	"mime"
-	"net/http"
-	"regexp"
-	"sync"
 )
 
 const (
@@ -55,8 +56,7 @@ type httpServer struct {
 
 	middlewares *Middlewares
 
-	corsHandlerFunc      http.HandlerFunc
-	grpcErrorHandlerFunc func(http.ResponseWriter, error)
+	corsHandlerFunc http.HandlerFunc
 
 	wsManager *websockets.Manager
 
@@ -72,8 +72,7 @@ func NewServer(name string, runtime runtime.Runtime, options *server.HTTPServerO
 		marshalerMap: GetMarshalerMap(),
 		exit:         make(chan chan error),
 
-		corsHandlerFunc:      corsHandlerFunc,
-		grpcErrorHandlerFunc: errors.GrpcErrorHandlerFunc,
+		corsHandlerFunc: corsHandlerFunc,
 
 		middlewares: newMiddlewares(runtime.Log()),
 		wsManager:   websockets.NewManager(runtime.Log()),
@@ -131,10 +130,6 @@ func (s *httpServer) Start(_ context.Context) error {
 		return nil
 	}
 	s.RUnlock()
-
-	if s.grpcErrorHandlerFunc != nil {
-		errors.GrpcErrorHandlerFunc = s.grpcErrorHandlerFunc
-	}
 
 	r := mux.NewRouter()
 
@@ -222,7 +217,7 @@ func (s *httpServer) SetCorsHandlerFunc(hf http.HandlerFunc) {
 }
 
 func (s *httpServer) SetErrorHandlerFunc(hf func(http.ResponseWriter, error)) {
-	s.grpcErrorHandlerFunc = hf
+	errors.GrpcErrorHandlerFunc = hf
 }
 
 func (s *httpServer) Subscribe(event string, h websockets.EventHandler) {
