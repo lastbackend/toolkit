@@ -21,7 +21,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/textproto"
@@ -104,7 +103,7 @@ func PrepareHeaderFromRequest(req *http.Request) (map[string]string, error) {
 }
 
 func SetRawBodyToProto(r *http.Request, message proto.Message, param string) error {
-	raw, err := ioutil.ReadAll(r.Body)
+	raw, err := io.ReadAll(r.Body)
 	if err != nil {
 		return err
 	}
