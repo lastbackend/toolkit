@@ -114,7 +114,7 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 		app.runtime.Server().HTTP().Subscribe("{{ $binding.RpcMethod }}", app.handlerWSProxy{{ $svc.GetName | ToCamel }}{{ $m.GetName | ToCamel }})
 		{{- end }}
 		{{- if and $svc.UseHTTPProxyServer (not $binding.WebsocketProxy) (not $binding.Websocket) }}
-		app.runtime.Server().HTTP().AddHandler({{ $binding.HttpMethod }}, "{{ $binding.HttpPath }}", app.handlerHTTP{{ $svc.GetName | ToCamel }}{{ $m.GetName | ToCamel }}{{- if $binding.Middlewares }}, 
+		app.runtime.Server().HTTP().AddHandler({{ $binding.HttpMethod }}, "{{ $binding.HttpPath }}", app.handlerHTTP{{ $svc.GetName | ToCamel }}{{ $m.GetName | ToCamel }}{{- if $binding.AdditionalBinding }}_{{ $binding.Index }}{{ end }}{{- if $binding.Middlewares }},
 			{{ range $index, $mdw := $binding.Middlewares }}{{ if lt 0 $index }}, {{ end }}tk_http.WithMiddleware("{{ $mdw }}"){{ end }}{{ end }}{{- if $binding.ExcludeGlobalMiddlewares }}, 
 			{{ range $index, $mdw := $binding.ExcludeGlobalMiddlewares }}{{ if lt 0 $index }}, {{ end }}tk_http.WithExcludeGlobalMiddleware("{{ $mdw }}"){{ end }}{{ end }})
 		//{{- end }}

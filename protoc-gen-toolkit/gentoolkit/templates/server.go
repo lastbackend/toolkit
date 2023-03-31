@@ -66,7 +66,6 @@ func register{{ $.GetName }}GRPCServer(runtime runtime.Runtime, srv {{ $.GetName
 var ServerHTTPDefineTpl = `// Define HTTP handlers for Router HTTP server
 {{- range $m := .Methods }}
 {{- range $binding := $m.Bindings }}
-{{- if not $binding.AdditionalBinding }}
 {{- if and $.UseWebsocketProxyServer $binding.WebsocketProxy (not $binding.Websocket) }}
 func (s *service{{ $.GetName | ToCamel }}) handlerWSProxy{{ $.GetName | ToCamel }}{{ $m.GetName | ToCamel }}(ctx context.Context, event tk_ws.Event, c *tk_ws.Client) error {
 	ctx, cancel := context.WithCancel(ctx)
@@ -95,7 +94,7 @@ func (s *service{{ $.GetName | ToCamel }}) handlerWSProxy{{ $.GetName | ToCamel 
 }
 {{- end }}
 {{ if and $.UseHTTPProxyServer (not $binding.WebsocketProxy) (not $binding.Websocket) }}
-func (s *service{{ $.GetName | ToCamel }}) handlerHTTP{{ $.GetName | ToCamel }}{{ $m.GetName | ToCamel }}(w http.ResponseWriter, r *http.Request) {
+func (s *service{{ $.GetName | ToCamel }}) handlerHTTP{{ $.GetName | ToCamel }}{{ $m.GetName | ToCamel }}{{- if $binding.AdditionalBinding }}_{{ $binding.Index }}{{ end }}(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
@@ -173,7 +172,6 @@ func (s *service{{ $.GetName | ToCamel }}) handlerHTTP{{ $.GetName | ToCamel }}{
 		return
 	}
 }
-{{ end }}
 {{- end }} 
 {{- end }} 
 {{- end }} 
