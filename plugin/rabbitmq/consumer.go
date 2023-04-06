@@ -75,6 +75,7 @@ func (c *consumer) resubscribe() {
 		c.broker.mtx.Lock()
 		if !c.broker.conn.connected {
 			c.broker.mtx.Unlock()
+			time.Sleep(1 * time.Second)
 			continue
 		}
 
@@ -99,7 +100,6 @@ func (c *consumer) resubscribe() {
 
 			time.Sleep(delay)
 			delay *= expFactor
-
 			continue
 		}
 

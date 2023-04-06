@@ -118,7 +118,7 @@ func (c *Resolver) watcher(client *api.Client, name string) {
 			}
 		}
 
-		<-time.After(5 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 
 }
