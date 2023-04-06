@@ -112,7 +112,7 @@ func (a *amqpConn) reconnect(secure bool, config *amqp.Config) {
 	for {
 		if !a.connected {
 			if err := a.tryConnect(secure, config); err != nil {
-				time.Sleep(1 * time.Second)
+				time.Sleep(5 * time.Second)
 				continue
 			}
 
