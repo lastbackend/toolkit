@@ -131,7 +131,13 @@ func (p *plugin) PreStart(ctx context.Context) (err error) {
 }
 
 func (p *plugin) OnStop(context.Context) error {
-	return p.db.Close()
+	if p.db != nil {
+		return p.db.Close()
+	}
+	if p.cdb != nil {
+		return p.cdb.Close()
+	}
+	return nil
 }
 
 func (p *plugin) prepareOptions(opts Config) *redis.Options {
