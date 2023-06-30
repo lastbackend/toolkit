@@ -17,9 +17,11 @@ limitations under the License.
 package rabbitmq
 
 import (
-	"github.com/lastbackend/toolkit/pkg/runtime"
 	"sync"
 	"time"
+
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type consumer struct {
