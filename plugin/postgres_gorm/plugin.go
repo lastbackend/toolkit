@@ -34,6 +34,7 @@ import (
 	"github.com/pkg/errors"
 	psql "gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	glogger "gorm.io/gorm/logger"
 )
 
 const (
@@ -66,6 +67,7 @@ type Config struct {
 	SSLMode       string `env:"SSLMODE"  comment:" Whether or not to use SSL mode (disable, allow, prefer, require, verify-ca, verify-full)"`
 	TimeZone      string `env:"TIMEZONE" comment:"Sets the session timezone"`
 	MigrationsDir string `env:"MIGRATIONS_DIR" comment:"Migrations directory to run migration when plugin is started"`
+	Debug         string `env:"DEBUG" envDefault:"" comment:"Debug sql records requests, default error (info, warn, error)"`
 }
 
 type plugin struct {
@@ -99,13 +101,25 @@ func (p *plugin) PreStart(ctx context.Context) (err error) {
 			p.opts.Username, p.opts.Password, p.opts.Host, p.opts.Port, p.opts.Database, p.opts.SSLMode)
 	}
 
+	var gormOpts = new(gorm.Config)
+	switch p.opts.Debug {
+	case "info":
+		gormOpts.Logger = glogger.Default.LogMode(glogger.Info)
+	case "warn":
+		gormOpts.Logger = glogger.Default.LogMode(glogger.Warn)
+	case "error":
+		gormOpts.Logger = glogger.Default.LogMode(glogger.Error)
+	default:
+		gormOpts.Logger = glogger.Default.LogMode(glogger.Silent)
+	}
+
 	conn, err := sql.Open(driverName, p.opts.DSN)
 	if err != nil {
 		return err
 	}
 	db, err := gorm.Open(psql.New(psql.Config{
 		Conn: conn,
-	}))
+	}), gormOpts)
 	if err != nil {
 		return err
 	}
