@@ -20,11 +20,11 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"github.com/lastbackend/toolkit/pkg/runtime"
 	"sync"
 
+	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type ack struct{}

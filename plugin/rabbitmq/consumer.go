@@ -20,8 +20,6 @@ import (
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"sync"
 	"time"
-
-	"github.com/streadway/amqp"
 )
 
 type consumer struct {

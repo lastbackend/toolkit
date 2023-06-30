@@ -18,14 +18,14 @@ package rabbitmq
 
 import (
 	"crypto/tls"
-	"github.com/lastbackend/toolkit/pkg/runtime"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 var (
