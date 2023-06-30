@@ -19,11 +19,12 @@ package rabbitmq
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"github.com/lastbackend/toolkit/pkg/tools/probes"
-	"github.com/streadway/amqp"
-	"sync"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const (

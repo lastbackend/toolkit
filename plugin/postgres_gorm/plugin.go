@@ -17,6 +17,11 @@ limitations under the License.
 package postgres_gorm
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
+	"time"
+
 	"github.com/go-pg/pg/v10"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -30,11 +35,6 @@ import (
 	psql "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	glogger "gorm.io/gorm/logger"
-	"time"
-
-	"context"
-	"database/sql"
-	"fmt"
 )
 
 const (
