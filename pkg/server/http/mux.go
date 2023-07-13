@@ -62,6 +62,8 @@ type httpServer struct {
 
 	server *http.Server
 	exit   chan chan error
+
+	r *mux.Router
 }
 
 func NewServer(name string, runtime runtime.Runtime, options *server.HTTPServerOptions) server.HTTPServer {
@@ -77,6 +79,8 @@ func NewServer(name string, runtime runtime.Runtime, options *server.HTTPServerO
 		middlewares: newMiddlewares(runtime.Log()),
 		wsManager:   websockets.NewManager(runtime.Log()),
 		handlers:    make(map[string]server.HTTPServerHandler, 0),
+
+		r: mux.NewRouter(),
 	}
 
 	name = regexp.MustCompile(`[^_a-zA-Z0-9 ]+`).ReplaceAllString(name, "_")
@@ -131,34 +135,25 @@ func (s *httpServer) Start(_ context.Context) error {
 	}
 	s.RUnlock()
 
-	r := mux.NewRouter()
-
 	if s.opts.EnableCORS {
-		r.Methods(http.MethodOptions).HandlerFunc(s.corsHandlerFunc)
+		s.r.Methods(http.MethodOptions).HandlerFunc(s.corsHandlerFunc)
 		s.middlewares.global = append(s.middlewares.global, corsMiddlewareKind)
 		s.middlewares.Add(&corsMiddleware{handler: s.corsHandlerFunc})
 	}
 
-	r.NotFoundHandler = s.methodNotFoundHandler()
-	r.MethodNotAllowedHandler = s.methodNotAllowedHandler()
+	s.r.NotFoundHandler = s.methodNotFoundHandler()
+	s.r.MethodNotAllowedHandler = s.methodNotAllowedHandler()
 
 	s.server = &http.Server{
 		Addr:      fmt.Sprintf("%s:%d", s.opts.Host, s.opts.Port),
-		Handler:   r,
+		Handler:   s.r,
 		TLSConfig: s.opts.TLSConfig,
 	}
 
 	for _, h := range s.handlers {
-
-		s.runtime.Log().V(5).Infof("register [http] route: %s", h.Path)
-
-		handler, err := s.middlewares.apply(h)
-		if err != nil {
+		if err := s.registerHandler(h); err != nil {
 			return err
 		}
-		r.Handle(h.Path, handler).Methods(h.Method)
-
-		s.runtime.Log().V(5).Infof("bind handler: method: %s, path: %s", h.Method, h.Path)
 	}
 
 	s.Lock()
@@ -175,6 +170,20 @@ func (s *httpServer) Start(_ context.Context) error {
 		s.isRunning = false
 		s.Unlock()
 	}()
+
+	return nil
+}
+
+func (s *httpServer) registerHandler(h server.HTTPServerHandler) error {
+	s.runtime.Log().V(5).Infof("register [http] route: %s", h.Path)
+
+	handler, err := s.middlewares.apply(h)
+	if err != nil {
+		return err
+	}
+	s.r.Handle(h.Path, handler).Methods(h.Method)
+
+	s.runtime.Log().V(5).Infof("bind handler: method: %s, path: %s", h.Method, h.Path)
 
 	return nil
 }
@@ -209,7 +218,11 @@ func (s *httpServer) SetMiddleware(middleware any) {
 
 func (s *httpServer) AddHandler(method string, path string, h http.HandlerFunc, opts ...server.HTTPServerOption) {
 	key := fmt.Sprintf("%s:%s", method, path)
-	s.handlers[key] = server.HTTPServerHandler{Method: method, Path: path, Handler: h, Options: opts}
+	if !s.isRunning {
+		s.handlers[key] = server.HTTPServerHandler{Method: method, Path: path, Handler: h, Options: opts}
+	} else {
+		_ = s.registerHandler(server.HTTPServerHandler{Method: method, Path: path, Handler: h, Options: opts})
+	}
 }
 
 func (s *httpServer) SetCorsHandlerFunc(hf http.HandlerFunc) {
