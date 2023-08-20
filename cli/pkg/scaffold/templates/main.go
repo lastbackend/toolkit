@@ -26,34 +26,41 @@ import (
 	servicepb "{{.Vendor}}{{lower .Service}}/gen"
   "{{.Vendor}}{{lower .Service}}/config"
 	"{{.Vendor}}{{lower .Service}}/internal/server"
-	"github.com/lastbackend/toolkit/pkg/logger"
 )
 
 func main() {
 
-	svc := servicepb.NewService("example")
+	app, err := servicepb.NewExampleService("example",
+		runtime.WithVersion("0.1.0"),
+		runtime.WithDescription("Example microservice"),
+		runtime.WithEnvPrefix("LB"),
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	log := svc.Logger()
-	log.WithFields(logger.Fields{
-		"microservice": "example",
-	})
-	log.Info("Run microservice")
-
-	svc.Meta().
-		SetVersion("0.1.0").
-		SetEnvPrefix("LB").
-		SetShortDescription("Example microservice").
-		SetLongDescription("Microservice for development needs")
-
+	// Config management
 	cfg := config.New()
 
-	svc.SetConfig(cfg)
+	if err := app.RegisterConfig(cfg); err != nil {
+		app.Log().Error(err)
+		return
+	}
+
+	// Add packages
+	app.RegisterPackage(repository.NewRepository, controller.NewController)
+
 	svc.SetServer(server.NewServer)
 
-	if err := svc.Run(context.Background()); err != nil {
-		log.Errorf("could not run the service %v", err)
+	if err := app.Start(context.Background()); err != nil {
+		app.Log().Errorf("could not run the service %v", err)
 		os.Exit(1)
 		return
 	}
+
+	// time.Sleep(10 * time.Second)
+	// app.Stop(context.Background())
+
+	app.Log().Info("graceful stop")
 }
 `

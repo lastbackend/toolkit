@@ -19,9 +19,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"time"
-
 	"github.com/lastbackend/toolkit/examples/service/config"
 	servicepb "github.com/lastbackend/toolkit/examples/service/gen"
 	"github.com/lastbackend/toolkit/examples/service/internal/controller"
@@ -29,6 +26,8 @@ import (
 	"github.com/lastbackend/toolkit/examples/service/internal/server"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/server/http"
+	"os"
+	"time"
 )
 
 func main() {
@@ -55,6 +54,8 @@ func main() {
 
 	// Add server
 	app.Server().GRPC().SetService(server.NewServer)
+	app.Server().GRPC().SetInterceptor(server.NewExampleGRPCServerInterceptor)
+
 	app.Server().HTTPNew("", nil)
 	app.Server().HTTP().SetMiddleware(server.RegisterExampleHTTPServerMiddleware)
 	app.Server().HTTP().AddHandler(http.MethodGet, "/", server.ExampleHTTPServerHandler, http.WithMiddleware(server.MWAuthenticate))
