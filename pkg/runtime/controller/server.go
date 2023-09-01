@@ -79,6 +79,17 @@ func (c *serverManager) Provides() []interface{} {
 		service := s.GetService()
 		if service != nil {
 			provides = append(provides, service)
+
+			interceptors := s.GetInterceptors()
+			for _, interceptor := range interceptors {
+				provides = append(provides, fx.Annotate(
+					interceptor,
+					fx.As(new(server.GRPCInterceptor)),
+					fx.ResultTags(`group:"interceptors"`),
+				),
+				)
+			}
+
 		}
 	}
 
@@ -104,6 +115,9 @@ func (c *serverManager) Constructors() []interface{} {
 
 	for _, s := range c.grpc {
 		provides = append(provides, s.GetConstructor())
+		provides = append(provides, fx.Annotate(
+			s.GetInterceptorsConstructor(),
+			fx.ParamTags(`group:"interceptors"`)))
 	}
 
 	for _, s := range c.http {

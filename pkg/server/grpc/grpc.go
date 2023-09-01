@@ -53,8 +53,13 @@ type grpcServer struct {
 	// fn for server registration
 	provide interface{}
 	service interface{}
+	handler interface{}
 
-	grpc      *grpc.Server
+	interceptors *Interceptors
+
+	grpc    *grpc.Server
+	options *server.GRPCServerOptions
+
 	isRunning bool
 
 	wait *sync.WaitGroup
@@ -70,18 +75,17 @@ func NewServer(runtime runtime.Runtime, name string, options *server.GRPCServerO
 	name = regexp.MustCompile(`[^_a-zA-Z0-9 ]+`).ReplaceAllString(name, "_")
 
 	srv := &grpcServer{
-		runtime: runtime,
-		prefix:  name,
-		opts:    defaultOptions(),
-		wait:    &sync.WaitGroup{},
+		runtime:      runtime,
+		prefix:       name,
+		opts:         defaultOptions(),
+		wait:         &sync.WaitGroup{},
+		options:      options,
+		interceptors: newInterceptors(runtime.Log()),
 	}
 
 	if err := runtime.Config().Parse(&srv.opts, srv.prefix); err != nil {
 		return nil
 	}
-
-	servopts := srv.parseOptions(options)
-	srv.grpc = grpc.NewServer(servopts...)
 
 	return srv
 }
@@ -113,7 +117,7 @@ func (g *grpcServer) GetService() interface{} {
 
 // RegisterService - set user-defined handlers
 func (g *grpcServer) RegisterService(service interface{}) {
-	g.grpc.RegisterService(&g.descriptor, service)
+	g.handler = service
 	return
 }
 
@@ -123,9 +127,28 @@ func (g *grpcServer) SetConstructor(fn interface{}) {
 	return
 }
 
+func (s *grpcServer) GetInterceptors() []interface{} {
+	return s.interceptors.constructors
+}
+
+// SetInterceptor - set fx handlers definition
+func (g *grpcServer) SetInterceptor(interceptor any) {
+	g.interceptors.AddConstructor(interceptor)
+}
+
 // GetConstructor - set fx handlers definition
 func (g *grpcServer) GetConstructor() interface{} {
 	return g.provide
+}
+
+func (g *grpcServer) GetInterceptorsConstructor() interface{} {
+	return g.constructor
+}
+
+func (g *grpcServer) constructor(interceptors ...server.GRPCInterceptor) {
+	for _, interceptor := range interceptors {
+		g.interceptors.Add(interceptor)
+	}
 }
 
 // parseOptions - get options from config and convert them to grpc server options
@@ -158,6 +181,13 @@ func (g *grpcServer) parseOptions(options *server.GRPCServerOptions) []grpc.Serv
 	if g.opts.GrpcOptions != nil && len(g.opts.GrpcOptions) > 0 {
 		gopts = append(gopts, g.opts.GrpcOptions...)
 	}
+
+	var interceptors = make([]grpc.UnaryServerInterceptor, 0)
+	for _, i := range g.interceptors.items {
+		interceptors = append(interceptors, i.Interceptor)
+	}
+
+	gopts = append(gopts, grpc.ChainUnaryInterceptor(interceptors...))
 
 	return gopts
 }
@@ -195,6 +225,9 @@ func (g *grpcServer) Start(_ context.Context) error {
 	g.Lock()
 	g.address = listener.Addr().String()
 	g.Unlock()
+
+	g.grpc = grpc.NewServer(g.parseOptions(g.options)...)
+	g.grpc.RegisterService(&g.descriptor, g.handler)
 
 	if g.opts.GRPCWebPort > 0 {
 

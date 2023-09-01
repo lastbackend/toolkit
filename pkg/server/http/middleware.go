@@ -18,7 +18,6 @@ package http
 
 import (
 	"fmt"
-	"go.uber.org/fx"
 	"net/http"
 	"regexp"
 	"sort"
@@ -141,10 +140,6 @@ func (m *Middlewares) apply(handler server.HTTPServerHandler) (http.HandlerFunc,
 	}
 
 	return h, nil
-}
-
-type MiddlewareRegistry struct {
-	fx.In
 }
 
 func newMiddlewares(log logger.Logger) *Middlewares {

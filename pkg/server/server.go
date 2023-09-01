@@ -86,6 +86,7 @@ type HttpServerMiddleware interface {
 }
 
 type KindMiddleware string
+type KindInterceptor string
 
 type GRPCServer interface {
 	Start(ctx context.Context) error
@@ -96,8 +97,12 @@ type GRPCServer interface {
 	SetService(constructor interface{})
 	SetConstructor(fn interface{})
 
+	GetInterceptors() []interface{}
+	SetInterceptor(interceptor any)
+
 	GetService() interface{}
 	GetConstructor() interface{}
+	GetInterceptorsConstructor() interface{}
 
 	RegisterService(service interface{})
 	Info() ServerInfo
@@ -111,6 +116,12 @@ type GRPCServerOptions struct {
 }
 
 type ServerKind string
+
+type GRPCInterceptor interface {
+	Kind() KindInterceptor
+	Order() int
+	Interceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error)
+}
 
 const (
 	ServerKindHTTPServer = "http"
