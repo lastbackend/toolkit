@@ -93,17 +93,21 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 	{{- template "plugin-register" $.Plugins }}
 	{{- template "plugin-register" $svc.Plugins }}
 
-
-{{ if and $svc.UseGRPCServer $svc.Methods }}
-	// set descriptor to {{ $svc.GetName }} GRPC server
+{{ if $svc.UseGRPCServer }}
+	// create new {{ $svc.GetName }} GRPC server
 	app.runtime.Server().GRPCNew(name, nil)
+{{ end }}
+{{ if and $svc.UseGRPCServer $svc.Methods }}
+  // set descriptor to {{ $svc.GetName }} GRPC server
 	app.runtime.Server().GRPC().SetDescriptor({{ $svc.GetName }}_ServiceDesc)
 	app.runtime.Server().GRPC().SetConstructor(register{{ $svc.GetName }}GRPCServer)
 {{ end }}
 
-{{ if and (or $svc.UseHTTPProxyServer $svc.UseWebsocketProxyServer $svc.UseWebsocketServer) $svc.Methods }}
+{{ if $svc.UseHTTPProxyServer }}
 	// create new {{ $svc.GetName }} HTTP server
 	app.runtime.Server().HTTPNew(name, nil)
+{{ end }}
+{{ if and (or $svc.UseHTTPProxyServer $svc.UseWebsocketProxyServer $svc.UseWebsocketServer) $svc.Methods }}
 	{{ if and (or $svc.UseHTTPProxyServer $svc.UseWebsocketProxyServer) $svc.HTTPMiddlewares }}app.runtime.Server().HTTP().UseMiddleware({{ range $index, $mdw := $svc.HTTPMiddlewares }}{{ if lt 0 $index }}, {{ end }}"{{ $mdw }}"{{ end }}){{ end }}
 	{{- range $m := $svc.Methods }}
 	{{- range $binding := $m.Bindings }}
