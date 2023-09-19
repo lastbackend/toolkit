@@ -17,52 +17,57 @@ limitations under the License.
 package toolkit
 
 import (
-	"context"
-	"github.com/lastbackend/toolkit/pkg/client"
-	"github.com/lastbackend/toolkit/pkg/runtime/logger"
-	"github.com/lastbackend/toolkit/pkg/runtime/meta"
-	"github.com/lastbackend/toolkit/pkg/server"
+  "context"
+  "github.com/lastbackend/toolkit/pkg/client"
+  "github.com/lastbackend/toolkit/pkg/runtime/logger"
+  "github.com/lastbackend/toolkit/pkg/runtime/meta"
+  "github.com/lastbackend/toolkit/pkg/server"
 )
 
 type Service interface {
-	Meta() *meta.Meta
+  Meta() *meta.Meta
 
-	Log() logger.Logger
-	Client() Client
-	Server() Server
+  Log() logger.Logger
+  Client() Client
+  Server() Server
 
-	RegisterConfig(config ...any) error
-	RegisterPlugin(constructor ...any)
-	RegisterPackage(constructor ...any)
+  RegisterConfig(config ...any) error
+  RegisterPlugin(constructor ...any)
+  RegisterPackage(constructor ...any)
 
-	Start(ctx context.Context) error
-	Stop(ctx context.Context, err error)
+  Start(ctx context.Context) error
+  Stop(ctx context.Context, err error)
 
-	RegisterOnStartHook(...func(ctx context.Context) error)
-	RegisterOnStartSyncHook(...func(ctx context.Context) error)
+  RegisterOnStartHook(...func(ctx context.Context) error)
+  RegisterOnStartSyncHook(...func(ctx context.Context) error)
 
-	RegisterOnStopHook(...func(ctx context.Context) error)
-	RegisterOnStopSyncHook(...func(ctx context.Context) error)
+  RegisterOnStopHook(...func(ctx context.Context) error)
+  RegisterOnStopSyncHook(...func(ctx context.Context) error)
 }
 
 type Client interface {
-	GRPC() client.GRPCClient
-	HTTP() client.HTTPClient
+  GRPC() client.GRPCClient
+  HTTP() client.HTTPClient
 }
 
 type Server interface {
-	HTTP() server.HTTPServer
-	GRPC() server.GRPCServer
+  HTTP() server.HTTPServer
+  GRPC() server.GRPCServer
 
-	HTTPGet(name string) server.HTTPServer
-	HTTPNew(name string, options *server.HTTPServerOptions) server.HTTPServer
+  HTTPGet(name string) server.HTTPServer
+  HTTPNew(name string, options *server.HTTPServerOptions) server.HTTPServer
 
-	GRPCGet(name string) server.GRPCServer
-	GRPCNew(name string, options *server.GRPCServerOptions) server.GRPCServer
+  GRPCGet(name string) server.GRPCServer
+  GRPCNew(name string, options *server.GRPCServerOptions) server.GRPCServer
 }
 
 type Config any
 
 type Package any
+
+type PackageItem struct {
+  Index  int
+  Source any
+}
 
 type Plugin any

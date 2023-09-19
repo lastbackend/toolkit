@@ -92,7 +92,7 @@ var _ emptypb.Empty
 				}
 	
 				type {{ $svc.GetName | ToLower }}{{ $m.GetName }}Service struct {
-					stream grpc.Stream
+					stream client.GRPCStream
 				}
 	
 				func (x *{{ $svc.GetName | ToLower }}{{ $m.GetName }}Service) Close() error {
