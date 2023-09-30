@@ -43,9 +43,8 @@ cloud.google.com/go/storage v1.8.0/go.mod h1:Wv1Oy7z6Yz3DshWRJFhqM/UCfaWIRTdp0RX
 cloud.google.com/go/storage v1.10.0/go.mod h1:FLPqc6j+Ki4BU591ie1oL6qBQGu2Bl/tZ9ullr3+Kg0=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 gioui.org v0.0.0-20210308172011-57750fc8a0a6/go.mod h1:RSH6KIUZ0p2xy5zHDxgAM4zumjgTw83q2ge/PI+yyw8=
-git.lstbknd.net/product/prime v0.0.0-20230915135201-6386e254988c/go.mod h1:ToXtrgUEXZ5lCQeWBiqCtMjNYLkyT7/FuhGQoG12u50=
-git.lstbknd.net/product/prime v0.0.0-20230920215625-07d691d3c3d2 h1:OkpL5ZLqNJ6WB4oiQJwQROE0YZmQSBlDa1JwQB7HXqM=
-git.lstbknd.net/product/prime v0.0.0-20230920215625-07d691d3c3d2/go.mod h1:ndgkp4oDaBnlM+qiD/uyeq3SrtoP1FkEyxN3Rgt/SN0=
+git.lstbknd.net/product/prime v0.0.0-20230929181409-e3e4905da311 h1:uQ3IHOfRcyyp2xyqf5YGTP5MZ1PGWqj180aeY9yObjs=
+git.lstbknd.net/product/prime v0.0.0-20230929181409-e3e4905da311/go.mod h1:ZG4WQW9wA/xy9+2Ez16j3y0XuYANrgPql8OgoMHHVfo=
 github.com/Azure/azure-pipeline-go v0.2.3/go.mod h1:x841ezTBIMG6O3lAcl8ATHnsOPVl2bqk7S3ta6S6u4k=
 github.com/Azure/azure-sdk-for-go v16.2.1+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
 github.com/Azure/azure-storage-blob-go v0.14.0/go.mod h1:SMqIBi+SuiQH32bvyjngEewEeXoPfKMgWlBDaYf6fck=
