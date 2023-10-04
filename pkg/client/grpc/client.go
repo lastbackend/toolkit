@@ -307,8 +307,26 @@ func (c *grpcClient) stream(ctx context.Context, addr string, req *client.GRPCRe
     },
   }
 
-  if err := st.SendMsg(req.Body()); err != nil {
-    return nil, err
+  // wait for error response
+  ch := make(chan error, 1)
+
+  go func() {
+    // send the first message
+    ch <- st.SendMsg(req.Body())
+  }()
+
+  var grr error
+
+  select {
+  case err := <-ch:
+    grr = err
+  case <-ctx.Done():
+    grr = ctx.Err()
+  }
+
+  if grr != nil {
+    _ = st.CloseSend()
+    return nil, grr
   }
 
   return s, nil
