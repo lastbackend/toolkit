@@ -141,7 +141,7 @@ func (c *pluginManager) call(ctx context.Context, pkg toolkit.Plugin, kind strin
 		res := meth.Call(args)
 
 		if len(res) < 1 {
-			return errors.New(fmt.Sprintf("pluginManager.%s.call:%s:err: error is not declared as return result in method", kind, name))
+			return nil
 		}
 
 		if len(res) > 1 {

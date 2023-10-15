@@ -146,7 +146,7 @@ func (c *packageController) call(ctx context.Context, pkg toolkit.Package, kind 
 
 		res := meth.Call(args)
 		if len(res) < 1 {
-			return errors.New(fmt.Sprintf("packageManager.%s.call:%s:err: error is not declared as return result in method", kind, name))
+			return nil
 		}
 
 		if len(res) > 1 {
