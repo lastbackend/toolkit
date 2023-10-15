@@ -2,9 +2,13 @@ package controller
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
+	"github.com/lastbackend/toolkit/pkg/util/types"
+	"golang.org/x/sync/errgroup"
 	"reflect"
 )
 
@@ -51,59 +55,107 @@ func (c *pluginManager) PreStart(ctx context.Context) error {
 func (c *pluginManager) OnStart(ctx context.Context) error {
 	c.log.V(5).Info("pluginManager.OnStart.start")
 
-	err := c.hook(ctx, PluginHookMethodOnStart, false)
+	err := c.hook(ctx, PluginHookMethodOnStartSync, true)
 	if err != nil {
 		return err
 	}
 
-	err = c.hook(ctx, PluginHookMethodOnStartSync, true)
+	err = c.hook(ctx, PluginHookMethodOnStart, false)
 	if err != nil {
 		return err
 	}
+
 	c.log.V(5).Info("pluginManager.OnStart.end")
 	return nil
 }
 
 func (c *pluginManager) OnStop(ctx context.Context) error {
 	c.log.V(5).Info("pluginManager.OnStop.start")
-	err := c.hook(ctx, PluginHookMethodOnStop, false)
+
+	err := c.hook(ctx, PluginHookMethodOnStopSync, true)
 	if err != nil {
 		return err
 	}
-	err = c.hook(ctx, PluginHookMethodOnStopSync, true)
+
+	err = c.hook(ctx, PluginHookMethodOnStop, false)
 	if err != nil {
 		return err
 	}
+
 	c.log.V(5).Info("pluginManager.OnStop.end")
 	return nil
 }
 
 func (c *pluginManager) hook(ctx context.Context, kind string, sync bool) error {
 
+	if sync {
+		c.log.V(5).Infof("pluginManager.%s.start:sync", kind)
+		defer func() {
+			c.log.V(5).Infof("pluginManager.%s.end:sync", kind)
+		}()
+	} else {
+		c.log.V(5).Infof("pluginManager.%s.start:async", kind)
+		defer func() {
+			c.log.V(5).Infof("pluginManager.%s.end:async", kind)
+		}()
+	}
+
+	// start all non-sync methods
+	g, ctx := errgroup.WithContext(ctx)
 	for i := 0; i < len(c.plugins); i++ {
 
 		if c.plugins[i] == nil {
 			continue
 		}
 
-		if sync {
-			c.call(ctx, c.plugins[i], kind)
-		} else {
-			go c.call(ctx, c.plugins[i], kind)
-		}
+		plugin := c.plugins[i]
 
+		if sync {
+			if err := c.call(ctx, plugin, kind); err != nil {
+				return err
+			}
+		} else {
+			g.Go(func() error {
+				return c.call(ctx, plugin, kind)
+			})
+		}
+	}
+
+	if err := g.Wait(); err != nil {
+		c.log.V(5).Errorf("can not start toolkit:", err.Error())
+		return err
 	}
 
 	return nil
+
 }
 
-func (c *pluginManager) call(ctx context.Context, pkg toolkit.Plugin, kind string) {
+func (c *pluginManager) call(ctx context.Context, pkg toolkit.Plugin, kind string) error {
+
 	args := []reflect.Value{reflect.ValueOf(ctx)}
 	meth := reflect.ValueOf(pkg).MethodByName(kind)
+	name := types.Type(pkg)
+
 	if !reflect.ValueOf(meth).IsZero() {
-		c.log.V(5).Infof("pluginManager.%s.call", kind)
-		meth.Call(args)
+		c.log.V(5).Infof("pluginManager.%s.call: %s", kind, name)
+		res := meth.Call(args)
+
+		if len(res) < 1 {
+			return errors.New(fmt.Sprintf("pluginManager.%s.call:%s:err: error is not declared as return result in method", kind, name))
+		}
+
+		if len(res) > 1 {
+			return errors.New(fmt.Sprintf("pluginManager.%s.call:%s:err: method results are not supported. Only error is supported", kind, name))
+		}
+
+		var err error
+		if v := res[0].Interface(); v != nil {
+			err = v.(error)
+		}
+		return err
 	}
+
+	return nil
 }
 
 func newPluginController(_ context.Context, runtime runtime.Runtime) runtime.Plugin {
