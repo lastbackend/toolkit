@@ -12,10 +12,8 @@ import (
 )
 
 // Suppress "imported and not used" errors
-var (
-	_ context.Context
-	_ emptypb.Empty
-)
+var _ context.Context
+var _ emptypb.Empty
 
 // Client gRPC API for Example service
 func NewExampleRPCClient(service string, c client.GRPCClient) ExampleRPCClient {
@@ -33,7 +31,8 @@ func NewSampleRPCClient(service string, c client.GRPCClient) SampleRPCClient {
 }
 
 // Client gRPC API for Sample service
-type SampleRPCClient interface{}
+type SampleRPCClient interface {
+}
 
 type exampleGrpcRPCClient struct {
 	service string

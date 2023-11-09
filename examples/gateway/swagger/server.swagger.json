@@ -27,7 +27,7 @@
   ],
   "paths": {
     "/hello": {
-      "post": {
+      "get": {
         "summary": "HelloWorld",
         "description": "Example say hello \u003cname\u003e handler",
         "operationId": "ProxyGateway_HelloWorld",
@@ -109,6 +109,7 @@
         "details": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
         }

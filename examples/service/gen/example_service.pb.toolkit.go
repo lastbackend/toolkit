@@ -88,8 +88,10 @@ func NewExampleService(name string, opts ...runtime.Option) (_ toolkit.Service, 
 	app.runtime.Plugin().Provide(func() PgsqlPlugin { return plugin_pgsql })
 	app.runtime.Plugin().Provide(func() RedisPlugin { return plugin_redis })
 
-	// set descriptor to Example GRPC server
+	// create new Example GRPC server
 	app.runtime.Server().GRPCNew(name, nil)
+
+	// set descriptor to Example GRPC server
 	app.runtime.Server().GRPC().SetDescriptor(Example_ServiceDesc)
 	app.runtime.Server().GRPC().SetConstructor(registerExampleGRPCServer)
 

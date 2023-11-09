@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"google.golang.org/grpc/metadata"
 	"log"
 	"net"
 
@@ -39,6 +40,10 @@ type server struct {
 // SayHello implements lastbackend.helloworld.GreeterServer
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
 	log.Printf("Received: %v", in.GetName())
+
+	header := metadata.Pairs("x-http-status-code", "302", "x-http-redirect-uri", "https://lastbackend.com?auth=demo")
+	grpc.SendHeader(ctx, header)
+
 	return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
 }
 

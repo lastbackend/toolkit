@@ -6,12 +6,12 @@ package serverpb
 import (
 	"context"
 	"encoding/json"
-	"github.com/lastbackend/toolkit/pkg/client"
 	"io"
 	"net/http"
 
 	toolkit "github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/helloworld/gen"
+	client "github.com/lastbackend/toolkit/pkg/client"
 	runtime "github.com/lastbackend/toolkit/pkg/runtime"
 	controller "github.com/lastbackend/toolkit/pkg/runtime/controller"
 	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
@@ -26,13 +26,13 @@ import (
 var (
 	_ context.Context
 	_ emptypb.Empty
-	_ client.GRPCClient
 	_ http.Handler
 	_ errors.Err
 	_ io.Reader
 	_ json.Marshaler
 	_ tk_ws.Client
 	_ tk_http.Handler
+	_ client.GRPCClient
 )
 
 // Definitions
@@ -50,11 +50,15 @@ func NewProxyGatewayService(name string, opts ...runtime.Option) (_ toolkit.Serv
 		return nil, err
 	}
 
+	// loop over plugins and initialize plugin instance
+
+	// loop over plugins and register plugin in toolkit
+
 	// create new ProxyGateway HTTP server
 	app.runtime.Server().HTTPNew(name, nil)
-	app.runtime.Server().HTTP().UseMiddleware("request_id")
-	app.runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", app.handlerHTTPProxyGatewayHelloWorld,
-		tk_http.WithMiddleware("example"))
+
+	app.runtime.Server().HTTP().AddHandler(http.MethodGet, "/hello", app.handlerHTTPProxyGatewayHelloWorld)
+	//
 
 	return app.runtime.Service(), nil
 }
@@ -68,15 +72,14 @@ func (s *serviceProxyGateway) handlerHTTPProxyGatewayHelloWorld(w http.ResponseW
 	var protoRequest servicepb.HelloRequest
 	var protoResponse servicepb.HelloReply
 
-	im, om := tk_http.GetMarshaler(s.runtime.Server().HTTP(), r)
+	_, om := tk_http.GetMarshaler(s.runtime.Server().HTTP(), r)
 
-	reader, err := tk_http.NewReader(r.Body)
-	if err != nil {
+	if err := r.ParseForm(); err != nil {
 		errors.HTTP.InternalServerError(w)
 		return
 	}
 
-	if err := im.NewDecoder(reader).Decode(&protoRequest); err != nil && err != io.EOF {
+	if err := tk_http.ParseRequestQueryParametersToProto(&protoRequest, r.Form); err != nil {
 		errors.HTTP.InternalServerError(w)
 		return
 	}
@@ -102,8 +105,10 @@ func (s *serviceProxyGateway) handlerHTTPProxyGatewayHelloWorld(w http.ResponseW
 	}
 
 	w.Header().Set("Content-Type", om.ContentType())
+	if proceed, err := tk_http.HandleGRPCResponse(w, r, headers); err != nil || !proceed {
+		return
+	}
 
-	w.WriteHeader(http.StatusOK)
 	if _, err = w.Write(buf); err != nil {
 		return
 	}

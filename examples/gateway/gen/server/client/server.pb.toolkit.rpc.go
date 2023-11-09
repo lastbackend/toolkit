@@ -7,7 +7,7 @@ import (
 	context "context"
 
 	"github.com/lastbackend/toolkit/examples/helloworld/gen"
-	grpc "github.com/lastbackend/toolkit/pkg/client/grpc"
+	client "github.com/lastbackend/toolkit/pkg/client"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -16,21 +16,21 @@ var _ context.Context
 var _ emptypb.Empty
 
 // Client gRPC API for ProxyGateway service
-func NewProxyGatewayRPCClient(service string, c grpc.Client) ProxyGatewayRPCClient {
+func NewProxyGatewayRPCClient(service string, c client.GRPCClient) ProxyGatewayRPCClient {
 	return &proxygatewayGrpcRPCClient{service, c}
 }
 
 // Client gRPC API for ProxyGateway service
 type ProxyGatewayRPCClient interface {
-	HelloWorld(ctx context.Context, req *servicepb.HelloRequest, opts ...grpc.CallOption) (*servicepb.HelloReply, error)
+	HelloWorld(ctx context.Context, req *servicepb.HelloRequest, opts ...client.GRPCCallOption) (*servicepb.HelloReply, error)
 }
 
 type proxygatewayGrpcRPCClient struct {
 	service string
-	cli     grpc.Client
+	cli     client.GRPCClient
 }
 
-func (c *proxygatewayGrpcRPCClient) HelloWorld(ctx context.Context, req *servicepb.HelloRequest, opts ...grpc.CallOption) (*servicepb.HelloReply, error) {
+func (c *proxygatewayGrpcRPCClient) HelloWorld(ctx context.Context, req *servicepb.HelloRequest, opts ...client.GRPCCallOption) (*servicepb.HelloReply, error) {
 	resp := new(servicepb.HelloReply)
 	if err := c.cli.Call(ctx, c.service, ProxyGateway_HelloWorldMethod, req, resp, opts...); err != nil {
 		return nil, err

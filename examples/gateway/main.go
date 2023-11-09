@@ -24,9 +24,7 @@ import (
 	"os"
 
 	servicepb "github.com/lastbackend/toolkit/examples/gateway/gen/server"
-	"github.com/lastbackend/toolkit/examples/gateway/middleware"
 	"github.com/lastbackend/toolkit/pkg/runtime"
-	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
 )
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -49,17 +47,6 @@ func main() {
 
 	// Logger settings
 	app.Log().Info("Run microservice")
-
-	// Add middleware
-	app.Server().HTTP().SetMiddleware("example", middleware.ExampleMiddleware)
-	app.Server().HTTP().SetMiddleware("request_id", middleware.RequestID)
-
-	// set middleware as global middleware
-	app.Server().HTTP().UseMiddleware("request_id")
-
-	// add handler to default http server
-	app.Server().HTTP().
-		AddHandler(http.MethodGet, "/health", HealthCheckHandler, tk_http.WithMiddleware("example"))
 
 	// Service run
 	if err := app.Start(context.Background()); err != nil {

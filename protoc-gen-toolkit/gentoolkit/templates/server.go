@@ -164,10 +164,12 @@ func (s *service{{ $.GetName | ToCamel }}) handlerHTTP{{ $.GetName | ToCamel }}{
 		errors.HTTP.InternalServerError(w)
 		return
 	}
-
-	w.Header().Set("Content-Type", om.ContentType())
-
-	w.WriteHeader(http.StatusOK)
+	
+  w.Header().Set("Content-Type", om.ContentType())
+	if proceed, err := tk_http.HandleGRPCResponse(w, r, headers); err != nil || !proceed {
+		return
+	}
+	
 	if _, err = w.Write(buf); err != nil {
 		return
 	}
