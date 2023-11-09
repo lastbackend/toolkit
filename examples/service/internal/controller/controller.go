@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"github.com/lastbackend/toolkit/pkg/client"
+	"time"
 
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/service/config"
@@ -21,18 +23,20 @@ type Controller struct {
 
 func (c *Controller) OnStart(ctx context.Context) error {
 	c.log.Info("> service controller: on start")
-	c.repo.Meta(ctx)
 	c.Call(ctx)
-
 	return nil
 }
 
 func (c *Controller) Call(_ context.Context) error {
+
+	header := make(map[string]string)
+	header["x-req-id"] = time.Now().String()
+
 	resp, err := c.services.Example().HelloWorld(context.Background(), &typespb.HelloWorldRequest{
 		Name: "name",
 		Type: "type",
 		Data: nil,
-	})
+	}, client.GRPCOptionHeaders(header))
 	if err != nil {
 		c.log.Error(err.Error())
 		return err

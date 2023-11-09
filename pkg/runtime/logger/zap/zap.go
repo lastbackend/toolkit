@@ -17,13 +17,15 @@ limitations under the License.
 package zap
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/lastbackend/toolkit/pkg/runtime"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger/empty"
 	"go.uber.org/fx/fxevent"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"os"
 
 	"sync"
 )
@@ -86,7 +88,7 @@ func NewLogger(runtime runtime.Runtime, fields logger.Fields) logger.Logger {
 		),
 	)
 
-	l.logger = zap.New(core, zapOptions...).Sugar().With(fields)
+	l.logger = zap.New(core, zapOptions...).Sugar().With()
 
 	return l
 }
@@ -182,23 +184,43 @@ func getZapLevel(level logger.Level) zapcore.Level {
 	}
 }
 
-func (l *zapLogger) getFields(fields logger.Fields) []interface{} {
-	fields = l.fieldsMerge(l.opts.Fields, fields)
-	var f = make([]interface{}, 0)
-	for k, v := range fields {
-		f = append(f, k)
-		f = append(f, v)
-	}
-	return f
+func (l *zapLogger) getFields(fields logger.Fields) []zapcore.Field {
+	return l.fieldsMerge(l.opts.Fields, fields)
 }
 
-func (l *zapLogger) fieldsMerge(parent, src map[string]interface{}) map[string]interface{} {
-	dst := make(map[string]interface{}, len(parent)+len(src))
+func (l *zapLogger) fieldsMerge(parent, src map[string]interface{}) []zapcore.Field {
+
+	var (
+		i   = 0
+		dst = make([]zapcore.Field, len(parent)+len(src))
+	)
+
 	for k, v := range parent {
-		dst[k] = v
+		switch v := v.(type) {
+		case int:
+			dst[i] = zap.Int(k, v)
+		case float64:
+			dst[i] = zap.Float64(k, v)
+		case string:
+			dst[i] = zap.String(k, v)
+		default:
+			dst[i] = zap.String(k, fmt.Sprintf("%s", v))
+		}
+		i++
 	}
+
 	for k, v := range src {
-		dst[k] = v
+		switch v := v.(type) {
+		case int:
+			dst[i] = zap.Int(k, v)
+		case float64:
+			dst[i] = zap.Float64(k, v)
+		case string:
+			dst[i] = zap.String(k, v)
+		default:
+			dst[i] = zap.String(k, fmt.Sprintf("%s", v))
+		}
+		i++
 	}
 	return dst
 }

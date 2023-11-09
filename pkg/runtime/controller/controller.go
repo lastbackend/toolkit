@@ -2,6 +2,10 @@ package controller
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/common-nighthawk/go-figure"
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/pkg/runtime"
@@ -9,9 +13,6 @@ import (
 	zp "github.com/lastbackend/toolkit/pkg/runtime/logger/zap"
 	"github.com/lastbackend/toolkit/pkg/runtime/meta"
 	"go.uber.org/fx"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 var shutdownSignals = []os.Signal{

@@ -17,7 +17,8 @@ limitations under the License.
 package config
 
 type Config struct {
-	Nested NestedConfig `env:"NESTED""`
+	DEMO   string       `env:"DEMO" required:"true" envDefault:"BAR"`
+	Nested NestedConfig `envPrefix:"NESTED_"`
 }
 
 type NestedConfig struct {

@@ -19,7 +19,10 @@ package server
 import (
 	"context"
 	"fmt"
-	"time"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	"github.com/lastbackend/toolkit/examples/service/internal/repository"
 
@@ -39,15 +42,23 @@ type Handlers struct {
 
 func (h Handlers) HelloWorld(ctx context.Context, req *typespb.HelloWorldRequest) (*typespb.HelloWorldResponse, error) {
 	h.app.Log().Info("ExamplseRpcServer: HelloWorld: call")
-	tk := h.repo.Get(ctx)
+
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.DataLoss, "failed to get metadata")
+	}
+
+	demo := h.repo.Get(ctx)
 
 	resp := typespb.HelloWorldResponse{
-		Id:        "",
-		Name:      fmt.Sprintf("%s: %d", req.Name, tk.Count),
-		Type:      req.Type,
-		Data:      nil,
-		CreatedAt: time.Now().Unix(),
-		UpdatedAt: time.Now().Unix(),
+		Id:   fmt.Sprintf("%d", demo.Id),
+		Name: fmt.Sprintf("%s: %d", req.Name, demo.Count),
+		Type: req.Type,
+	}
+
+	if len(md["x-req-id"]) > 0 {
+		header := metadata.New(map[string]string{"x-response-id": md["x-req-id"][0]})
+		grpc.SendHeader(ctx, header)
 	}
 
 	return &resp, nil
