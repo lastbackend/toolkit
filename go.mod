@@ -13,9 +13,9 @@ require (
 	github.com/getsentry/sentry-go v0.18.0
 	github.com/go-pg/pg/v10 v10.11.0
 	github.com/golang-migrate/migrate/v4 v4.15.1
-	github.com/google/uuid v1.3.0
-	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/websocket v1.5.0
+	github.com/google/uuid v1.3.1
+	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/websocket v1.5.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.0
 	github.com/hashicorp/consul/api v1.19.1
 	github.com/improbable-eng/grpc-web v0.15.0
@@ -28,20 +28,17 @@ require (
 	github.com/rabbitmq/amqp091-go v1.8.1
 	github.com/redis/go-redis/v9 v9.0.2
 	github.com/urfave/cli/v2 v2.24.4
-	go.uber.org/fx v1.20.0
+	go.uber.org/fx v1.20.1
 	go.uber.org/zap v1.26.0
-	golang.org/x/net v0.15.0
+	golang.org/x/net v0.18.0
 	golang.org/x/sync v0.3.0
-	golang.org/x/text v0.13.0
-	google.golang.org/genproto v0.0.0-20230913181813-007df8e322eb
-	google.golang.org/genproto/googleapis/api v0.0.0-20230803162519-f966b187b2e5
-	google.golang.org/grpc v1.58.1
+	golang.org/x/text v0.14.0
+	google.golang.org/genproto v0.0.0-20231106174013-bbf56f31fb17
+	google.golang.org/genproto/googleapis/api v0.0.0-20231030173426-d783a09b4405
+	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
 	gorm.io/driver/postgres v1.3.4
 	gorm.io/gorm v1.24.5
-)
-
-require (
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/bufbuild/protocompile v0.2.1-0.20230123224550-da57cd758c2f // indirect
 	github.com/cenkalti/backoff/v4 v4.2.0 // indirect
@@ -97,9 +94,9 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/dig v1.17.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.13.0 // indirect
-	golang.org/x/sys v0.12.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230913181813-007df8e322eb // indirect
+	golang.org/x/crypto v0.15.0 // indirect
+	golang.org/x/sys v0.14.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20231106174013-bbf56f31fb17 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	mellium.im/sasl v0.3.1 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect

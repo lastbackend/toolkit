@@ -17,19 +17,39 @@ limitations under the License.
 package middleware
 
 import (
-	"context"
-	"fmt"
-	"net/http"
+  "context"
+  "fmt"
+  "net/http"
+
+  "github.com/lastbackend/toolkit/pkg/runtime"
+  "github.com/lastbackend/toolkit/pkg/server"
 )
 
-// ExampleMiddleware - show request info middleware
-func ExampleMiddleware(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("Call: ExampleMiddleware")
+// RegisterExampleMiddleware - show request info middleware
+func RegisterExampleMiddleware(runtime runtime.Runtime) server.HttpServerMiddleware {
+  return &ExampleMiddleware{name: "example", runtime: runtime}
+}
 
-		// Set example data to request context
-		ctx := context.WithValue(r.Context(), "test-data", "example context data")
+type ExampleMiddleware struct {
+  name    server.KindMiddleware
+  runtime runtime.Runtime
+}
 
-		h.ServeHTTP(w, r.WithContext(ctx))
-	})
+func (e *ExampleMiddleware) Apply(h http.HandlerFunc) http.HandlerFunc {
+  return func(w http.ResponseWriter, r *http.Request) {
+    fmt.Println("Call: ExampleMiddleware")
+
+    // Set example data to request context
+    ctx := context.WithValue(r.Context(), "test-data", "example context data")
+
+    h.ServeHTTP(w, r.WithContext(ctx))
+  }
+}
+
+func (e *ExampleMiddleware) Order() int {
+  return 0
+}
+
+func (e *ExampleMiddleware) Kind() server.KindMiddleware {
+  return e.name
 }
