@@ -17,71 +17,71 @@ limitations under the License.
 package generator
 
 import (
-  "flag"
+	"flag"
 
-  "github.com/lastbackend/toolkit/protoc-gen-toolkit/descriptor"
-  "github.com/lastbackend/toolkit/protoc-gen-toolkit/gentoolkit"
-  "google.golang.org/protobuf/compiler/protogen"
-  "google.golang.org/protobuf/types/pluginpb"
+	"github.com/lastbackend/toolkit/protoc-gen-toolkit/descriptor"
+	"github.com/lastbackend/toolkit/protoc-gen-toolkit/gentoolkit"
+	"google.golang.org/protobuf/compiler/protogen"
+	"google.golang.org/protobuf/types/pluginpb"
 )
 
 type Generator struct {
-  files []*descriptor.File
+	files []*descriptor.File
 }
 
 func Init() *Generator {
-  g := new(Generator)
-  g.files = make([]*descriptor.File, 0)
-  return g
+	g := new(Generator)
+	g.files = make([]*descriptor.File, 0)
+	return g
 }
 
 func (g *Generator) Run() error {
-  var flagSet flag.FlagSet
+	var flagSet flag.FlagSet
 
-  protogen.Options{
-    ParamFunc: flagSet.Set,
-  }.Run(func(gen *protogen.Plugin) (err error) {
+	protogen.Options{
+		ParamFunc: flagSet.Set,
+	}.Run(func(gen *protogen.Plugin) (err error) {
 
-    gen.SupportedFeatures = uint64(pluginpb.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL)
+		gen.SupportedFeatures = uint64(pluginpb.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL)
 
-    desc := descriptor.NewDescriptor()
+		desc := descriptor.NewDescriptor()
 
-    if err := desc.LoadFromPlugin(gen); err != nil {
-      return err
-    }
+		if err := desc.LoadFromPlugin(gen); err != nil {
+			return err
+		}
 
-    if err := g.LoadFiles(gen, desc); err != nil {
-      return err
-    }
+		if err := g.LoadFiles(gen, desc); err != nil {
+			return err
+		}
 
-    // Generate generates a *.pb.toolkit.go file containing Toolkit service definitions.
-    contentFiles, err := gentoolkit.New(desc).Generate(g.files)
-    if err != nil {
-      return err
-    }
+		// Generate generates a *.pb.toolkit.go file containing Toolkit service definitions.
+		contentFiles, err := gentoolkit.New(desc).Generate(g.files)
+		if err != nil {
+			return err
+		}
 
-    // Write generated files to disk
-    for _, f := range contentFiles {
-      genFile := gen.NewGeneratedFile(f.GetName(), protogen.GoImportPath(f.GoPkg.Path))
-      if _, err := genFile.Write([]byte(f.GetContent())); err != nil {
-        return err
-      }
-    }
+		// Write generated files to disk
+		for _, f := range contentFiles {
+			genFile := gen.NewGeneratedFile(f.GetName(), protogen.GoImportPath(f.GoPkg.Path))
+			if _, err := genFile.Write([]byte(f.GetContent())); err != nil {
+				return err
+			}
+		}
 
-    return nil
-  })
+		return nil
+	})
 
-  return nil
+	return nil
 }
 
 func (g *Generator) LoadFiles(gen *protogen.Plugin, desc *descriptor.Descriptor) (err error) {
-  g.files = make([]*descriptor.File, 0)
-  for _, f := range gen.Request.FileToGenerate {
-    file, err := desc.FindFile(f)
-    if err != nil {
-      return err
-    }
-    g.files = append(g.files, file)
-  }
-  return err
+	g.files = make([]*descriptor.File, 0)
+	for _, f := range gen.Request.FileToGenerate {
+		file, err := desc.FindFile(f)
+		if err != nil {
+			return err
+		}
+		g.files = append(g.files, file)
+	}
+	return err
 }

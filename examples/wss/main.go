@@ -17,66 +17,66 @@ limitations under the License.
 package main
 
 import (
-  "context"
-  "fmt"
-  "io"
-  "net/http"
-  "os"
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
 
-  servicepb "github.com/lastbackend/toolkit/examples/wss/gen/server"
-  "github.com/lastbackend/toolkit/examples/wss/middleware"
-  "github.com/lastbackend/toolkit/pkg/runtime"
-  tk_http "github.com/lastbackend/toolkit/pkg/server/http"
-  "github.com/lastbackend/toolkit/pkg/server/http/websockets"
+	servicepb "github.com/lastbackend/toolkit/examples/wss/gen/server"
+	"github.com/lastbackend/toolkit/examples/wss/middleware"
+	"github.com/lastbackend/toolkit/pkg/runtime"
+	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
+	"github.com/lastbackend/toolkit/pkg/server/http/websockets"
 )
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
-  w.Header().Set("Content-Type", "application/json")
-  w.WriteHeader(http.StatusOK)
-  if _, err := io.WriteString(w, `{"alive": true}`); err != nil {
-    fmt.Println(err)
-  }
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if _, err := io.WriteString(w, `{"alive": true}`); err != nil {
+		fmt.Println(err)
+	}
 }
 
 func TestWSHandler(ctx context.Context, event websockets.Event, c *websockets.Client) error {
-  fmt.Println("Event:", event.Type, string(event.Payload))
-  fmt.Println("Context:", ctx.Value("test-data"))
-  return c.WriteMessage(websockets.TextMessage, event.Payload)
+	fmt.Println("Event:", event.Type, string(event.Payload))
+	fmt.Println("Context:", ctx.Value("test-data"))
+	return c.WriteMessage(websockets.TextMessage, event.Payload)
 }
 
 func main() {
 
-  // define service with name and options
-  app, err := servicepb.NewRouterService("wss",
-    runtime.WithVersion("0.1.0"),
-    runtime.WithDescription("Example router microservice"),
-    runtime.WithEnvPrefix("WSS"),
-  )
-  if err != nil {
-    fmt.Println(err)
-  }
+	// define service with name and options
+	app, err := servicepb.NewRouterService("wss",
+		runtime.WithVersion("0.1.0"),
+		runtime.WithDescription("Example router microservice"),
+		runtime.WithEnvPrefix("WSS"),
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
 
-  // Logger settings
-  app.Log().Info("Run microservice")
+	// Logger settings
+	app.Log().Info("Run microservice")
 
-  // Add middleware
-  app.Server().HTTP().SetMiddleware(middleware.RegisterExampleMiddleware)
-  app.Server().HTTP().SetMiddleware(middleware.RegisterRequestID)
+	// Add middleware
+	app.Server().HTTP().SetMiddleware(middleware.RegisterExampleMiddleware)
+	app.Server().HTTP().SetMiddleware(middleware.RegisterRequestID)
 
-  // set middleware as global middleware
-  app.Server().HTTP().UseMiddleware("request_id")
-  app.Server().HTTP().Subscribe("event:name", TestWSHandler)
+	// set middleware as global middleware
+	app.Server().HTTP().UseMiddleware("request_id")
+	app.Server().HTTP().Subscribe("event:name", TestWSHandler)
 
-  // add handler to default http server
-  app.Server().HTTP().
-    AddHandler(http.MethodGet, "/health", HealthCheckHandler, tk_http.WithMiddleware("example"))
+	// add handler to default http server
+	app.Server().HTTP().
+		AddHandler(http.MethodGet, "/health", HealthCheckHandler, tk_http.WithMiddleware("example"))
 
-  // Service run
-  if err := app.Start(context.Background()); err != nil {
-    app.Log().Errorf("could not run the service %v", err)
-    os.Exit(1)
-    return
-  }
+	// Service run
+	if err := app.Start(context.Background()); err != nil {
+		app.Log().Errorf("could not run the service %v", err)
+		os.Exit(1)
+		return
+	}
 
-  app.Log().Info("graceful stop")
+	app.Log().Info("graceful stop")
 }

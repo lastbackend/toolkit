@@ -17,47 +17,47 @@ limitations under the License.
 package main
 
 import (
-  "context"
-  "fmt"
-  "io"
-  "net/http"
-  "os"
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
 
-  servicepb "github.com/lastbackend/toolkit/examples/http/gen/server"
-  "github.com/lastbackend/toolkit/pkg/runtime"
+	servicepb "github.com/lastbackend/toolkit/examples/http/gen/server"
+	"github.com/lastbackend/toolkit/pkg/runtime"
 )
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
-  w.Header().Set("Content-Type", "application/json")
-  w.WriteHeader(http.StatusOK)
-  if _, err := io.WriteString(w, `{"alive": true}`); err != nil {
-    fmt.Println(err)
-  }
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if _, err := io.WriteString(w, `{"alive": true}`); err != nil {
+		fmt.Println(err)
+	}
 }
 
 func main() {
-  // define service with name and options
-  app, err := servicepb.NewHttpService("http",
-    runtime.WithVersion("0.1.0"),
-    runtime.WithDescription("Example http server"),
-    runtime.WithEnvPrefix("LB"),
-  )
-  if err != nil {
-    fmt.Println(err)
-  }
+	// define service with name and options
+	app, err := servicepb.NewHttpService("http",
+		runtime.WithVersion("0.1.0"),
+		runtime.WithDescription("Example http server"),
+		runtime.WithEnvPrefix("LB"),
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
 
-  // Add server
-  app.Server().HTTP().AddHandler(http.MethodGet, "/health", HealthCheckHandler)
+	// Add server
+	app.Server().HTTP().AddHandler(http.MethodGet, "/health", HealthCheckHandler)
 
-  // Logger settings
-  app.Log().Info("Run http server")
+	// Logger settings
+	app.Log().Info("Run http server")
 
-  // Service run
-  if err := app.Start(context.Background()); err != nil {
-    app.Log().Errorf("could not run the service %v", err)
-    os.Exit(1)
-    return
-  }
+	// Service run
+	if err := app.Start(context.Background()); err != nil {
+		app.Log().Errorf("could not run the service %v", err)
+		os.Exit(1)
+		return
+	}
 
-  app.Log().Info("graceful stop")
+	app.Log().Info("graceful stop")
 }

@@ -17,40 +17,40 @@ limitations under the License.
 package grpc
 
 import (
-  "github.com/lastbackend/toolkit/pkg/client"
-  "google.golang.org/grpc"
+	"github.com/lastbackend/toolkit/pkg/client"
+	"google.golang.org/grpc"
 
-  "context"
-  "sync"
+	"context"
+	"sync"
 )
 
 type stream struct {
-  sync.RWMutex
-  context context.Context
+	sync.RWMutex
+	context context.Context
 
-  grpc.ClientStream
+	grpc.ClientStream
 
-  request *client.GRPCRequest
-  conn    *poolConn
-  close   func(err error)
+	request *client.GRPCRequest
+	conn    *poolConn
+	close   func(err error)
 }
 
 func (s *stream) Context() context.Context {
-  return s.context
+	return s.context
 }
 
 func (s *stream) Headers() map[string]string {
-  return s.request.Headers()
+	return s.request.Headers()
 }
 
 func (s *stream) SendMsg(msg interface{}) error {
-  return s.ClientStream.SendMsg(msg)
+	return s.ClientStream.SendMsg(msg)
 }
 
 func (s *stream) RecvMsg(msg interface{}) (err error) {
-  return s.ClientStream.RecvMsg(msg)
+	return s.ClientStream.RecvMsg(msg)
 }
 
 func (s *stream) CloseSend() error {
-  return s.ClientStream.CloseSend()
+	return s.ClientStream.CloseSend()
 }

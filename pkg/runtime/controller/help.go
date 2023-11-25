@@ -1,8 +1,8 @@
 package controller
 
 import (
-  "os"
-  "text/template"
+	"os"
+	"text/template"
 )
 
 const templateHelpText string = `
@@ -29,58 +29,58 @@ ENVIRONMENT VARIABLES
 
 func (c *controller) help() bool {
 
-  var (
-    help, all, yaml, nocomments bool
-  )
+	var (
+		help, all, yaml, nocomments bool
+	)
 
-  for _, arg := range os.Args {
-    switch arg {
-    case "-h":
-      help = true
-    case "--help":
-      help = true
-    case "h":
-      help = true
-    case "help":
-      help = true
-    case "--all":
-      all = true
-    case "--yaml":
-      yaml = true
-    case "--without-comments":
-      nocomments = true
-    }
+	for _, arg := range os.Args {
+		switch arg {
+		case "-h":
+			help = true
+		case "--help":
+			help = true
+		case "h":
+			help = true
+		case "help":
+			help = true
+		case "--all":
+			all = true
+		case "--yaml":
+			yaml = true
+		case "--without-comments":
+			nocomments = true
+		}
 
-  }
+	}
 
-  if !help {
-    return false
-  }
+	if !help {
+		return false
+	}
 
-  type data struct {
-    Name string
-    Desc string
-    Envs string
-  }
+	type data struct {
+		Name string
+		Desc string
+		Envs string
+	}
 
-  tpl, err := template.New("help").Parse(templateHelpText)
-  if err != nil {
-    panic(err)
-  }
+	tpl, err := template.New("help").Parse(templateHelpText)
+	if err != nil {
+		panic(err)
+	}
 
-  var envs = c.Config().PrintTable(all, nocomments)
+	var envs = c.Config().PrintTable(all, nocomments)
 
-  if yaml {
-    envs = c.Config().PrintYaml(all, nocomments)
-  }
+	if yaml {
+		envs = c.Config().PrintYaml(all, nocomments)
+	}
 
-  if err := tpl.Execute(os.Stdout, data{
-    Name: c.meta.GetName(),
-    Desc: c.meta.GetDescription(),
-    Envs: envs,
-  }); err != nil {
-    panic(err)
-  }
+	if err := tpl.Execute(os.Stdout, data{
+		Name: c.meta.GetName(),
+		Desc: c.meta.GetDescription(),
+		Envs: envs,
+	}); err != nil {
+		panic(err)
+	}
 
-  return true
+	return true
 }
