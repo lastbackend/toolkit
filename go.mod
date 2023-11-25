@@ -3,7 +3,6 @@ module github.com/lastbackend/toolkit
 go 1.21
 
 require (
-	git.lstbknd.net/product/prime v0.0.0-20230929181409-e3e4905da311
 	github.com/caarlos0/env/v7 v7.0.0
 	github.com/centrifugal/centrifuge-go v0.9.4
 	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be
