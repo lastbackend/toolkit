@@ -27,7 +27,7 @@
   ],
   "paths": {
     "/hello": {
-      "get": {
+      "post": {
         "summary": "HelloWorld",
         "description": "Example say hello \u003cname\u003e handler",
         "operationId": "ProxyGateway_HelloWorld",
