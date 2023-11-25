@@ -57,7 +57,7 @@ func NewProxyGatewayService(name string, opts ...runtime.Option) (_ toolkit.Serv
 	// create new ProxyGateway HTTP server
 	app.runtime.Server().HTTPNew(name, nil)
 
-	app.runtime.Server().HTTP().AddHandler(http.MethodGet, "/hello", app.handlerHTTPProxyGatewayHelloWorld)
+	app.runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", app.handlerHTTPProxyGatewayHelloWorld)
 	//
 
 	return app.runtime.Service(), nil
@@ -72,14 +72,15 @@ func (s *serviceProxyGateway) handlerHTTPProxyGatewayHelloWorld(w http.ResponseW
 	var protoRequest servicepb.HelloRequest
 	var protoResponse servicepb.HelloReply
 
-	_, om := tk_http.GetMarshaler(s.runtime.Server().HTTP(), r)
+	im, om := tk_http.GetMarshaler(s.runtime.Server().HTTP(), r)
 
-	if err := r.ParseForm(); err != nil {
+	reader, err := tk_http.NewReader(r.Body)
+	if err != nil {
 		errors.HTTP.InternalServerError(w)
 		return
 	}
 
-	if err := tk_http.ParseRequestQueryParametersToProto(&protoRequest, r.Form); err != nil {
+	if err := im.NewDecoder(reader).Decode(&protoRequest); err != nil && err != io.EOF {
 		errors.HTTP.InternalServerError(w)
 		return
 	}

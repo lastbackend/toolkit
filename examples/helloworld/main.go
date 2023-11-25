@@ -17,51 +17,46 @@ limitations under the License.
 package main
 
 import (
-	"context"
-	"flag"
-	"fmt"
-	"google.golang.org/grpc/metadata"
-	"log"
-	"net"
+  "context"
+  "flag"
+  "fmt"
+  "log"
+  "net"
 
-	pb "github.com/lastbackend/toolkit/examples/helloworld/gen"
-	"google.golang.org/grpc"
+  pb "github.com/lastbackend/toolkit/examples/helloworld/gen"
+  "google.golang.org/grpc"
 )
 
 var (
-	port = flag.Int("port", 9000, "The server port")
+  port = flag.Int("port", 9000, "The server port")
 )
 
 // server is used to implement lastbackend.helloworld.GreeterServer.
 type server struct {
-	pb.UnimplementedGreeterServer
+  pb.UnimplementedGreeterServer
 }
 
 // SayHello implements lastbackend.helloworld.GreeterServer
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
-	log.Printf("Received: %v", in.GetName())
-
-	header := metadata.Pairs("x-http-status-code", "302", "x-http-redirect-uri", "https://lastbackend.com?auth=demo")
-	grpc.SendHeader(ctx, header)
-
-	return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
+  log.Printf("Received: %v", in.GetName())
+  return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
 }
 
 func main() {
-	flag.Parse()
+  flag.Parse()
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
+  lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+  if err != nil {
+    log.Fatalf("failed to listen: %v", err)
+  }
 
-	s := grpc.NewServer()
+  s := grpc.NewServer()
 
-	pb.RegisterGreeterServer(s, &server{})
+  pb.RegisterGreeterServer(s, &server{})
 
-	log.Printf("server listening at %v", lis.Addr())
+  log.Printf("server listening at %v", lis.Addr())
 
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+  if err := s.Serve(lis); err != nil {
+    log.Fatalf("failed to serve: %v", err)
+  }
 }

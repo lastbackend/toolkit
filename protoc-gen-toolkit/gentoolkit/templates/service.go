@@ -103,7 +103,7 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 	app.runtime.Server().GRPC().SetConstructor(register{{ $svc.GetName }}GRPCServer)
 {{ end }}
 
-{{ if $svc.UseHTTPProxyServer }}
+{{ if or $svc.UseHTTPProxyServer $svc.UseHTTPServer }}
 	// create new {{ $svc.GetName }} HTTP server
 	app.runtime.Server().HTTPNew(name, nil)
 {{ end }}

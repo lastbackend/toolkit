@@ -25,9 +25,10 @@ extend google.protobuf.FileOptions {
 message Runtime {
   enum Server {
     GRPC = 0;
-    HTTP_PROXY = 1;
-    WEBSOCKET_PROXY = 2;
-    WEBSOCKET = 3;
+    HTTP = 1;
+    HTTP_PROXY = 2;
+    WEBSOCKET_PROXY = 3;
+    WEBSOCKET = 4;
   }
   repeated Plugin plugins = 1;
   repeated Server servers = 2;

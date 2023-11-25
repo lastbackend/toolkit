@@ -54,8 +54,9 @@ func (d *Descriptor) loadServices(file *File) error {
       eService := proto.GetExtension(svc.Options, toolkit_annotattions.E_Runtime)
       if eService != nil {
         ss := eService.(*toolkit_annotattions.Runtime)
-        svc.UseGRPCServer = ss.Servers == nil && len(ss.Servers) == 0 && len(svc.Methods) > 0
+        //svc.UseGRPCServer = ss.Servers == nil && len(ss.Servers) == 0 && len(svc.Methods) > 0
         if ss.Servers != nil {
+          svc.UseHTTPServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_HTTP)
           svc.UseHTTPProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_HTTP_PROXY)
           svc.UseWebsocketProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_WEBSOCKET_PROXY)
           svc.UseWebsocketServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_WEBSOCKET)
@@ -64,10 +65,10 @@ func (d *Descriptor) loadServices(file *File) error {
       }
     }
 
-    if !svc.UseHTTPProxyServer && !svc.UseWebsocketProxyServer && !svc.UseWebsocketServer && !svc.UseGRPCServer {
-      // Use GRPC Server as default if it has methods
-      svc.UseGRPCServer = len(svc.Methods) > 0
-    }
+    //if !svc.UseHTTPProxyServer && !svc.UseHTTPServer && !svc.UseWebsocketProxyServer && !svc.UseWebsocketServer && !svc.UseGRPCServer {
+    // Use GRPC Server as default if it has methods
+    //svc.UseGRPCServer = len(svc.Methods) > 0
+    //}
 
     services = append(services, svc)
   }

@@ -6,12 +6,12 @@ package serverpb
 import (
 	"context"
 	"encoding/json"
-	"github.com/lastbackend/toolkit/pkg/client"
 	"io"
 	"net/http"
 
 	toolkit "github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/examples/helloworld/gen"
+	client "github.com/lastbackend/toolkit/pkg/client"
 	runtime "github.com/lastbackend/toolkit/pkg/runtime"
 	controller "github.com/lastbackend/toolkit/pkg/runtime/controller"
 	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
@@ -27,13 +27,13 @@ import (
 var (
 	_ context.Context
 	_ emptypb.Empty
-	_ client.GRPCClient
 	_ http.Handler
 	_ errors.Err
 	_ io.Reader
 	_ json.Marshaler
 	_ tk_ws.Client
 	_ tk_http.Handler
+	_ client.GRPCClient
 )
 
 // Definitions
@@ -61,9 +61,7 @@ func NewRouterService(name string, opts ...runtime.Option) (_ toolkit.Service, e
 	// loop over plugins and register plugin in toolkit
 	app.runtime.Plugin().Provide(func() Redis1Plugin { return plugin_redis1 })
 
-	// create new Router HTTP server
-	app.runtime.Server().HTTPNew(name, nil)
-	app.runtime.Server().HTTP().UseMiddleware("request_id")
+	app.runtime.Server().HTTP().UseMiddleware("middleware1")
 	app.runtime.Server().HTTP().AddHandler(http.MethodGet, "/events", app.runtime.Server().HTTP().ServerWS)
 	app.runtime.Server().HTTP().Subscribe("SayHello", app.handlerWSProxyRouterSayHello)
 

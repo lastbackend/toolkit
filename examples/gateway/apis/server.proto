@@ -79,7 +79,7 @@ service ProxyGateway {
       method: "/helloworld.Greeter/SayHello",
     };
     option (google.api.http) = {
-      get: "/hello"
+      post: "/hello"
     };
   };
 }

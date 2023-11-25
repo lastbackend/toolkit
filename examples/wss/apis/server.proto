@@ -49,7 +49,7 @@ option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
 
 //  Example methods
 service Router {
-  option (toolkit.service) = {
+  option (toolkit.runtime) = {
     servers: [WEBSOCKET_PROXY, WEBSOCKET]
     plugins: [{
       prefix: "redis1"
