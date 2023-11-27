@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package toolkit;
+
+option go_package = "github.com/lastbackend/toolkit/protoc-gen-toolkit/toolkit/options;annotations";
+
+import "google/protobuf/descriptor.proto";
+
+message Plugin {
+  string plugin = 1;
+  string prefix = 2;
+}
+
+message Service {
+  string service = 1;
+  string package = 2;
+}
+
+extend google.protobuf.FileOptions {
+  repeated Plugin plugins = 50001;
+  repeated Service services = 50002;
+  TestSpec tests_spec = 50004;
+}
+
+message Runtime {
+  enum Server {
+    GRPC = 0;
+    HTTP = 1;
+    HTTP_PROXY = 2;
+    WEBSOCKET_PROXY = 3;
+    WEBSOCKET = 4;
+  }
+  repeated Plugin plugins = 1;
+  repeated Server servers = 2;
+}
+
+extend google.protobuf.ServiceOptions {
+  Runtime runtime = 70001;
+  ServiceHttpProxy http_proxy = 70002;
+}
+
+message TestSpec {
+  MockeryTestsSpec mockery = 1;
+}
+
+message MockeryTestsSpec {
+  string package = 1;
+}
+
+extend google.protobuf.MethodOptions {
+  Server server = 60001;
+}
+
+message Server {
+  oneof server {
+    HttpProxy http_proxy = 1;
+    WsProxy websocket_proxy = 2;
+    bool websocket = 3;
+  }
+}
+
+message ServiceHttpProxy {
+  repeated string middlewares = 3;
+}
+
+message HttpProxy {
+  string service = 1;
+  string method = 2;
+  repeated string middlewares = 3;
+  repeated string exclude_global_middlewares = 4;
+}
+
+message WsProxy {
+  string service = 1;
+  string method = 2;
+}

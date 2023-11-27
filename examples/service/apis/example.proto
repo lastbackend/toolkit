@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package lastbackend.example;
+
+option go_package = "github.com/lastbackend/toolkit/examples/service/gen;servicepb";
+
+import "github.com/lastbackend/toolkit/protoc-gen-toolkit/toolkit/options/annotations.proto";
+import "github.com/lastbackend/toolkit/examples/service/apis/ptypes/messages.proto";
+
+// =====================================================
+// Generate mocks
+// =====================================================
+option (toolkit.tests_spec) = {
+  mockery: {
+    package: "github.com/lastbackend/toolkit/examples/service/tests/service_mocks"
+  }
+};
+
+// =====================================================
+// Install clients
+// =====================================================
+option (toolkit.services) = {
+  service: "example",
+  package: "github.com/lastbackend/toolkit/examples/service/gen/client"
+};
+
+option (toolkit.plugins) = {
+  prefix: "pgsql"
+  plugin: "postgres_gorm"
+};
+
+option (toolkit.plugins) = {
+  prefix: "redis"
+  plugin: "redis"
+};
+
+
+// =====================================================
+// RPC methods
+// =====================================================
+service Example {
+  option (toolkit.runtime) = {
+    servers: [GRPC]
+  };
+  option (toolkit.http_proxy) = {
+    middlewares: [
+      "request_id"
+    ]
+  };
+
+  //  Example methods
+  rpc HelloWorld(HelloWorldRequest) returns (HelloWorldResponse) {}
+};
+
+service Sample {
+  option (toolkit.runtime).plugins = {
+    prefix: "redis2"
+    plugin: "redis"
+  };
+};

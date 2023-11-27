@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package gateway;
+
+option go_package = "github.com/lastbackend/toolkit/examples/gateway/gen/server;serverpb";
+
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+import "github.com/lastbackend/toolkit/protoc-gen-toolkit/toolkit/options/annotations.proto";
+import "github.com/lastbackend/toolkit/examples/helloworld/apis/helloworld.proto";
+
+// =====================================================
+// Swagger spec
+// =====================================================
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    title: "Gateway router"
+    version: "1.0"
+    contact: {
+      name: "Last.Backend"
+      url: "https://lastbackend.com"
+      email: "teams@lastbackend.com"
+    };
+  };
+  host: 'lastbackend.com'
+  schemes: [HTTP, HTTPS]
+  consumes: "application/json"
+  produces: "application/json"
+  responses: {
+    key: "500"
+    value: {
+      description: "Internal Server Error"
+      schema: {
+        json_schema: {
+          type: OBJECT,
+          read_only: true,
+          example: "{\"code\": 500, \"status\": \"Internal Server Error\", \"message\": \"Internal Server Error\"}"
+        };
+      };
+    };
+  },
+};
+
+// =====================================================
+// HTTP proxy methods
+// =====================================================
+
+//  Example methods
+service ProxyGateway {
+  option (toolkit.runtime) = {
+    servers: [HTTP_PROXY]
+  };
+  option (toolkit.http_proxy) = {
+    middlewares: []
+  };
+
+  rpc HelloWorld(helloworld.HelloRequest) returns (helloworld.HelloReply) {
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "HelloWorld"
+      description: "Example say hello <name> handler"
+      responses: {
+        key: "200"
+        value: {
+          description: "Returned when the request successful."
+          schema: {
+            json_schema: {
+              type: OBJECT,
+              read_only: true,
+              example: "{\"message\": \"Hello <name>\"}"
+            };
+          };
+        };
+      };
+    };
+    option (toolkit.server).http_proxy = {
+      service: "helloworld",
+      method: "/helloworld.Greeter/SayHello",
+    };
+    option (google.api.http) = {
+      post: "/hello"
+    };
+  };
+}

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="2" failures="2" errors="0" time="1.075469">
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/lastbackend/toolkit/examples/service" timestamp="2023-03-01T21:32:58+03:00">
+		<properties>
+			<property name="go.version" value="go1.19.5 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/lastbackend/toolkit/examples/service/config" timestamp="2023-03-01T21:32:58+03:00">
+		<properties>
+			<property name="go.version" value="go1.19.5 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/lastbackend/toolkit/examples/service/gen" timestamp="2023-03-01T21:32:58+03:00">
+		<properties>
+			<property name="go.version" value="go1.19.5 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/lastbackend/toolkit/examples/service/gen/client" timestamp="2023-03-01T21:32:58+03:00">
+		<properties>
+			<property name="go.version" value="go1.19.5 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/lastbackend/toolkit/examples/service/gen/ptypes" timestamp="2023-03-01T21:32:58+03:00">
+		<properties>
+			<property name="go.version" value="go1.19.5 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/lastbackend/toolkit/examples/service/gen/tests" timestamp="2023-03-01T21:32:58+03:00">
+		<properties>
+			<property name="go.version" value="go1.19.5 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/lastbackend/toolkit/examples/service/internal/controller" timestamp="2023-03-01T21:32:58+03:00">
+		<properties>
+			<property name="go.version" value="go1.19.5 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/lastbackend/toolkit/examples/service/internal/repository" timestamp="2023-03-01T21:32:58+03:00">
+		<properties>
+			<property name="go.version" value="go1.19.5 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="2" failures="2" time="0.285000" name="github.com/lastbackend/toolkit/examples/service/internal/server" timestamp="2023-03-01T21:32:58+03:00">
+		<properties>
+			<property name="go.version" value="go1.19.5 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/lastbackend/toolkit/examples/service/internal/server" name="TestExampleServer_HelloWorld/empty_hello_world_response" time="0.000000">
+			<failure message="Failed" type="">=== RUN   TestExampleServer_HelloWorld/empty_hello_world_response&#xA;&#xA;    --- FAIL: TestExampleServer_HelloWorld/empty_hello_world_response (0.00s)&#xA;panic: runtime error: invalid memory address or nil pointer dereference [recovered]&#xA;&#x9;panic: runtime error: invalid memory address or nil pointer dereference&#xA;[signal SIGSEGV: segmentation violation code=0x2 addr=0x0 pc=0x10331d294]&#xA;&#xA;goroutine 7 [running]:&#xA;testing.tRunner.func1.2({0x1035a4fa0, 0x103c6bae0})&#xA;&#x9;/opt/homebrew/Cellar/go/1.19.5/libexec/src/testing/testing.go:1396 +0x278&#xA;testing.tRunner.func1()&#xA;&#x9;/opt/homebrew/Cellar/go/1.19.5/libexec/src/testing/testing.go:1399 +0x41c&#xA;panic({0x1035a4fa0, 0x103c6bae0})&#xA;&#x9;/opt/homebrew/Cellar/go/1.19.5/libexec/src/runtime/panic.go:890 +0x258&#xA;github.com/lastbackend/toolkit/examples/service/internal/server.TestExampleServer_HelloWorld.func1(0xc0000e1040)&#xA;&#x9;/opt/src/github.com/lastbackend/toolkit/examples/service/internal/server/server_test.go:93 +0x164&#xA;testing.tRunner(0xc0000e1040, 0xc0001e9c20)&#xA;&#x9;/opt/homebrew/Cellar/go/1.19.5/libexec/src/testing/testing.go:1446 +0x18c&#xA;created by testing.(*T).Run&#xA;&#x9;/opt/homebrew/Cellar/go/1.19.5/libexec/src/testing/testing.go:1493 +0x560&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/lastbackend/toolkit/examples/service/internal/server" name="TestExampleServer_HelloWorld" time="0.000000">
+			<failure message="Failed" type="">=== RUN   TestExampleServer_HelloWorld&#xA;--- FAIL: TestExampleServer_HelloWorld (0.00s)&#xA;</failure>
+		</testcase>
+	</testsuite>
+</testsuites>

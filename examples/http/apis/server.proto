@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package http;
+
+option go_package = "github.com/lastbackend/toolkit/examples/http/gen/server;serverpb";
+
+import "google/api/annotations.proto";
+
+import "github.com/lastbackend/toolkit/protoc-gen-toolkit/toolkit/options/annotations.proto";
+
+// Messages
+
+// The request message containing the user's name.
+message HelloRequest {
+  string name = 1;
+}
+
+// The response message containing the greetings
+message HelloResponse {
+  string message = 1;
+}
+
+// =====================================================
+// HTTP methods
+// =====================================================
+
+//  Example methods
+service Http {
+  option (toolkit.runtime) = {
+    servers: [HTTP]
+  };
+  option (toolkit.http_proxy) = {
+    middlewares: []
+  };
+
+  rpc HelloWorld(HelloRequest) returns (HelloResponse) {
+    option (google.api.http) = {
+      get: "/hello"
+    };
+  };
+}
