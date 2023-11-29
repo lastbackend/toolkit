@@ -99,7 +99,7 @@ Define your application
   }
 ```
 
-Adn now you can start it:
+And now you can start it:
 
 ```go
   if err := app.Start(context.Background()); err != nil {
