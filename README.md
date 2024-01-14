@@ -23,7 +23,7 @@ Toolkit abstracts away the details of distributed systems. Here are the main fea
 
 - **Configs** - Register your own config in main.go and use it from anywhere. The config interface provides a way to load application level config from env vars.
 
-- **Plugins** - Rich plugin system to reuse same code. Plugins are designed as connectors to user services like databases, brokers, caches, etc...
+- **Plugins** - Rich plugin system to reuse same code. Plugins are designed as connectors to user services like databases, brokers, caches, etc... [See repository](https://github.com/lastbackend/toolkit-plugins). 
 
 - **Packages** - Automatic packages system for custom packages logic. Like repositories, controllers and other stuff. Can be powerupped with Hooks: <PreStart, OnStart, OnStop> to customize applciation logic.
 
