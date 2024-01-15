@@ -10,6 +10,8 @@ import (
 	"net/http"
 
 	toolkit "github.com/lastbackend/toolkit"
+	"github.com/lastbackend/toolkit-plugins/postgres_gorm"
+	"github.com/lastbackend/toolkit-plugins/redis"
 	example "github.com/lastbackend/toolkit/examples/service/gen/client"
 	"github.com/lastbackend/toolkit/examples/service/gen/ptypes"
 	client "github.com/lastbackend/toolkit/pkg/client"
@@ -18,8 +20,6 @@ import (
 	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
 	errors "github.com/lastbackend/toolkit/pkg/server/http/errors"
 	tk_ws "github.com/lastbackend/toolkit/pkg/server/http/websockets"
-	"github.com/lastbackend/toolkit/plugin/postgres_gorm"
-	"github.com/lastbackend/toolkit/plugin/redis"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -94,6 +94,9 @@ func NewExampleService(name string, opts ...runtime.Option) (_ toolkit.Service, 
 	// set descriptor to Example GRPC server
 	app.runtime.Server().GRPC().SetDescriptor(Example_ServiceDesc)
 	app.runtime.Server().GRPC().SetConstructor(registerExampleGRPCServer)
+
+	// create new Example HTTP server
+	app.runtime.Server().HTTPNew(name, nil)
 
 	app.runtime.Provide(exampleServicesRegister)
 

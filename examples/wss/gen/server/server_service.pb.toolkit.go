@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	toolkit "github.com/lastbackend/toolkit"
+	"github.com/lastbackend/toolkit-plugins/redis"
 	"github.com/lastbackend/toolkit/examples/helloworld/gen"
 	client "github.com/lastbackend/toolkit/pkg/client"
 	runtime "github.com/lastbackend/toolkit/pkg/runtime"
@@ -17,7 +18,6 @@ import (
 	tk_http "github.com/lastbackend/toolkit/pkg/server/http"
 	errors "github.com/lastbackend/toolkit/pkg/server/http/errors"
 	tk_ws "github.com/lastbackend/toolkit/pkg/server/http/websockets"
-	"github.com/lastbackend/toolkit/plugin/redis"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -61,7 +61,10 @@ func NewRouterService(name string, opts ...runtime.Option) (_ toolkit.Service, e
 	// loop over plugins and register plugin in toolkit
 	app.runtime.Plugin().Provide(func() Redis1Plugin { return plugin_redis1 })
 
-	app.runtime.Server().HTTP().UseMiddleware("middleware1")
+	// create new Router HTTP server
+	app.runtime.Server().HTTPNew(name, nil)
+
+	app.runtime.Server().HTTP().UseMiddleware("example")
 	app.runtime.Server().HTTP().AddHandler(http.MethodGet, "/events", app.runtime.Server().HTTP().ServerWS)
 	app.runtime.Server().HTTP().Subscribe("SayHello", app.handlerWSProxyRouterSayHello)
 

@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/lastbackend/toolkit"
+	"github.com/lastbackend/toolkit-plugins/postgres_gorm"
 	servicepb "github.com/lastbackend/toolkit/examples/service/gen"
 	"github.com/lastbackend/toolkit/pkg/runtime/logger"
-	"github.com/lastbackend/toolkit/plugin/postgres_gorm"
 )
 
 // The Repository represents Model.

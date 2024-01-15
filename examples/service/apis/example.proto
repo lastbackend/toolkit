@@ -40,7 +40,7 @@ option (toolkit.plugins) = {
 // =====================================================
 service Example {
   option (toolkit.runtime) = {
-    servers: [GRPC]
+    servers: [GRPC, HTTP]
   };
   option (toolkit.http_proxy) = {
     middlewares: [

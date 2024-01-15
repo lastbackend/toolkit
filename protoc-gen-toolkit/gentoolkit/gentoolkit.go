@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	defaultRepoRootPath = "github.com/lastbackend/toolkit"
+	defaultRepoRootPath = "github.com/lastbackend/toolkit-plugins"
 )
 
 type Generator interface {
@@ -161,8 +161,8 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 				}
 				if _, ok := pluginImportsExists[props.Plugin]; !ok {
 					imports = append(imports, descriptor.GoPackage{
-						Path: fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
-						Name: path.Base(fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
+						Path: fmt.Sprintf("%s/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
+						Name: path.Base(fmt.Sprintf("%s/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
 					})
 				}
 				plugins[props.Plugin] = append(plugins[props.Plugin], &descriptor.Plugin{
@@ -207,8 +207,8 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 						}
 						if _, ok := pluginImportsExists[props.Plugin]; !ok {
 							imports = append(imports, descriptor.GoPackage{
-								Path: fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
-								Name: path.Base(fmt.Sprintf("%s/plugin/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
+								Path: fmt.Sprintf("%s/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
+								Name: path.Base(fmt.Sprintf("%s/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
 							})
 						}
 
