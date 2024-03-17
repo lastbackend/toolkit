@@ -26,9 +26,8 @@ message Runtime {
   enum Server {
     GRPC = 0;
     HTTP = 1;
-    HTTP_PROXY = 2;
-    WEBSOCKET_PROXY = 3;
-    WEBSOCKET = 4;
+    WEBSOCKET_PROXY = 2;
+    WEBSOCKET = 3;
   }
   repeated Plugin plugins = 1;
   repeated Server servers = 2;
@@ -66,8 +65,9 @@ message ServiceHttpProxy {
 message HttpProxy {
   string service = 1;
   string method = 2;
-  repeated string middlewares = 3;
-  repeated string exclude_global_middlewares = 4;
+  bool grpc_proxy = 3;
+  repeated string middlewares = 4;
+  repeated string exclude_global_middlewares = 5;
 }
 
 message WsProxy {

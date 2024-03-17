@@ -62,6 +62,20 @@ func register{{ $.GetName }}GRPCServer(runtime runtime.Runtime, srv {{ $.GetName
 }
 `
 
+// ServiceInterfaceDefineTpl is defined service template used for new services.
+var ServiceInterfaceDefineTpl = `// Define services for {{ .GetName }} HTTP server 
+
+type {{ .GetName }}HTTPService interface {
+{{ range $m := .Methods }}
+{{ if not $m.IsWebsocket }}
+	{{ if and (not $m.GetServerStreaming) (not $m.GetClientStreaming) }}
+		{{ $m.GetName }}(ctx context.Context, req *{{ $m.RequestType.GoType $m.Service.File.GoPkg.Path }}) (*{{ $m.ResponseType.GoType $m.Service.File.GoPkg.Path }}, error)
+	{{ end }}
+{{ end }}
+{{ end }}
+}
+`
+
 // ServerHTTPDefineTpl is the server HTTP define template used for new services.
 var ServerHTTPDefineTpl = `// Define HTTP handlers for Router HTTP server
 {{- range $m := .Methods }}
@@ -93,13 +107,13 @@ func (s *service{{ $.GetName | ToCamel }}) handlerWSProxy{{ $.GetName | ToCamel 
 	return c.WriteJSON(protoResponse)
 }
 {{- end }}
-{{ if and $.UseHTTPProxyServer (not $binding.WebsocketProxy) (not $binding.Websocket) }}
+{{ if and (not $binding.WebsocketProxy) (not $binding.Websocket) }}
 func (s *service{{ $.GetName | ToCamel }}) handlerHTTP{{ $.GetName | ToCamel }}{{ $m.GetName | ToCamel }}{{- if $binding.AdditionalBinding }}_{{ $binding.Index }}{{ end }}(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
 	var protoRequest {{ $binding.RequestType.GoType $binding.Method.Service.File.GoPkg.Path }}
-	var protoResponse {{ $binding.ResponseType.GoType $binding.Method.Service.File.GoPkg.Path }}
+	var protoResponse {{ if not $binding.GrpcProxy }}*{{ end }}{{ $binding.ResponseType.GoType $binding.Method.Service.File.GoPkg.Path }}
 
 	{{ if or (eq $binding.HttpMethod "http.MethodPost") (eq $binding.HttpMethod "http.MethodPut") (eq $binding.HttpMethod "http.MethodPatch") }}
 		{{ if eq $binding.RawBody "*" }}
@@ -151,13 +165,21 @@ func (s *service{{ $.GetName | ToCamel }}) handlerHTTP{{ $.GetName | ToCamel }}{
 		return
 	}
 
+	{{ if $binding.GrpcProxy }}
 	callOpts := make([]client.GRPCCallOption, 0)
 	callOpts = append(callOpts, client.GRPCOptionHeaders(headers))
-
+ 
 	if err := s.runtime.Client().GRPC().Call(ctx, "{{ $binding.Service }}", "{{ $binding.RpcPath }}", &protoRequest, &protoResponse, callOpts...); err != nil {
 		errors.GrpcErrorHandlerFunc(w, err)
 		return			
 	}
+	{{ else }}
+	protoResponse, err = s.runtime.Server().HTTP().GetService().({{ $.GetName }}HTTPService).{{ $binding.RpcMethod }}(ctx, &protoRequest)
+	if err != nil {
+		errors.GrpcErrorHandlerFunc(w, err)
+		return			
+	}	
+	{{ end  }}
 
 	buf, err := om.Marshal(protoResponse)
 	if err != nil {

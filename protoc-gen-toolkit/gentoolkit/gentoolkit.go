@@ -178,7 +178,7 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 	}
 
 	for _, svc := range file.Services {
-		if !svc.UseGRPCServer && !svc.UseHTTPProxyServer && !svc.UseWebsocketProxyServer {
+		if !svc.UseGRPCServer && !svc.UseHTTPServer && !svc.UseWebsocketProxyServer {
 			continue
 		}
 		for _, m := range svc.Methods {
