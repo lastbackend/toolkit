@@ -33,6 +33,9 @@ type HTTPServer interface {
 	GetMiddlewares() []any
 	SetMiddleware(middleware any)
 
+	SetService(service interface{})
+	GetService() interface{}
+
 	AddHandler(method, path string, h http.HandlerFunc, opts ...HTTPServerOption)
 
 	GetConstructor() interface{}

@@ -53,7 +53,6 @@ type grpcServer struct {
 	// fn for server registration
 	provide interface{}
 	service interface{}
-	handler interface{}
 
 	interceptors *Interceptors
 
@@ -117,7 +116,7 @@ func (g *grpcServer) GetService() interface{} {
 
 // RegisterService - set user-defined handlers
 func (g *grpcServer) RegisterService(service interface{}) {
-	g.handler = service
+	g.service = service
 	return
 }
 
@@ -227,7 +226,7 @@ func (g *grpcServer) Start(_ context.Context) error {
 	g.Unlock()
 
 	g.grpc = grpc.NewServer(g.parseOptions(g.options)...)
-	g.grpc.RegisterService(&g.descriptor, g.handler)
+	g.grpc.RegisterService(&g.descriptor, g.service)
 
 	if g.opts.GRPCWebPort > 0 {
 
