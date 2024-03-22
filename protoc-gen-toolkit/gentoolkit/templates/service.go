@@ -84,7 +84,6 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 		return nil, err
 	}
 
-
 	// loop over plugins and initialize plugin instance
 	{{- template "plugin-init" $.Plugins }}
 	{{- template "plugin-init" $svc.Plugins }}
@@ -103,12 +102,12 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 	app.runtime.Server().GRPC().SetConstructor(register{{ $svc.GetName }}GRPCServer)
 {{ end }}
 
-{{ if or $svc.UseHTTPProxyServer $svc.UseHTTPServer }}
+{{ if $svc.UseHTTPServer }}
 	// create new {{ $svc.GetName }} HTTP server
 	app.runtime.Server().HTTPNew(name, nil)
 {{ end }}
-{{ if and (or $svc.UseHTTPProxyServer $svc.UseWebsocketProxyServer $svc.UseWebsocketServer) $svc.Methods }}
-	{{ if and (or $svc.UseHTTPProxyServer $svc.UseWebsocketProxyServer) $svc.HTTPMiddlewares }}app.runtime.Server().HTTP().UseMiddleware({{ range $index, $mdw := $svc.HTTPMiddlewares }}{{ if lt 0 $index }}, {{ end }}"{{ $mdw }}"{{ end }}){{ end }}
+{{ if and (or $svc.UseWebsocketProxyServer $svc.UseWebsocketServer) $svc.Methods }}
+	{{ if and $svc.UseWebsocketProxyServer $svc.HTTPMiddlewares }}app.runtime.Server().HTTP().UseMiddleware({{ range $index, $mdw := $svc.HTTPMiddlewares }}{{ if lt 0 $index }}, {{ end }}"{{ $mdw }}"{{ end }}){{ end }}
 	{{- range $m := $svc.Methods }}
 	{{- range $binding := $m.Bindings }}
 		{{- if and $binding.Websocket $svc.UseWebsocketServer }}
@@ -117,7 +116,7 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 		{{- if and $svc.UseWebsocketProxyServer $binding.WebsocketProxy (not $binding.Websocket) }}
 		app.runtime.Server().HTTP().Subscribe("{{ $binding.RpcMethod }}", app.handlerWSProxy{{ $svc.GetName | ToCamel }}{{ $m.GetName | ToCamel }})
 		{{- end }}
-		{{- if and $svc.UseHTTPProxyServer (not $binding.WebsocketProxy) (not $binding.Websocket) }}
+		{{- if and (not $binding.WebsocketProxy) (not $binding.Websocket) }}
 		app.runtime.Server().HTTP().AddHandler({{ $binding.HttpMethod }}, "{{ $binding.HttpPath }}", app.handlerHTTP{{ $svc.GetName | ToCamel }}{{ $m.GetName | ToCamel }}{{- if $binding.AdditionalBinding }}_{{ $binding.Index }}{{ end }}{{- if $binding.Middlewares }},
 			{{ range $index, $mdw := $binding.Middlewares }}{{ if lt 0 $index }}, {{ end }}tk_http.WithMiddleware("{{ $mdw }}"){{ end }}{{ end }}{{- if $binding.ExcludeGlobalMiddlewares }}, 
 			{{ range $index, $mdw := $binding.ExcludeGlobalMiddlewares }}{{ if lt 0 $index }}, {{ end }}tk_http.WithExcludeGlobalMiddleware("{{ $mdw }}"){{ end }}{{ end }})
@@ -137,7 +136,10 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 {{- template "grpc-service-define" . }}
 {{ end }}
 
-{{ if and (or $svc.UseHTTPProxyServer $svc.UseWebsocketProxyServer $svc.UseWebsocketServer) .Methods }}
+{{ if and (or $svc.UseHTTPServer $svc.UseWebsocketProxyServer $svc.UseWebsocketServer) .Methods }}
+{{ if $svc.UseHTTPServer }}
+{{- template "http-service-define" . }}
+{{ end }}
 {{- template "http-handler-define" . }}
 {{- end }}
 

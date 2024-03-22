@@ -56,7 +56,6 @@ func (d *Descriptor) loadServices(file *File) error {
 				ss := eService.(*toolkit_annotattions.Runtime)
 				if ss.Servers != nil {
 					svc.UseHTTPServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_HTTP)
-					svc.UseHTTPProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_HTTP_PROXY)
 					svc.UseWebsocketProxyServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_WEBSOCKET_PROXY)
 					svc.UseWebsocketServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_WEBSOCKET)
 					svc.UseGRPCServer = checkSetServerOption(ss.Servers, toolkit_annotattions.Runtime_GRPC)
@@ -282,6 +281,7 @@ func newHttpBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annot
 		ExcludeGlobalMiddlewares: rOpts.GetExcludeGlobalMiddlewares(),
 		RawBody:                  opts.Body,
 		AdditionalBinding:        additionalBinding,
+		GrpcProxy:                rOpts.GrpcProxy,
 	}, nil
 }
 

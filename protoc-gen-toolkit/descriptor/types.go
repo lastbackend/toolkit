@@ -132,7 +132,6 @@ type Service struct {
 	Plugins                 map[string][]*Plugin
 	HTTPMiddlewares         []string
 	UseGRPCServer           bool
-	UseHTTPProxyServer      bool
 	UseHTTPServer           bool
 	UseWebsocketProxyServer bool
 	UseWebsocketServer      bool
@@ -155,6 +154,7 @@ type Method struct {
 	Name             string
 	IsWebsocket      bool
 	IsWebsocketProxy bool
+	IsGrpcProxy      bool
 	Bindings         []*Binding
 }
 
@@ -186,6 +186,7 @@ type Binding struct {
 	RequestType              *Message
 	ResponseType             *Message
 	Stream                   bool
+	GrpcProxy                bool
 	Websocket                bool
 	WebsocketProxy           bool
 	AdditionalBinding        bool
