@@ -54,19 +54,19 @@ func NewResolver(runtime runtime.Runtime) resolver.Resolver {
 	}
 
 	for _, s := range opts.Endpoints {
-
-		if s != "" {
-
-			parts := strings.Split(s, separator)
-			if len(parts) < 2 {
-				continue
-			}
-
-			table.Create(route.Route{
-				Service: parts[0],
-				Address: parts[1],
-			})
+		if s == "" {
+			continue
 		}
+
+		parts := strings.Split(s, separator)
+		if len(parts) < 2 {
+			continue
+		}
+
+		table.Create(route.Route{
+			Service: parts[0],
+			Address: parts[1],
+		})
 	}
 
 	return r

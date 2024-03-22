@@ -54,6 +54,10 @@ type httpServer struct {
 	handlers     map[string]server.HTTPServerHandler
 	marshalerMap map[string]marshaler.Marshaler
 
+	// fn for init user-defined service
+	// fn for server registration
+	service interface{}
+
 	middlewares *Middlewares
 
 	corsHandlerFunc http.HandlerFunc
@@ -239,6 +243,17 @@ func (s *httpServer) Subscribe(event string, h websockets.EventHandler) {
 
 func (s *httpServer) ServerWS(w http.ResponseWriter, r *http.Request) {
 	s.wsManager.ServeWS(w, r)
+}
+
+// SetService - set user-defined handlers
+func (s *httpServer) SetService(service interface{}) {
+	s.service = service
+	return
+}
+
+// GetService - set user-defined handlers
+func (s *httpServer) GetService() interface{} {
+	return s.service
 }
 
 func (s *httpServer) constructor(mws ...server.HttpServerMiddleware) {
