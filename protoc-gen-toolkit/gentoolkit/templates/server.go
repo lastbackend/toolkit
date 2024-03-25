@@ -63,7 +63,7 @@ func register{{ $.GetName }}GRPCServer(runtime runtime.Runtime, srv {{ $.GetName
 `
 
 // ServiceInterfaceDefineTpl is defined service template used for new services.
-var ServiceInterfaceDefineTpl = `// Define services for {{ .GetName }} HTTP server 
+var ServiceInterfaceDefineTpl = `// Define services for {{ .GetName }} HTTP server
 
 type {{ .GetName }}HTTPService interface {
 {{ range $m := .Methods }}
@@ -78,6 +78,7 @@ type {{ .GetName }}HTTPService interface {
 
 // ServerHTTPDefineTpl is the server HTTP define template used for new services.
 var ServerHTTPDefineTpl = `// Define HTTP handlers for Router HTTP server
+
 {{- range $m := .Methods }}
 {{- range $binding := $m.Bindings }}
 {{- if and $.UseWebsocketProxyServer $binding.WebsocketProxy (not $binding.Websocket) }}
