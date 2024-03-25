@@ -106,8 +106,8 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 	// create new {{ $svc.GetName }} HTTP server
 	app.runtime.Server().HTTPNew(name, nil)
 {{ end }}
-{{ if and (or $svc.UseWebsocketProxyServer $svc.UseWebsocketServer) $svc.Methods }}
-	{{ if and $svc.UseWebsocketProxyServer $svc.HTTPMiddlewares }}app.runtime.Server().HTTP().UseMiddleware({{ range $index, $mdw := $svc.HTTPMiddlewares }}{{ if lt 0 $index }}, {{ end }}"{{ $mdw }}"{{ end }}){{ end }}
+{{ if and (or $svc.UseHTTPServer $svc.UseWebsocketProxyServer $svc.UseWebsocketServer) $svc.Methods }}
+	{{ if and (or $svc.UseHTTPServer $svc.UseWebsocketProxyServer) $svc.HTTPMiddlewares }}app.runtime.Server().HTTP().UseMiddleware({{ range $index, $mdw := $svc.HTTPMiddlewares }}{{ if lt 0 $index }}, {{ end }}"{{ $mdw }}"{{ end }}){{ end }}
 	{{- range $m := $svc.Methods }}
 	{{- range $binding := $m.Bindings }}
 		{{- if and $binding.Websocket $svc.UseWebsocketServer }}
@@ -116,11 +116,11 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 		{{- if and $svc.UseWebsocketProxyServer $binding.WebsocketProxy (not $binding.Websocket) }}
 		app.runtime.Server().HTTP().Subscribe("{{ $binding.RpcMethod }}", app.handlerWSProxy{{ $svc.GetName | ToCamel }}{{ $m.GetName | ToCamel }})
 		{{- end }}
-		{{- if and (not $binding.WebsocketProxy) (not $binding.Websocket) }}
+		{{- if and $svc.UseHTTPServer (not $binding.WebsocketProxy) (not $binding.Websocket) }}
 		app.runtime.Server().HTTP().AddHandler({{ $binding.HttpMethod }}, "{{ $binding.HttpPath }}", app.handlerHTTP{{ $svc.GetName | ToCamel }}{{ $m.GetName | ToCamel }}{{- if $binding.AdditionalBinding }}_{{ $binding.Index }}{{ end }}{{- if $binding.Middlewares }},
 			{{ range $index, $mdw := $binding.Middlewares }}{{ if lt 0 $index }}, {{ end }}tk_http.WithMiddleware("{{ $mdw }}"){{ end }}{{ end }}{{- if $binding.ExcludeGlobalMiddlewares }}, 
 			{{ range $index, $mdw := $binding.ExcludeGlobalMiddlewares }}{{ if lt 0 $index }}, {{ end }}tk_http.WithExcludeGlobalMiddleware("{{ $mdw }}"){{ end }}{{ end }})
-		//{{- end }}
+		{{- end }}
 	{{- end }} 
 	{{- end }} 
 {{ end }}
