@@ -17,9 +17,14 @@ limitations under the License.
 package http
 
 import (
+	"context"
 	"encoding/json"
-	"github.com/lastbackend/toolkit/pkg/server"
 	"net/http"
+	"strings"
+
+	"github.com/lastbackend/toolkit/pkg/context/metadata"
+	"github.com/lastbackend/toolkit/pkg/server"
+	grpc_md "google.golang.org/grpc/metadata"
 )
 
 type HandleOption func(*HandleOptions)
@@ -72,4 +77,17 @@ func makeResponse(code int, message string) []byte {
 		Message: message,
 	})
 	return r
+}
+
+func NewIncomingContext(ctx context.Context, headers map[string]string) context.Context {
+	if headers == nil {
+		headers = make(map[string]string)
+	}
+	if md, ok := metadata.LoadFromContext(ctx); ok {
+		for k, v := range md {
+			headers[strings.ToLower(k)] = v
+		}
+		return grpc_md.NewIncomingContext(ctx, grpc_md.New(md))
+	}
+	return grpc_md.NewIncomingContext(ctx, grpc_md.New(headers))
 }

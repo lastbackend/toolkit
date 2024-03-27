@@ -175,6 +175,8 @@ func (s *service{{ $.GetName | ToCamel }}) handlerHTTP{{ $.GetName | ToCamel }}{
 		return			
 	}
 	{{ else }}
+	ctx = tk_http.NewIncomingContext(ctx, headers)
+	
 	protoResponse, err = s.runtime.Server().HTTP().GetService().({{ $.GetName }}HTTPService).{{ $binding.RpcMethod }}(ctx, &protoRequest)
 	if err != nil {
 		errors.GrpcErrorHandlerFunc(w, err)
