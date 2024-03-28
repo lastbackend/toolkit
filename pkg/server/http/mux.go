@@ -208,6 +208,15 @@ func (s *httpServer) UseMiddleware(middlewares ...server.KindMiddleware) {
 	s.middlewares.SetGlobal(middlewares...)
 }
 
+func (s *httpServer) UseMarshaler(contentType string, marshaler marshaler.Marshaler) error {
+	contentType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return err
+	}
+	s.marshalerMap[contentType] = marshaler
+	return nil
+}
+
 func (s *httpServer) GetMiddlewares() []interface{} {
 	return s.middlewares.constructors
 }
