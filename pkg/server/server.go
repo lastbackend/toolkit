@@ -19,6 +19,7 @@ package server
 import (
 	"context"
 	"crypto/tls"
+	"github.com/lastbackend/toolkit/pkg/server/http/marshaler"
 	"github.com/lastbackend/toolkit/pkg/server/http/websockets"
 	"google.golang.org/grpc"
 	"net/http"
@@ -29,6 +30,7 @@ type HTTPServer interface {
 	Stop(ctx context.Context) error
 
 	UseMiddleware(...KindMiddleware)
+	UseMarshaler(contentType string, marshaler marshaler.Marshaler) error
 
 	GetMiddlewares() []any
 	SetMiddleware(middleware any)
