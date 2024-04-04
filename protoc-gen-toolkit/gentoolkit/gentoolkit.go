@@ -124,9 +124,8 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 	var pluginImportsExists = make(map[string]bool, 0)
 	var clientImportsExists = make(map[string]bool, 0)
 	var plugins = make(map[string][]*descriptor.Plugin, 0)
+	var definitionPlugins = make(map[string][]*descriptor.Plugin, 0)
 	var clients = make(map[string]*Client, 0)
-	var pkgExists = make(map[string]bool, 0)
-	var plgExists = make(map[string]bool, 0)
 	var imports = g.prepareImports([]string{
 		"context",
 		"encoding/json",
@@ -142,6 +141,12 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 		"emptypb google.golang.org/protobuf/types/known/emptypb",
 	})
 
+	// checkers for conflicts and duplicates
+	var pkgExists = make(map[string]bool, 0)
+	var globalPlgExists = make(map[string]bool, 0)
+	var globalDuplicatePrefix = make(map[string]bool, 0)
+	var conflictPluginPrefix = make(map[string]string, 0)
+
 	for _, pkg := range g.baseImports {
 		pkgExists[pkg.Path] = true
 		imports = append(imports, pkg)
@@ -155,30 +160,48 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 				if _, ok := plugins[props.Plugin]; !ok {
 					plugins[props.Plugin] = make([]*descriptor.Plugin, 0)
 				}
+
 				key := fmt.Sprintf("%s/%s", props.Plugin, props.Prefix)
-				if _, ok := plgExists[key]; ok {
+				if item, ok := conflictPluginPrefix[props.Prefix]; ok && item != key {
+					return nil, fmt.Errorf("conflict toolkit.runtime.plugins prefix with another plugin type: '%s'", props.Prefix)
+				}
+
+				if _, ok := globalDuplicatePrefix[props.Prefix]; ok {
+					return nil, fmt.Errorf("duplicate toolkit.plugins prefix: '%s'", props.Prefix)
+				}
+
+				if _, ok := globalPlgExists[key]; ok {
 					continue
 				}
+
 				if _, ok := pluginImportsExists[props.Plugin]; !ok {
 					imports = append(imports, descriptor.GoPackage{
 						Path: fmt.Sprintf("%s/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
 						Name: path.Base(fmt.Sprintf("%s/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
 					})
 				}
-				plugins[props.Plugin] = append(plugins[props.Plugin], &descriptor.Plugin{
+
+				p := &descriptor.Plugin{
 					Plugin:   props.Plugin,
 					Prefix:   props.Prefix,
 					Pkg:      strings.ToLower(props.Plugin),
 					IsGlobal: true,
-				})
+				}
 
-				plgExists[key] = true
+				definePlugins(definitionPlugins, props.Plugin, p)
+
+				plugins[props.Plugin] = append(plugins[props.Plugin], p)
+
+				globalPlgExists[key] = true
+				globalDuplicatePrefix[props.Prefix] = true
+				conflictPluginPrefix[props.Prefix] = key
 			}
 		}
 	}
 
 	for _, svc := range file.Services {
-
+		var servicePlgExists = make(map[string]bool, 0)
+		var serviceDuplicatePrefix = make(map[string]bool, 0)
 		for _, m := range svc.Methods {
 			pkg := m.RequestType.File.GoPkg
 			if pkg == file.GoPkg || pkgExists[pkg.Path] {
@@ -196,13 +219,29 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 				ss := eService.(*toolkit_annotattions.Runtime)
 				if ss.Plugins != nil {
 					for _, props := range ss.Plugins {
+
+						key := fmt.Sprintf("%s/%s", props.Plugin, props.Prefix)
+						if item, ok := conflictPluginPrefix[props.Prefix]; ok && item != key {
+							return nil, fmt.Errorf("conflict toolkit.runtime.plugins prefix with another plugin type: '%s'", props.Prefix)
+						}
+
+						_, gOk := globalPlgExists[key]
+
+						if _, ok := globalDuplicatePrefix[props.Prefix]; ok && !gOk {
+							return nil, fmt.Errorf("duplicate toolkit.runtime.plugins prefix: '%s'", props.Prefix)
+						}
+						if _, ok := serviceDuplicatePrefix[props.Prefix]; ok {
+							return nil, fmt.Errorf("duplicate toolkit.runtime.plugins prefix: '%s'", props.Prefix)
+						}
+
+						if _, ok := servicePlgExists[key]; ok {
+							continue
+						}
+
 						if _, ok := svc.Plugins[props.Plugin]; !ok {
 							svc.Plugins[props.Plugin] = make([]*descriptor.Plugin, 0)
 						}
-						key := fmt.Sprintf("%s/%s", props.Plugin, props.Prefix)
-						if _, ok := plgExists[key]; ok {
-							continue
-						}
+
 						if _, ok := pluginImportsExists[props.Plugin]; !ok {
 							imports = append(imports, descriptor.GoPackage{
 								Path: fmt.Sprintf("%s/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
@@ -210,13 +249,21 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 							})
 						}
 
-						svc.Plugins[props.Plugin] = append(svc.Plugins[props.Plugin], &descriptor.Plugin{
+						p := &descriptor.Plugin{
 							Plugin: props.Plugin,
 							Prefix: props.Prefix,
 							Pkg:    strings.ToLower(props.Plugin),
-						})
+						}
 
-						plgExists[key] = true
+						definePlugins(definitionPlugins, props.Plugin, p)
+
+						if _, ok := globalPlgExists[key]; !ok {
+							svc.Plugins[props.Plugin] = append(svc.Plugins[props.Plugin], p)
+						}
+
+						servicePlgExists[key] = true
+						serviceDuplicatePrefix[props.Prefix] = true
+						conflictPluginPrefix[props.Prefix] = key
 					}
 				}
 			}
@@ -243,10 +290,11 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 	}
 
 	to := tplServiceOptions{
-		File:    file,
-		Imports: imports,
-		Clients: clients,
-		Plugins: plugins,
+		File:              file,
+		Imports:           imports,
+		Clients:           clients,
+		Plugins:           plugins,
+		DefinitionPlugins: definitionPlugins,
 	}
 
 	content, err := applyServiceTemplate(to)
@@ -418,6 +466,22 @@ func (g *generator) hasServiceMethods(file *descriptor.File) bool {
 		}
 	}
 	return false
+}
+
+func definePlugins(def map[string][]*descriptor.Plugin, name string, plugin *descriptor.Plugin) {
+	pItems := def[name]
+	exists := false
+	for _, p := range pItems {
+		if plugin.Prefix == p.Prefix && plugin.Plugin == p.Plugin {
+			exists = true
+		}
+	}
+	if !exists {
+		if _, ok := def[name]; !ok {
+			def[name] = make([]*descriptor.Plugin, 0)
+		}
+		def[name] = append(def[name], plugin)
+	}
 }
 
 func existsFileOrDir(path string) (bool, error) {

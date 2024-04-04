@@ -62,16 +62,18 @@ type Client struct {
 }
 
 type contentServiceParams struct {
-	Plugins  map[string][]*descriptor.Plugin
-	Services []*descriptor.Service
-	Clients  map[string]*Client
+	DefinitionPlugins map[string][]*descriptor.Plugin
+	Plugins           map[string][]*descriptor.Plugin
+	Services          []*descriptor.Service
+	Clients           map[string]*Client
 }
 
 type tplServiceOptions struct {
 	*descriptor.File
-	Imports []descriptor.GoPackage
-	Plugins map[string][]*descriptor.Plugin
-	Clients map[string]*Client
+	Imports           []descriptor.GoPackage
+	Plugins           map[string][]*descriptor.Plugin
+	DefinitionPlugins map[string][]*descriptor.Plugin
+	Clients           map[string]*Client
 }
 
 func applyServiceTemplate(to tplServiceOptions) (string, error) {
@@ -94,9 +96,10 @@ func applyServiceTemplate(to tplServiceOptions) (string, error) {
 	}
 
 	tp := contentServiceParams{
-		Plugins:  to.Plugins,
-		Clients:  to.Clients,
-		Services: targetServices,
+		Plugins:           to.Plugins,
+		DefinitionPlugins: to.DefinitionPlugins,
+		Clients:           to.Clients,
+		Services:          targetServices,
 	}
 
 	if err := serviceTemplate.Execute(w, tp); err != nil {
