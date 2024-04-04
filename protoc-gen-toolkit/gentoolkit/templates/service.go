@@ -34,11 +34,8 @@ var (
 )
 
 // Definitions
-{{ if .Plugins }}
-{{- template "plugin-define" .Plugins }}
-{{- end }}
-{{ range $svc := .Services }}
-{{- template "plugin-define" $svc.Plugins }}
+{{ if .DefinitionPlugins }}
+{{- template "plugin-define" .DefinitionPlugins }}
 {{- end }}
 
 {{ range $svc := .Services }}

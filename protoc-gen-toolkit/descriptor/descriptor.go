@@ -18,6 +18,7 @@ package descriptor
 
 import (
 	"fmt"
+
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
