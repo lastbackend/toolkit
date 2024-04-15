@@ -29,7 +29,7 @@ service Http {
   option (toolkit.runtime) = {
     servers: [HTTP]
   };
-  option (toolkit.http_proxy) = {
+  option (toolkit.server) = {
     middlewares: []
   };
 

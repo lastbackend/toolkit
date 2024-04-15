@@ -23,7 +23,9 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/lastbackend/toolkit"
 	servicepb "github.com/lastbackend/toolkit/examples/gateway/gen/server"
+	typespb "github.com/lastbackend/toolkit/examples/helloworld/gen"
 	"github.com/lastbackend/toolkit/pkg/runtime"
 )
 
@@ -45,6 +47,11 @@ func main() {
 		fmt.Println(err)
 	}
 
+	// Add server
+	app.Server().HTTP().AddHandler(http.MethodGet, "/health", HealthCheckHandler)
+
+	app.Server().GRPC().SetService(newServer)
+
 	// Logger settings
 	app.Log().Info("Run microservice")
 
@@ -56,4 +63,21 @@ func main() {
 	}
 
 	app.Log().Info("graceful stop")
+}
+
+type Handlers struct {
+	app toolkit.Service
+}
+
+// Implement server
+func newServer(app toolkit.Service) servicepb.ProxyGatewayRpcServer {
+	return &Handlers{
+		app: app,
+	}
+}
+
+func (h *Handlers) HelloWorld(ctx context.Context, req *typespb.HelloRequest) (*typespb.HelloReply, error) {
+	return &typespb.HelloReply{
+		Message: "hello",
+	}, nil
 }

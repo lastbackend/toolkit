@@ -4,9 +4,9 @@ find . -type d -name example -prune -type f \( -name '*.pb.go' -o -name '*.pb.*.
 
 mkdir -p proto/google/api
 
-curl -s -o proto/google/api/annotations.proto -L https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/annotations.proto
+curl -s -f -o proto/google/api/annotations.proto -L https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/annotations.proto || { echo "Error: Request failed"; exit 1; }
 
-PROTOS=$(find . -type f -name '*.proto' | grep -v examples | grep -v proto/google/api | grep -v proto/toolkit/options)
+PROTOS=$(find . -type f -name '*.proto' | grep -v examples | grep -v proto/google/api | grep -v proto/toolkit )
 
 for PROTO in $PROTOS; do
   protoc \
@@ -18,3 +18,5 @@ for PROTO in $PROTOS; do
 done
 
 rm -r proto
+
+echo "Generation is ok"

@@ -114,7 +114,7 @@ func (s *service{{ $.GetName | ToCamel }}) handlerHTTP{{ $.GetName | ToCamel }}{
 	defer cancel()
 
 	var protoRequest {{ $binding.RequestType.GoType $binding.Method.Service.File.GoPkg.Path }}
-	var protoResponse {{ if not $binding.GrpcProxy }}*{{ end }}{{ $binding.ResponseType.GoType $binding.Method.Service.File.GoPkg.Path }}
+	var protoResponse {{ if and (not $binding.Service) (not $binding.RpcPath) }}*{{ end }}{{ $binding.ResponseType.GoType $binding.Method.Service.File.GoPkg.Path }}
 
 	{{ if or (eq $binding.HttpMethod "http.MethodPost") (eq $binding.HttpMethod "http.MethodPut") (eq $binding.HttpMethod "http.MethodPatch") }}
 		{{ if eq $binding.RawBody "*" }}
@@ -166,7 +166,7 @@ func (s *service{{ $.GetName | ToCamel }}) handlerHTTP{{ $.GetName | ToCamel }}{
 		return
 	}
 
-	{{ if $binding.GrpcProxy }}
+	{{ if and $binding.Service $binding.RpcPath }}
 	callOpts := make([]client.GRPCCallOption, 0)
 	callOpts = append(callOpts, client.GRPCOptionHeaders(headers))
  

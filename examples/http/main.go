@@ -19,6 +19,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/lastbackend/toolkit/pkg/server/http/marshaler/jsonpb"
+	"google.golang.org/protobuf/encoding/protojson"
 	"io"
 	"net/http"
 	"os"
@@ -44,6 +46,19 @@ func main() {
 	)
 	if err != nil {
 		fmt.Println(err)
+	}
+
+	// Register marshaller
+	jsonPb := &jsonpb.JSONPb{
+		UnmarshalOptions: protojson.UnmarshalOptions{
+			DiscardUnknown: true,
+		},
+	}
+
+	if err = app.Server().HTTP().UseMarshaler("application/json", jsonPb); err != nil {
+		app.Log().Errorf("could not use json marshaler %v", err)
+		os.Exit(1)
+		return
 	}
 
 	// Add server
