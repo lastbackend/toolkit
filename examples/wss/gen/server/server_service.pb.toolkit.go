@@ -66,35 +66,68 @@ func NewRouterService(name string, opts ...runtime.Option) (_ toolkit.Service, e
 
 	app.runtime.Server().HTTP().UseMiddleware("example")
 	app.runtime.Server().HTTP().AddHandler(http.MethodGet, "/events", app.runtime.Server().HTTP().ServerWS)
-	app.runtime.Server().HTTP().Subscribe("SayHello", app.handlerWSProxyRouterSayHello)
+	app.runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", app.handlerHTTPRouterHelloWorld,
+		tk_http.WithMiddleware("example"))
 
 	return app.runtime.Service(), nil
 }
 
+// Define services for Router HTTP server
+
+type RouterHTTPService interface {
+	SayHello(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error)
+
+	HelloWorld(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error)
+}
+
 // Define HTTP handlers for Router HTTP server
 
-func (s *serviceRouter) handlerWSProxyRouterSayHello(ctx context.Context, event tk_ws.Event, c *tk_ws.Client) error {
-	ctx, cancel := context.WithCancel(ctx)
+func (s *serviceRouter) handlerHTTPRouterHelloWorld(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
 	var protoRequest servicepb.HelloRequest
 	var protoResponse servicepb.HelloReply
 
-	if err := json.Unmarshal(event.Payload, &protoRequest); err != nil {
-		return err
+	im, om := tk_http.GetMarshaler(s.runtime.Server().HTTP(), r)
+
+	reader, err := tk_http.NewReader(r.Body)
+	if err != nil {
+		errors.HTTP.InternalServerError(w)
+		return
+	}
+
+	if err := im.NewDecoder(reader).Decode(&protoRequest); err != nil && err != io.EOF {
+		errors.HTTP.InternalServerError(w)
+		return
+	}
+
+	headers, err := tk_http.PrepareHeaderFromRequest(r)
+	if err != nil {
+		errors.HTTP.InternalServerError(w)
+		return
 	}
 
 	callOpts := make([]client.GRPCCallOption, 0)
-
-	if headers := ctx.Value(tk_ws.RequestHeaders); headers != nil {
-		if v, ok := headers.(map[string]string); ok {
-			callOpts = append(callOpts, client.GRPCOptionHeaders(v))
-		}
-	}
+	callOpts = append(callOpts, client.GRPCOptionHeaders(headers))
 
 	if err := s.runtime.Client().GRPC().Call(ctx, "helloworld", "/helloworld.Greeter/SayHello", &protoRequest, &protoResponse, callOpts...); err != nil {
-		return err
+		errors.GrpcErrorHandlerFunc(w, err)
+		return
 	}
 
-	return c.WriteJSON(protoResponse)
+	buf, err := om.Marshal(protoResponse)
+	if err != nil {
+		errors.HTTP.InternalServerError(w)
+		return
+	}
+
+	w.Header().Set("Content-Type", om.ContentType())
+	if proceed, err := tk_http.HandleGRPCResponse(w, r, headers); err != nil || !proceed {
+		return
+	}
+
+	if _, err = w.Write(buf); err != nil {
+		return
+	}
 }

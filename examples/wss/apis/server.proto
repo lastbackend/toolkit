@@ -56,29 +56,31 @@ service Router {
       plugin: "redis"
     }]
   };
-  option (toolkit.http_proxy) = {
+  option (toolkit.server) = {
     middlewares: [
       "example"
     ]
   };
 
   rpc Subscribe(SubscribeRequest) returns (SubscribeResponse) {
-    option (toolkit.server).websocket = true;
+    option (toolkit.route).websocket = true;
     option (google.api.http) = {
       get: "/events"
     };
   };
   rpc SayHello(helloworld.HelloRequest) returns (helloworld.HelloReply) {
-    option (toolkit.server).websocket_proxy = {
+    option (toolkit.route).websocket_proxy = {
       service: "helloworld"
       method: "/helloworld.Greeter/SayHello"
     };
   };
   rpc HelloWorld(helloworld.HelloRequest) returns (helloworld.HelloReply) {
-    option (toolkit.server).http_proxy = {
-      service: "helloworld"
-      method: "/helloworld.Greeter/SayHello"
+    option (toolkit.route) = {
       middlewares: ["example"]
+      http_proxy: {
+        service: "helloworld"
+        method: "/helloworld.Greeter/SayHello"
+      };
     };
     option (google.api.http) = {
       post: "/hello"

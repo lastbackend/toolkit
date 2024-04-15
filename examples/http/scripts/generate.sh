@@ -9,9 +9,9 @@ find $ROOT_DIR -type f \( -name '*.pb.go' -o -name '*.pb.*.go' \) -delete
 mkdir -p $PROTO_DIR/google/api
 mkdir -p $PROTO_DIR/validate
 
-curl -s -o $PROTO_DIR/google/api/annotations.proto -L https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/annotations.proto
-curl -s -o $PROTO_DIR/google/api/http.proto -L https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/http.proto
-curl -s -o $PROTO_DIR/validate/validate.proto -L https://raw.githubusercontent.com/envoyproxy/protoc-gen-validate/main/validate/validate.proto
+curl -s -f -o $PROTO_DIR/google/api/annotations.proto -L https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/annotations.proto || { echo "Error: Request failed"; exit 1; }
+curl -s -f -o $PROTO_DIR/google/api/http.proto -L https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/http.proto || { echo "Error: Request failed"; exit 1; }
+curl -s -f -o $PROTO_DIR/validate/validate.proto -L https://raw.githubusercontent.com/envoyproxy/protoc-gen-validate/main/validate/validate.proto || { echo "Error: Request failed"; exit 1; }
 
 PROTOS=$(find $PROTO_DIR -type f -name '*.proto' | grep -v $PROTO_DIR/google/api | grep -v $PROTO_DIR/router/options)
 
@@ -31,3 +31,5 @@ done
 
 rm -r $PROTO_DIR/google
 rm -r $PROTO_DIR/validate
+
+echo "Generation is ok"

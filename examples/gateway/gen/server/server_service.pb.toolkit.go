@@ -54,13 +54,46 @@ func NewProxyGatewayService(name string, opts ...runtime.Option) (_ toolkit.Serv
 
 	// loop over plugins and register plugin in toolkit
 
+	// create new ProxyGateway GRPC server
+	app.runtime.Server().GRPCNew(name, nil)
+
+	// set descriptor to ProxyGateway GRPC server
+	app.runtime.Server().GRPC().SetDescriptor(ProxyGateway_ServiceDesc)
+	app.runtime.Server().GRPC().SetConstructor(registerProxyGatewayGRPCServer)
+
 	// create new ProxyGateway HTTP server
 	app.runtime.Server().HTTPNew(name, nil)
 
 	app.runtime.Server().HTTP().AddHandler(http.MethodPost, "/hello", app.handlerHTTPProxyGatewayHelloWorld)
-	//
 
 	return app.runtime.Service(), nil
+}
+
+// Define GRPC services for ProxyGateway GRPC server
+
+type ProxyGatewayRpcServer interface {
+	HelloWorld(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error)
+}
+
+type proxygatewayGrpcRpcServer struct {
+	ProxyGatewayRpcServer
+}
+
+func (h *proxygatewayGrpcRpcServer) HelloWorld(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error) {
+	return h.ProxyGatewayRpcServer.HelloWorld(ctx, req)
+}
+
+func (proxygatewayGrpcRpcServer) mustEmbedUnimplementedProxyGatewayServer() {}
+
+func registerProxyGatewayGRPCServer(runtime runtime.Runtime, srv ProxyGatewayRpcServer) error {
+	runtime.Server().GRPC().RegisterService(&proxygatewayGrpcRpcServer{srv})
+	return nil
+}
+
+// Define services for ProxyGateway HTTP server
+
+type ProxyGatewayHTTPService interface {
+	HelloWorld(ctx context.Context, req *servicepb.HelloRequest) (*servicepb.HelloReply, error)
 }
 
 // Define HTTP handlers for Router HTTP server

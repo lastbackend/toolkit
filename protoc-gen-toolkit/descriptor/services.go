@@ -34,7 +34,6 @@ func (d *Descriptor) loadServices(file *File) error {
 			ServiceDescriptorProto: service,
 			HTTPMiddlewares:        make([]string, 0),
 		}
-
 		for _, md := range service.GetMethod() {
 			method, err := d.newMethod(svc, md)
 			if err != nil {
@@ -43,10 +42,10 @@ func (d *Descriptor) loadServices(file *File) error {
 			svc.Methods = append(svc.Methods, method)
 		}
 
-		if service.Options != nil && proto.HasExtension(service.Options, toolkit_annotattions.E_HttpProxy) {
-			eHTTPProxy := proto.GetExtension(svc.Options, toolkit_annotattions.E_HttpProxy)
-			if eHTTPProxy != nil {
-				ss := eHTTPProxy.(*toolkit_annotattions.ServiceHttpProxy)
+		if service.Options != nil && proto.HasExtension(service.Options, toolkit_annotattions.E_Server) {
+			eServer := proto.GetExtension(svc.Options, toolkit_annotattions.E_Server)
+			if eServer != nil {
+				ss := eServer.(*toolkit_annotattions.Server)
 				svc.HTTPMiddlewares = ss.Middlewares
 			}
 		}
@@ -88,7 +87,7 @@ func (d *Descriptor) newMethod(svc *Service, md *descriptorpb.MethodDescriptorPr
 		ResponseType:          responseType,
 	}
 
-	if method.Options != nil && proto.HasExtension(method.Options, toolkit_annotattions.E_Server) {
+	if method.Options != nil && proto.HasExtension(method.Options, options.E_Http) {
 		err = setBindingsToMethod(method)
 		if err != nil {
 			return nil, err
@@ -124,78 +123,73 @@ func (d *Descriptor) findMessage(location, name string) (*Message, error) {
 }
 
 func setBindingsToMethod(method *Method) error {
-	pOpts, err := getProxyOptions(method)
+	routeOpts, err := getRouteOptions(method)
 	if err != nil {
 		return err
 	}
-
-	if pOpts != nil {
-		switch true {
-		case pOpts.GetWebsocket():
-			opts, err := getHTTPOptions(method)
-			if err != nil {
-				return err
-			}
-
-			method.IsWebsocket = true
-
-			binding := &Binding{
-				Method:       method,
-				Index:        len(method.Bindings),
-				HttpMethod:   "http.MethodGet",
-				RpcMethod:    method.GetName(),
-				HttpPath:     opts.GetGet(),
-				HttpParams:   getVariablesFromPath(opts.GetGet()),
-				RequestType:  method.RequestType,
-				ResponseType: method.ResponseType,
-				Websocket:    true,
-			}
-			method.Bindings = append(method.Bindings, binding)
-
-		case pOpts.GetWebsocketProxy() != nil:
-			rOpts := pOpts.GetWebsocketProxy()
-
-			method.IsWebsocketProxy = true
-
-			binding := &Binding{
-				Method:         method,
-				Index:          len(method.Bindings),
-				HttpMethod:     "http.MethodGet",
-				RpcMethod:      method.GetName(),
-				Service:        rOpts.GetService(),
-				RpcPath:        rOpts.GetMethod(),
-				RequestType:    method.RequestType,
-				ResponseType:   method.ResponseType,
-				WebsocketProxy: true,
-			}
-
-			method.Bindings = append(method.Bindings, binding)
-
-		case pOpts.GetHttpProxy() != nil && proto.HasExtension(method.Options, options.E_Http):
-			rOpts := pOpts.GetHttpProxy()
-			opts, err := getHTTPOptions(method)
-			if err != nil {
-				return err
-			}
-			if opts != nil {
-				binding, err := newHttpBinding(method, opts, rOpts, false)
-				if err != nil {
-					return err
-				}
-				method.Bindings = append(method.Bindings, binding)
-				for _, additional := range opts.GetAdditionalBindings() {
-					if len(additional.AdditionalBindings) > 0 {
-						continue
-					}
-					b, err := newHttpBinding(method, additional, rOpts, true)
-					if err != nil {
-						continue
-					}
-					method.Bindings = append(method.Bindings, b)
-				}
-			}
+	switch true {
+	case routeOpts != nil && routeOpts.GetWebsocket():
+		opts, err := getHTTPOptions(method)
+		if err != nil {
+			return err
 		}
 
+		method.IsWebsocket = true
+
+		binding := &Binding{
+			Method:       method,
+			Index:        len(method.Bindings),
+			HttpMethod:   "http.MethodGet",
+			RpcMethod:    method.GetName(),
+			HttpPath:     opts.GetGet(),
+			HttpParams:   getVariablesFromPath(opts.GetGet()),
+			RequestType:  method.RequestType,
+			ResponseType: method.ResponseType,
+			Websocket:    true,
+		}
+		method.Bindings = append(method.Bindings, binding)
+
+	case routeOpts != nil && routeOpts.GetWebsocketProxy() != nil:
+		rOpts := routeOpts.GetWebsocketProxy()
+
+		method.IsWebsocketProxy = true
+
+		binding := &Binding{
+			Method:         method,
+			Index:          len(method.Bindings),
+			HttpMethod:     "http.MethodGet",
+			RpcMethod:      method.GetName(),
+			Service:        rOpts.GetService(),
+			RpcPath:        rOpts.GetMethod(),
+			RequestType:    method.RequestType,
+			ResponseType:   method.ResponseType,
+			WebsocketProxy: true,
+		}
+
+		method.Bindings = append(method.Bindings, binding)
+
+	case proto.HasExtension(method.Options, options.E_Http):
+		opts, err := getHTTPOptions(method)
+		if err != nil {
+			return err
+		}
+		if opts != nil {
+			binding, err := newHttpBinding(method, opts, routeOpts, false)
+			if err != nil {
+				return err
+			}
+			method.Bindings = append(method.Bindings, binding)
+			for _, additional := range opts.GetAdditionalBindings() {
+				if len(additional.AdditionalBindings) > 0 {
+					continue
+				}
+				b, err := newHttpBinding(method, additional, routeOpts, true)
+				if err != nil {
+					continue
+				}
+				method.Bindings = append(method.Bindings, b)
+			}
+		}
 	}
 
 	return nil
@@ -216,22 +210,22 @@ func getHTTPOptions(method *Method) (*options.HttpRule, error) {
 	return opts, nil
 }
 
-func getProxyOptions(m *Method) (*toolkit_annotattions.Server, error) {
+func getRouteOptions(m *Method) (*toolkit_annotattions.Route, error) {
 	if m.Options == nil {
 		return nil, nil
 	}
-	if !proto.HasExtension(m.Options, toolkit_annotattions.E_Server) {
+	if !proto.HasExtension(m.Options, toolkit_annotattions.E_Route) {
 		return nil, nil
 	}
-	ext := proto.GetExtension(m.Options, toolkit_annotattions.E_Server)
-	opts, ok := ext.(*toolkit_annotattions.Server)
+	ext := proto.GetExtension(m.Options, toolkit_annotattions.E_Route)
+	opts, ok := ext.(*toolkit_annotattions.Route)
 	if !ok {
-		return nil, fmt.Errorf("extension is not an Proxy")
+		return nil, fmt.Errorf("extension is not an Route")
 	}
 	return opts, nil
 }
 
-func newHttpBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annotattions.HttpProxy, additionalBinding bool) (*Binding, error) {
+func newHttpBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annotattions.Route, additionalBinding bool) (*Binding, error) {
 	var (
 		httpMethod string
 		httpPath   string
@@ -265,11 +259,9 @@ func newHttpBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annot
 		return nil, fmt.Errorf("not fount method")
 	}
 
-	return &Binding{
+	b := &Binding{
 		Method:                   method,
 		Index:                    len(method.Bindings),
-		Service:                  rOpts.GetService(),
-		RpcPath:                  rOpts.GetMethod(),
 		RpcMethod:                method.GetName(),
 		HttpMethod:               httpMethod,
 		HttpPath:                 httpPath,
@@ -281,8 +273,12 @@ func newHttpBinding(method *Method, opts *options.HttpRule, rOpts *toolkit_annot
 		ExcludeGlobalMiddlewares: rOpts.GetExcludeGlobalMiddlewares(),
 		RawBody:                  opts.Body,
 		AdditionalBinding:        additionalBinding,
-		GrpcProxy:                rOpts.GrpcProxy,
-	}, nil
+	}
+	if proxyOpts := rOpts.GetHttpProxy(); proxyOpts != nil {
+		b.Service = proxyOpts.GetService()
+		b.RpcPath = proxyOpts.GetMethod()
+	}
+	return b, nil
 }
 
 func getVariablesFromPath(path string) (variables []string) {

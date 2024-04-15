@@ -56,5 +56,64 @@ func NewHttpService(name string, opts ...runtime.Option) (_ toolkit.Service, err
 	// create new Http HTTP server
 	app.runtime.Server().HTTPNew(name, nil)
 
+	app.runtime.Server().HTTP().AddHandler(http.MethodGet, "/hello", app.handlerHTTPHttpHelloWorld)
+
 	return app.runtime.Service(), nil
+}
+
+// Define services for Http HTTP server
+
+type HttpHTTPService interface {
+	HelloWorld(ctx context.Context, req *HelloRequest) (*HelloResponse, error)
+}
+
+// Define HTTP handlers for Router HTTP server
+
+func (s *serviceHttp) handlerHTTPHttpHelloWorld(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	var protoRequest HelloRequest
+	var protoResponse *HelloResponse
+
+	_, om := tk_http.GetMarshaler(s.runtime.Server().HTTP(), r)
+
+	if err := r.ParseForm(); err != nil {
+		errors.HTTP.InternalServerError(w)
+		return
+	}
+
+	if err := tk_http.ParseRequestQueryParametersToProto(&protoRequest, r.Form); err != nil {
+		errors.HTTP.InternalServerError(w)
+		return
+	}
+
+	headers, err := tk_http.PrepareHeaderFromRequest(r)
+	if err != nil {
+		errors.HTTP.InternalServerError(w)
+		return
+	}
+
+	ctx = tk_http.NewIncomingContext(ctx, headers)
+
+	protoResponse, err = s.runtime.Server().HTTP().GetService().(HttpHTTPService).HelloWorld(ctx, &protoRequest)
+	if err != nil {
+		errors.GrpcErrorHandlerFunc(w, err)
+		return
+	}
+
+	buf, err := om.Marshal(protoResponse)
+	if err != nil {
+		errors.HTTP.InternalServerError(w)
+		return
+	}
+
+	w.Header().Set("Content-Type", om.ContentType())
+	if proceed, err := tk_http.HandleGRPCResponse(w, r, headers); err != nil || !proceed {
+		return
+	}
+
+	if _, err = w.Write(buf); err != nil {
+		return
+	}
 }
