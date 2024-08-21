@@ -70,33 +70,36 @@ func (p *probe) RegisterCheck(name string, kind probes.ProbeKind, fn probes.Hand
 }
 
 func (p *probe) livenessProbeHandler(w http.ResponseWriter, r *http.Request) {
-	p.probeHandler(w, r, p.livenessProbes)
+	p.probeHandler("liveness_probe", w, r, p.livenessProbes)
 }
 
 func (p *probe) readinessProbeHandler(w http.ResponseWriter, r *http.Request) {
-	p.probeHandler(w, r, p.readinessProbes)
+	p.probeHandler("readiness_probe", w, r, p.readinessProbes)
 }
 
-func (p *probe) probeHandler(w http.ResponseWriter, _ *http.Request, probes map[string]probes.HandleFunc) {
+func (p *probe) probeHandler(probeType string, w http.ResponseWriter, _ *http.Request, probes map[string]probes.HandleFunc) {
 
 	var (
 		result = make(map[string]string, 0)
 		status = http.StatusOK
 	)
 
-	for name, probe := range probes {
-		if err := probe(); err != nil {
+	for name, probeFunc := range probes {
+		fn := probeFunc
 
+		if err := fn(); err != nil {
 			status = http.StatusInternalServerError
-
 			result[name] = err.Error()
+
+			p.runtime.Log().Errorf("[%s][%s] Probe failed: %v", probeType, name, err)
+
 		} else {
 			result[name] = "OK"
 		}
 	}
 
-	w.Header().Set("Content-Type", defaultContentType)
 	w.WriteHeader(status)
+	w.Header().Set("Content-Type", defaultContentType)
 
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "    ")
