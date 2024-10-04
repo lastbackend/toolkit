@@ -30,21 +30,18 @@ const (
 
 var (
 	DefaultMarshaler = &jsonpb.JSONPb{
-		MarshalOptions: protojson.MarshalOptions{
-			EmitUnpopulated: true,
-		},
-		UnmarshalOptions: protojson.UnmarshalOptions{
-			DiscardUnknown: true,
-		},
+		MarshalOptions:   defaultMarshalOptions,
+		UnmarshalOptions: defaultUnmarshalOptions,
 	}
 )
 
 var (
 	defaultMarshalOptions = protojson.MarshalOptions{
-		EmitUnpopulated: true,
+		EmitUnpopulated: true, // Include fields with default values in the JSON output
+		UseProtoNames:   true, // Use original proto field names (e.g., 'start_date') instead of CamelCase (e.g., 'StartDate')
 	}
 	defaultUnmarshalOptions = protojson.UnmarshalOptions{
-		DiscardUnknown: true,
+		DiscardUnknown: true, // Ignores unknown fields during deserialization
 	}
 )
 
