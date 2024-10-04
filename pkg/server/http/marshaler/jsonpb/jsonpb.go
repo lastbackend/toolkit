@@ -17,10 +17,12 @@ limitations under the License.
 package jsonpb
 
 import (
+	"errors"
 	"github.com/lastbackend/toolkit/pkg/server/http/marshaler"
 	"github.com/lastbackend/toolkit/pkg/server/http/marshaler/util"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"regexp"
 
 	"bytes"
 	"encoding/json"
@@ -214,7 +216,18 @@ func decodeJSONPb(d *json.Decoder, unmarshaler protojson.UnmarshalOptions, v int
 	if err != nil {
 		return err
 	}
-	return unmarshaler.Unmarshal(b, p)
+
+	err = unmarshaler.Unmarshal(b, p)
+	message := err.Error()
+
+	re := regexp.MustCompile(`proto:\s*\(line.*\):\s*(.*)$`)
+	match := re.FindStringSubmatch(message)
+
+	if len(match) > 1 {
+		message = match[1]
+	}
+
+	return errors.New(message)
 }
 
 func decodeNonProtoField(d *json.Decoder, unmarshaler protojson.UnmarshalOptions, v interface{}) error {
