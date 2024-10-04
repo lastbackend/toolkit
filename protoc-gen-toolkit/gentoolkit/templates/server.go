@@ -127,7 +127,7 @@ func (s *service{{ $.GetName | ToCamel }}) handlerHTTP{{ $.GetName | ToCamel }}{
 			}
 			
 			if err := im.NewDecoder(reader).Decode(&protoRequest); err != nil && err != io.EOF {
-				errors.HTTP.InternalServerError(w)
+				errors.HTTP.BadRequest(w, err.Error())
 				return
 			}
 		{{ else }}
