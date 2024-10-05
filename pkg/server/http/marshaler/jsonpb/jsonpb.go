@@ -215,22 +215,7 @@ func decodeJSONPb(d *json.Decoder, unmarshaler protojson.UnmarshalOptions, v int
 	if err != nil {
 		return err
 	}
-
-	err = unmarshaler.Unmarshal(b, p)
-	if err != nil {
-		message := err.Error()
-
-		re := regexp.MustCompile(`proto:\s*\(line.*\):\s*(.*)$`)
-		match := re.FindStringSubmatch(message)
-
-		if len(match) > 1 {
-			message = match[1]
-		}
-
-		return errors.New(message)
-	}
-
-	return err
+	return handleUnmarshalError(unmarshaler.Unmarshal(b, p))
 }
 
 func decodeNonProtoField(d *json.Decoder, unmarshaler protojson.UnmarshalOptions, v interface{}) error {
@@ -323,4 +308,20 @@ func decodeNonProtoField(d *json.Decoder, unmarshaler protojson.UnmarshalOptions
 	}
 
 	return d.Decode(v)
+}
+
+func handleUnmarshalError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	message := err.Error()
+	re := regexp.MustCompile(`^proto:.*\(.*line.*\):\s*(.*)$`)
+	match := re.FindStringSubmatch(message)
+
+	if len(match) > 1 {
+		message = match[1]
+	}
+
+	return errors.New(message)
 }
