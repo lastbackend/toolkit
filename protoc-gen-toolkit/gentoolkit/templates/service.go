@@ -24,6 +24,7 @@ var ServiceContentTpl = `
 var (
 	_ context.Context
 	_ emptypb.Empty
+	_ empty.Empty
 	_ http.Handler
 	_ errors.Err
 	_ io.Reader
