@@ -20,6 +20,7 @@ package templates
 var ClientTpl = `// Suppress "imported and not used" errors
 var _ context.Context
 var _ emptypb.Empty
+var _ empty.Empty
 
 {{ range $svc := .Services }}
 	// Client gRPC API for {{ $svc.GetName }} service

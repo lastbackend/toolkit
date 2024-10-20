@@ -20,6 +20,7 @@ package templates
 var TestTpl = `// Suppress "imported and not used" errors
 var _ context.Context
 var _ emptypb.Empty
+var _ empty.Empty
 
 {{ range $svc := .Services }}
 	// Mock server API for Api service

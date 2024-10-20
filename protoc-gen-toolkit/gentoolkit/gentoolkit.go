@@ -139,6 +139,7 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 		"toolkit github.com/lastbackend/toolkit",
 		"errors github.com/lastbackend/toolkit/pkg/server/http/errors",
 		"emptypb google.golang.org/protobuf/types/known/emptypb",
+		"empty github.com/golang/protobuf/ptypes/empty",
 	})
 
 	// checkers for conflicts and duplicates
@@ -311,6 +312,7 @@ func (g *generator) generateClient(file *descriptor.File) ([]byte, error) {
 		"context context",
 		"client github.com/lastbackend/toolkit/pkg/client",
 		"emptypb google.golang.org/protobuf/types/known/emptypb",
+		"empty github.com/golang/protobuf/ptypes/empty",
 	}
 
 	var imports = g.prepareImports(pkgImports)
@@ -370,6 +372,7 @@ func (g *generator) generateTestStubs(file *descriptor.File) ([]byte, error) {
 		"context context",
 		"client github.com/lastbackend/toolkit/pkg/client",
 		"emptypb google.golang.org/protobuf/types/known/emptypb",
+		"empty github.com/golang/protobuf/ptypes/empty",
 		fmt.Sprintf("servicepb %s/client", filepath.Dir(file.GeneratedFilenamePrefix)),
 	}
 
