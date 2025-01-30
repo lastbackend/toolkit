@@ -94,7 +94,7 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 	// create new {{ $svc.GetName }} GRPC server
 	app.runtime.Server().GRPCNew(name, nil)
 {{ end }}
-{{ if and $svc.UseGRPCServer $svc.Methods }}
+{{ if and $svc.UseGRPCServer }}
   // set descriptor to {{ $svc.GetName }} GRPC server
 	app.runtime.Server().GRPC().SetDescriptor({{ $svc.GetName }}_ServiceDesc)
 	app.runtime.Server().GRPC().SetConstructor(register{{ $svc.GetName }}GRPCServer)
@@ -130,11 +130,11 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 	return app.runtime.Service(), nil
 }
 
-{{ if and $svc.UseGRPCServer .Methods }}
+{{ if and $svc.UseGRPCServer }}
 {{- template "grpc-service-define" . }}
 {{ end }}
 
-{{ if and (or $svc.UseHTTPServer $svc.UseWebsocketProxyServer $svc.UseWebsocketServer) .Methods }}
+{{ if and (or $svc.UseHTTPServer $svc.UseWebsocketProxyServer $svc.UseWebsocketServer) }}
 {{ if $svc.UseHTTPServer }}
 {{- template "http-service-define" . }}
 {{ end }}
