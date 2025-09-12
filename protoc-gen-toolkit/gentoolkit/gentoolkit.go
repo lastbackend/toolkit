@@ -94,6 +94,9 @@ func (g *generator) Generate(files []*descriptor.File) ([]*descriptor.ResponseFi
 				}
 			}
 		}
+
+		// CLI generation is now integrated into service generation
+		// No separate CLI file needed
 	}
 
 	return contentFiles, nil
@@ -126,7 +129,9 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 	var plugins = make(map[string][]*descriptor.Plugin, 0)
 	var definitionPlugins = make(map[string][]*descriptor.Plugin, 0)
 	var clients = make(map[string]*Client, 0)
-	var imports = g.prepareImports([]string{
+
+	// Base imports for service
+	baseImports := []string{
 		"context",
 		"encoding/json",
 		"io",
@@ -140,7 +145,18 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 		"errors github.com/lastbackend/toolkit/pkg/server/http/errors",
 		"google.golang.org/protobuf/types/known/emptypb",
 		"empty github.com/golang/protobuf/ptypes/empty",
-	})
+	}
+
+	// Add CLI imports if CLI configuration is present
+	if proto.HasExtension(file.Options, toolkit_annotattions.E_Cli) {
+		baseImports = append(baseImports, []string{
+			"fmt",
+			"os",
+			"cli github.com/urfave/cli/v2",
+		}...)
+	}
+
+	var imports = g.prepareImports(baseImports)
 
 	// checkers for conflicts and duplicates
 	var pkgExists = make(map[string]bool, 0)
@@ -290,12 +306,22 @@ func (g *generator) generateService(file *descriptor.File) ([]byte, error) {
 		}
 	}
 
+	// Extract CLI configuration if present
+	var cliConfig *toolkit_annotattions.CLI
+	if proto.HasExtension(file.Options, toolkit_annotattions.E_Cli) {
+		ext := proto.GetExtension(file.Options, toolkit_annotattions.E_Cli)
+		if config, ok := ext.(*toolkit_annotattions.CLI); ok {
+			cliConfig = config
+		}
+	}
+
 	to := tplServiceOptions{
 		File:              file,
 		Imports:           imports,
 		Clients:           clients,
 		Plugins:           plugins,
 		DefinitionPlugins: definitionPlugins,
+		CLIConfig:         cliConfig, // Add CLI configuration
 	}
 
 	content, err := applyServiceTemplate(to)
@@ -418,6 +444,98 @@ func (g *generator) generateTestStubs(file *descriptor.File) ([]byte, error) {
 		File:    file,
 		Imports: imports,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return format.Source([]byte(content))
+}
+
+func (g *generator) generateCLI(file *descriptor.File) ([]byte, error) {
+	// Проверяем наличие CLI конфигурации
+	if !proto.HasExtension(file.Options, toolkit_annotattions.E_Cli) {
+		return nil, nil
+	}
+
+	// Извлекаем CLI конфигурацию
+	ext := proto.GetExtension(file.Options, toolkit_annotattions.E_Cli)
+	cliConfig, ok := ext.(*toolkit_annotattions.CLI)
+	if !ok {
+		return nil, nil
+	}
+
+	baseImports := []string{
+		"context",
+		"fmt",
+		"os",
+		"encoding/json",
+		"gopkg.in/yaml.v3",
+		"github.com/urfave/cli/v2",
+		"google.golang.org/protobuf/proto",
+		"google.golang.org/protobuf/types/known/emptypb",
+		"empty github.com/golang/protobuf/ptypes/empty",
+	}
+
+	var imports = g.prepareImports(baseImports)
+
+	// Добавляем импорт для сгенерированного сервиса
+	imports = append(imports, descriptor.GoPackage{
+		Path:  file.GoPkg.Path,
+		Name:  file.GoPkg.Name,
+		Alias: "servicepb",
+	})
+
+	// Извлекаем плагины для CLI
+	plugins := make(map[string][]*descriptor.Plugin, 0)
+	definitionPlugins := make(map[string][]*descriptor.Plugin, 0)
+
+	if file.Options != nil && proto.HasExtension(file.Options, toolkit_annotattions.E_Plugins) {
+		ePlugins := proto.GetExtension(file.Options, toolkit_annotattions.E_Plugins)
+		if ePlugins != nil {
+			plgs := ePlugins.([]*toolkit_annotattions.Plugin)
+			for _, props := range plgs {
+				if _, ok := plugins[props.Plugin]; !ok {
+					plugins[props.Plugin] = make([]*descriptor.Plugin, 0)
+				}
+
+				imports = append(imports, descriptor.GoPackage{
+					Path: fmt.Sprintf("%s/%s", defaultRepoRootPath, strings.ToLower(props.Plugin)),
+					Name: path.Base(fmt.Sprintf("%s/%s", defaultRepoRootPath, strings.ToLower(props.Plugin))),
+				})
+
+				p := &descriptor.Plugin{
+					Plugin:   props.Plugin,
+					Prefix:   props.Prefix,
+					Pkg:      strings.ToLower(props.Plugin),
+					IsGlobal: true,
+				}
+
+				definePlugins(definitionPlugins, props.Plugin, p)
+				plugins[props.Plugin] = append(plugins[props.Plugin], p)
+			}
+		}
+	}
+
+	// Собираем методы с CLI командами
+	var cliMethods []*descriptor.Method
+	for _, svc := range file.Services {
+		for _, method := range svc.Methods {
+			if proto.HasExtension(method.Options, toolkit_annotattions.E_Command) {
+				cliMethods = append(cliMethods, method)
+			}
+		}
+	}
+
+	to := tplCLIOptions{
+		File:              file,
+		Imports:           imports,
+		CLIConfig:         cliConfig,
+		Methods:           cliMethods,
+		Plugins:           plugins,
+		DefinitionPlugins: definitionPlugins,
+	}
+
+	content, err := applyCLITemplate(to)
 	if err != nil {
 		return nil, err
 	}

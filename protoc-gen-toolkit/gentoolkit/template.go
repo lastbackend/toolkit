@@ -24,6 +24,8 @@ import (
 	"github.com/lastbackend/toolkit/pkg/util/strings"
 	"github.com/lastbackend/toolkit/protoc-gen-toolkit/descriptor"
 	"github.com/lastbackend/toolkit/protoc-gen-toolkit/gentoolkit/templates"
+	toolkit_annotattions "github.com/lastbackend/toolkit/protoc-gen-toolkit/toolkit/options"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -39,6 +41,26 @@ var (
 		"inc": func(n int) int {
 			return n + 1
 		},
+		"hasCommandAnnotation": func(method *descriptor.Method) bool {
+			return proto.HasExtension(method.Options, toolkit_annotattions.E_Command)
+		},
+		"getCommandConfig": func(method *descriptor.Method) *toolkit_annotattions.Command {
+			if !proto.HasExtension(method.Options, toolkit_annotattions.E_Command) {
+				return nil
+			}
+			ext := proto.GetExtension(method.Options, toolkit_annotattions.E_Command)
+			if cmd, ok := ext.(*toolkit_annotattions.Command); ok {
+				return cmd
+			}
+			return nil
+		},
+		"first": func(services []*descriptor.Service) *descriptor.Service {
+			if len(services) > 0 {
+				return services[0]
+			}
+			return nil
+		},
+		"title": strings.Title,
 	}
 )
 
@@ -48,12 +70,14 @@ var (
 	clientTemplate   = template.Must(template.New("client-content").Funcs(funcMap).Parse(templates.ClientTpl))
 	testStubTemplate = template.Must(template.New("stub-content-mockery").Parse(templates.TestTpl))
 	serviceTemplate  = template.Must(template.New("content").Funcs(funcMap).Parse(templates.ServiceContentTpl))
+	cliTemplate      = template.Must(template.New("cli-content").Funcs(funcMap).Parse(templates.CLITpl))
 	_                = template.Must(serviceTemplate.New("grpc-service-define").Parse(templates.ServerGRPCDefineTpl))
 	_                = template.Must(serviceTemplate.New("http-service-define").Parse(templates.ServiceInterfaceDefineTpl))
 	_                = template.Must(serviceTemplate.New("http-handler-define").Parse(templates.ServerHTTPDefineTpl))
 	_                = template.Must(serviceTemplate.New("plugin-define").Parse(templates.PluginDefineTpl))
 	_                = template.Must(serviceTemplate.New("plugin-init").Parse(templates.PluginInitializeTpl))
 	_                = template.Must(serviceTemplate.New("plugin-register").Parse(templates.PluginRegisterTpl))
+	_                = template.Must(serviceTemplate.New("tools-init").Parse(templates.ToolsContentTpl))
 )
 
 type Client struct {
@@ -66,6 +90,7 @@ type contentServiceParams struct {
 	Plugins           map[string][]*descriptor.Plugin
 	Services          []*descriptor.Service
 	Clients           map[string]*Client
+	CLIConfig         *toolkit_annotattions.CLI // Add CLI config support
 }
 
 type tplServiceOptions struct {
@@ -74,6 +99,7 @@ type tplServiceOptions struct {
 	Plugins           map[string][]*descriptor.Plugin
 	DefinitionPlugins map[string][]*descriptor.Plugin
 	Clients           map[string]*Client
+	CLIConfig         *toolkit_annotattions.CLI // Add CLI config support
 }
 
 func applyServiceTemplate(to tplServiceOptions) (string, error) {
@@ -100,6 +126,7 @@ func applyServiceTemplate(to tplServiceOptions) (string, error) {
 		DefinitionPlugins: to.DefinitionPlugins,
 		Clients:           to.Clients,
 		Services:          targetServices,
+		CLIConfig:         to.CLIConfig, // Pass CLI config to template
 	}
 
 	if err := serviceTemplate.Execute(w, tp); err != nil {
@@ -113,6 +140,15 @@ type tplClientOptions struct {
 	*descriptor.File
 	Imports []descriptor.GoPackage
 	Clients map[string]*Client
+}
+
+type tplCLIOptions struct {
+	*descriptor.File
+	Imports           []descriptor.GoPackage
+	CLIConfig         *toolkit_annotattions.CLI
+	Methods           []*descriptor.Method
+	Plugins           map[string][]*descriptor.Plugin
+	DefinitionPlugins map[string][]*descriptor.Plugin
 }
 
 type contentClientParams struct {
@@ -165,6 +201,15 @@ func applyTestTemplate(to tplMockeryTestOptions) (string, error) {
 	}
 
 	if err := testStubTemplate.Execute(w, to); err != nil {
+		return "", err
+	}
+
+	return w.String(), nil
+}
+
+func applyCLITemplate(to tplCLIOptions) (string, error) {
+	w := bytes.NewBuffer(nil)
+	if err := cliTemplate.Execute(w, to); err != nil {
 		return "", err
 	}
 

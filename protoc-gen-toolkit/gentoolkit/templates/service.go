@@ -127,6 +127,8 @@ func New{{ $svc.GetName }}Service(name string, opts ...runtime.Option) (_ toolki
 	app.runtime.Provide({{ $svc.GetName | ToLower }}ServicesRegister)
 {{- end }}
 
+{{- template "tools-init" $ }}
+
 	return app.runtime.Service(), nil
 }
 

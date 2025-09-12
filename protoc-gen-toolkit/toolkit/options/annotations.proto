@@ -16,10 +16,34 @@ message Service {
   string package = 2;
 }
 
+message Metrics {
+  enum Provider {
+    PROMETHEUS = 0;
+    INFLUXDB = 1;
+    STATSD = 2;
+  }
+  
+  Provider provider = 1;               // Провайдер метрик (по умолчанию PROMETHEUS)
+  bool enabled = 2;                    // Включить/выключить метрики
+  string namespace = 3;                // Namespace для метрик
+  string subsystem = 4;                // Subsystem для метрик
+  
+  // HTTP server настройки для метрик
+  string host = 5;                     // Host для metrics server
+  int32 port = 6;                      // Port для metrics server  
+  string path = 7;                     // Path для metrics endpoint
+  
+  // Дополнительные настройки
+  bool enable_http_metrics = 8;        // Автоматические HTTP метрики
+  bool enable_grpc_metrics = 9;        // Автоматические gRPC метрики
+}
+
 extend google.protobuf.FileOptions {
   repeated Plugin plugins = 50001;
   repeated Service services = 50002;
+  CLI cli = 50003;                     // CLI конфигурация
   TestSpec tests_spec = 50004;
+  Metrics metrics = 50005;             // Конфигурация метрик
 }
 
 message Runtime {
@@ -36,6 +60,7 @@ message Runtime {
 extend google.protobuf.ServiceOptions {
   Runtime runtime = 70001;
   Server server = 70002;
+  Metrics service_metrics = 70003;    // Конфигурация метрик для сервиса
 }
 
 message TestSpec {
@@ -46,8 +71,18 @@ message MockeryTestsSpec {
   string package = 1;
 }
 
+message MethodMetrics {
+  bool enabled = 1;                    // Включить метрики для метода
+  repeated string labels = 2;          // Дополнительные лейблы
+  bool track_duration = 3;             // Отслеживать длительность выполнения
+  bool track_requests = 4;             // Отслеживать количество запросов
+  bool track_errors = 5;               // Отслеживать ошибки
+}
+
 extend google.protobuf.MethodOptions {
   Route route = 60001;
+  Command command = 60002;             // Метод как CLI команда
+  MethodMetrics method_metrics = 60003; // Конфигурация метрик для метода
 }
 
 message Server {
@@ -72,4 +107,50 @@ message HttpProxy {
 message WsProxy {
   string service = 1;
   string method = 2;
+}
+
+// =====================================================
+// CLI Support Messages
+// =====================================================
+
+message CLI {
+  string name = 1;                    // Имя CLI приложения
+  string description = 2;             // Описание CLI
+  string version = 3;                 // Версия (опционально)
+  repeated Command commands = 4;      // CLI команды
+  GlobalFlags global_flags = 5;       // Глобальные флаги
+}
+
+message Command {
+  string name = 1;                    // Имя команды
+  string usage = 2;                   // Описание команды  
+  string alias = 3;                   // Короткий алиас (опционально)
+  repeated string aliases = 4;        // Дополнительные алиасы
+  repeated Flag flags = 5;            // Флаги команды
+  repeated Command subcommands = 6;   // Подкоманды
+  bool hidden = 7;                    // Скрыть команду
+  string category = 8;                // Категория команды
+}
+
+message Flag {
+  enum Type {
+    STRING = 0;
+    INT = 1;
+    BOOL = 2;
+    STRING_SLICE = 3;
+    INT_SLICE = 4;
+    FLOAT = 5;
+  }
+  
+  string name = 1;                    // Имя флага
+  Type type = 2;                      // Тип флага
+  string usage = 3;                   // Описание флага
+  string value = 4;                   // Значение по умолчанию
+  bool required = 5;                  // Обязательный флаг
+  string env_var = 6;                 // Переменная окружения
+  repeated string aliases = 7;        // Алиасы флага
+}
+
+message GlobalFlags {
+  repeated Flag flags = 1;            // Глобальные флаги
 }
