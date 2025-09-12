@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+
 	"github.com/caarlos0/env/v7"
 	"github.com/lastbackend/toolkit"
 	"github.com/lastbackend/toolkit/pkg/client"
@@ -103,4 +104,13 @@ type Tools interface {
 	Metrics() metrics.Metrics
 	Probes() probes.Probes
 	Traces() traces.Traces
+
+	// StartProbes starts the probes server
+	StartProbes(ctx context.Context) error
+
+	// StartMetrics starts the metrics server with specified provider
+	StartMetrics(ctx context.Context, provider string) error
+
+	// SetMetricsProvider sets the metrics provider (prometheus, influxdb, statsd, noop)
+	SetMetricsProvider(provider string) error
 }
